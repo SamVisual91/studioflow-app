@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+:root {
+  --canvas: #f7f1e8;
+  --sidebar: #1d1b1f;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-strong: #fffdf9;
+  --ink: #1f1b18;
+  --muted: #6d625a;
+  --accent: #cf724f;
+  --accent-soft: rgba(207, 114, 79, 0.14);
+  --forest: #2f7d5c;
+}
+
+@theme inline {
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+  --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(207, 114, 79, 0.18), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(47, 125, 92, 0.12), transparent 28%),
+    linear-gradient(180deg, #fcfaf6, var(--canvas));
+  overflow-x: hidden;
+}
+
+body {
+  background: transparent;
+  color: var(--ink);
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+a,
+button {
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+::selection {
+  background: rgba(207, 114, 79, 0.18);
+}
+
+.font-display {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.font-times {
+  font-family: "Times New Roman", Times, serif;
+}
+
+img,
+video,
+canvas,
+svg,
+iframe {
+  max-width: 100%;
+}
+
+textarea,
+input,
+select,
+button {
+  font: inherit;
+}
+
+textarea {
+  max-width: 100%;
+}
+
+table {
+  width: 100%;
+}
+
+[data-responsive-card] {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+[class*="rounded"]:not(.rounded-full) {
+  border-radius: 0.35rem !important;
+}
+
+.rounded-full {
+  border-radius: 9999px !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
