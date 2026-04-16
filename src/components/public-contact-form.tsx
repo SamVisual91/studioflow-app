@@ -31,6 +31,7 @@ export function PublicContactForm() {
 
   return (
     <form action={createPublicInquiryAction} className="mt-6 grid gap-4">
+      <p className="text-xs uppercase tracking-[0.16em] text-white/45">Fields marked * are required.</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-2 text-sm font-medium text-white/88">
           <span>
@@ -106,6 +107,7 @@ export function PublicContactForm() {
               className={`min-h-44 ${fieldClassName}`}
               name="notes"
               placeholder="Tell us about your date, the kind of coverage you want, and what matters most to you."
+              required
             />
           </label>
         </>
@@ -163,6 +165,7 @@ export function PublicContactForm() {
               className={`min-h-44 ${fieldClassName}`}
               name="notes"
               placeholder="Tell us what you're launching, what the content needs to do, and what kind of support you're looking for."
+              required
             />
           </label>
         </>
@@ -215,12 +218,16 @@ export function PublicContactForm() {
               className={`min-h-44 ${fieldClassName}`}
               name="notes"
               placeholder="Tell us what you're making, what kind of content or support you need, and what outcome you're hoping for."
+              required
             />
           </label>
         </>
       ) : null}
 
-      <button className="mt-2 bg-[#c97d21] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#15120f] transition hover:brightness-110">
+      <button
+        className="mt-2 bg-[#c97d21] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#15120f] transition hover:brightness-110"
+        type="submit"
+      >
         Send inquiry
       </button>
     </form>
