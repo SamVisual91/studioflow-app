@@ -193,8 +193,13 @@ export default async function ProjectClientPage({
   }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const requestedTab = (query.tab || "").toLowerCase() as ProjectTab;
-  const activeTab = requestedTab === "buy-videos" ? "deliverables" : projectTabs.includes(requestedTab) ? requestedTab : "activity";
+  const requestedTab = (query.tab || "").toLowerCase();
+  const activeTab: ProjectTab =
+    requestedTab === "buy-videos"
+      ? "deliverables"
+      : projectTabs.includes(requestedTab as ProjectTab)
+        ? (requestedTab as ProjectTab)
+        : "activity";
   const requestedTemplate = (query.template || "").toLowerCase() as TaskTemplateKey;
   const selectedTaskTemplate = requestedTemplate in taskTemplates ? taskTemplates[requestedTemplate] : null;
 
