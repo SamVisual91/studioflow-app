@@ -756,6 +756,27 @@ export async function uploadWorkVideosAction(formData: FormData) {
   redirect("/media-library?uploaded=1");
 }
 
+export async function deleteWorkVideoAction(formData: FormData) {
+  await requireUser();
+
+  const fileName = normalizeVideoFileName(getString(formData, "fileName"));
+  const filePath = join(getWorkVideosRoot(), fileName);
+
+  try {
+    await unlink(filePath);
+  } catch {
+    redirect("/media-library?error=video-delete-failed");
+  }
+
+  revalidatePath("/");
+  revalidatePath("/home");
+  revalidatePath("/video-production");
+  revalidatePath("/wedding");
+  revalidatePath("/portfolio");
+  revalidatePath("/media-library");
+  redirect("/media-library?deleted=1");
+}
+
 export async function updateUserAvatarAction(formData: FormData) {
   const user = await requireUser();
 

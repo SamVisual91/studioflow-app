@@ -1,7 +1,7 @@
 import { access, mkdir, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import Link from "next/link";
-import { uploadWorkVideosAction } from "@/app/actions";
+import { deleteWorkVideoAction, uploadWorkVideosAction } from "@/app/actions";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getWorkVideosRoot } from "@/lib/storage";
@@ -70,7 +70,7 @@ async function getVideoLibrary() {
 export default async function MediaLibraryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ uploaded?: string; error?: string }>;
+  searchParams: Promise<{ uploaded?: string; deleted?: string; error?: string }>;
 }) {
   const [{ user, data }, query, library] = await Promise.all([
     getDashboardPageData(),
@@ -79,8 +79,13 @@ export default async function MediaLibraryPage({
   ]);
 
   const successMessage = query.uploaded ? "Video files were uploaded to Railway storage." : "";
+  const deletedMessage = query.deleted ? "Stored video was removed from Railway storage." : "";
   const errorMessage =
-    query.error === "videos-missing" ? "Choose at least one video file before uploading." : "";
+    query.error === "videos-missing"
+      ? "Choose at least one video file before uploading."
+      : query.error === "video-delete-failed"
+        ? "We couldn't remove that stored video right now."
+        : "";
 
   return (
     <DashboardShell
@@ -109,6 +114,12 @@ export default async function MediaLibraryPage({
           {successMessage ? (
             <div className="mt-6 rounded-2xl border border-[rgba(47,125,92,0.16)] bg-[rgba(47,125,92,0.08)] px-4 py-3 text-sm text-[var(--forest)]">
               {successMessage}
+            </div>
+          ) : null}
+
+          {deletedMessage ? (
+            <div className="mt-6 rounded-2xl border border-[rgba(47,125,92,0.16)] bg-[rgba(47,125,92,0.08)] px-4 py-3 text-sm text-[var(--forest)]">
+              {deletedMessage}
             </div>
           ) : null}
 
@@ -192,13 +203,24 @@ export default async function MediaLibraryPage({
                   >
                     <p className="text-sm font-medium text-[var(--ink)]">{file.name}</p>
                     <p className="mt-1 text-xs text-[var(--muted)]">{file.sizeMb} MB</p>
-                    <Link
-                      className="mt-2 inline-flex text-xs font-semibold text-[var(--forest)] underline-offset-4 hover:underline"
-                      href={`/work-videos/${file.name}`}
-                      target="_blank"
-                    >
-                      Open public URL
-                    </Link>
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      <Link
+                        className="inline-flex text-xs font-semibold text-[var(--forest)] underline-offset-4 hover:underline"
+                        href={`/work-videos/${file.name}`}
+                        target="_blank"
+                      >
+                        Open public URL
+                      </Link>
+                      <form action={deleteWorkVideoAction}>
+                        <input name="fileName" type="hidden" value={file.name} />
+                        <button
+                          className="inline-flex text-xs font-semibold text-[var(--accent)] underline-offset-4 hover:underline"
+                          type="submit"
+                        >
+                          Remove video
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 ))
               ) : (
