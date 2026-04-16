@@ -22,7 +22,6 @@ import { ensureDocumentTemplatesTable } from "@/lib/templates";
 import {
   getUploadPublicPath,
   getUploadStorageDir,
-  getWorkVideosRoot,
   resolveUploadStoragePath,
 } from "@/lib/storage";
 import { createVideoPaywallToken, ensureVideoPaywallsTable } from "@/lib/video-paywalls";
@@ -204,22 +203,6 @@ function getUploadFile(formData: FormData, key: string) {
 
 function getUploadFiles(formData: FormData, key: string) {
   return formData.getAll(key).filter((value): value is File => value instanceof File && value.size > 0);
-}
-
-function normalizeVideoFileName(name: string) {
-  const trimmed = name.trim().toLowerCase();
-
-  if (!trimmed) {
-    throw new Error("INVALID_VIDEO_FILE_NAME");
-  }
-
-  const normalized = trimmed.replace(/[^a-z0-9._-]+/g, "-");
-
-  if (normalized === "." || normalized === "..") {
-    throw new Error("INVALID_VIDEO_FILE_NAME");
-  }
-
-  return normalized;
 }
 
 function getSelectedValues(formData: FormData, key: string) {
@@ -726,55 +709,6 @@ export async function createPublicInquiryAction(formData: FormData) {
   revalidatePath("/projects");
   revalidatePath("/crm");
   redirect("/contact?sent=1");
-}
-
-export async function uploadWorkVideosAction(formData: FormData) {
-  await requireUser();
-
-  const videos = getUploadFiles(formData, "videos");
-
-  if (videos.length === 0) {
-    redirect("/media-library?error=videos-missing");
-  }
-
-  const workVideosRoot = getWorkVideosRoot();
-  await mkdir(workVideosRoot, { recursive: true });
-
-  for (const video of videos) {
-    const normalizedFileName = normalizeVideoFileName(video.name);
-    const outputPath = join(workVideosRoot, normalizedFileName);
-    const bytes = Buffer.from(await video.arrayBuffer());
-    await writeFile(outputPath, bytes);
-  }
-
-  revalidatePath("/");
-  revalidatePath("/home");
-  revalidatePath("/video-production");
-  revalidatePath("/wedding");
-  revalidatePath("/portfolio");
-  revalidatePath("/media-library");
-  redirect("/media-library?uploaded=1");
-}
-
-export async function deleteWorkVideoAction(formData: FormData) {
-  await requireUser();
-
-  const fileName = normalizeVideoFileName(getString(formData, "fileName"));
-  const filePath = join(getWorkVideosRoot(), fileName);
-
-  try {
-    await unlink(filePath);
-  } catch {
-    redirect("/media-library?error=video-delete-failed");
-  }
-
-  revalidatePath("/");
-  revalidatePath("/home");
-  revalidatePath("/video-production");
-  revalidatePath("/wedding");
-  revalidatePath("/portfolio");
-  revalidatePath("/media-library");
-  redirect("/media-library?deleted=1");
 }
 
 export async function updateUserAvatarAction(formData: FormData) {
