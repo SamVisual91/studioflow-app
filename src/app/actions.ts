@@ -2391,7 +2391,8 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
     redirectWithStatus("error", "package-selection-invalid");
   }
 
-  const packageCategoryAliases = getPackageCategoryAliases(brochure.category);
+  const resolvedBrochure = brochure!;
+  const packageCategoryAliases = getPackageCategoryAliases(resolvedBrochure.category);
   const packagePresets = db
     .prepare(
       "SELECT id, name, description, amount FROM package_presets WHERE category IN (?, ?) ORDER BY amount ASC, created_at ASC"
@@ -2405,7 +2406,7 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
 
   const selectedPackageIds = (() => {
     try {
-      const parsed = JSON.parse(String(brochure.selected_package_ids || "[]")) as string[];
+      const parsed = JSON.parse(String(resolvedBrochure.selected_package_ids || "[]")) as string[];
       return parsed.filter(Boolean);
     } catch {
       return [];
@@ -2414,7 +2415,7 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
 
   const packageOverrides = (() => {
     try {
-      return JSON.parse(String(brochure.package_overrides || "{}")) as Record<
+      return JSON.parse(String(resolvedBrochure.package_overrides || "{}")) as Record<
         string,
         { name?: string; description?: string; amount?: number }
       >;
@@ -2453,7 +2454,7 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
   const plainText = [
     `Hi ${String(owner?.name || "there").trim() || "there"},`,
     "",
-    `${clientName} selected a package from the brochure for ${brochure.project_name}.`,
+    `${clientName} selected a package from the brochure for ${resolvedBrochure.project_name}.`,
     "",
     `Selected package: ${selectedPackageName}`,
     `Amount: ${currencyFormatter.format(selectedPackageAmount)}`,
@@ -2481,8 +2482,8 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
     "INSERT INTO package_brochure_responses (id, brochure_id, project_id, package_id, client_name, client_email, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run(
     randomUUID(),
-    brochure.id,
-    brochure.project_id,
+    resolvedBrochure.id,
+    resolvedBrochure.project_id,
     selectedPackage.id,
     clientName,
     clientEmail,
@@ -2493,8 +2494,8 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
 
   logProjectMessage(db, {
     sender: clientName,
-    clientName: brochure.project_client,
-    projectId: brochure.project_id,
+    clientName: resolvedBrochure.project_client,
+    projectId: resolvedBrochure.project_id,
     direction: "INBOUND",
     channel: "Email",
     time: timestamp,
@@ -2504,12 +2505,12 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
   });
   updateProjectRecentActivity(
     db,
-    brochure.project_id,
+    resolvedBrochure.project_id,
     createRecentActivity(`${selectedPackageName} selected`, timestamp),
     timestamp
   );
 
-  revalidatePath(`/projects/${brochure.project_id}`);
+  revalidatePath(`/projects/${resolvedBrochure.project_id}`);
   revalidatePath("/projects");
   revalidatePath("/overview");
   revalidatePath("/messages");
