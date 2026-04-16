@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import SMTPTransport from "nodemailer/lib/smtp-transport";
 
 function getRequired(name: string) {
   return process.env[name]?.trim() || "";
@@ -27,7 +28,7 @@ export async function sendProposalEmail(input: {
   const secure = getRequired("SMTP_SECURE").toLowerCase() === "true";
   const port = Number(getRequired("SMTP_PORT"));
 
-  const transporter = nodemailer.createTransport({
+  const transportConfig: SMTPTransport.Options = {
     host: getRequired("SMTP_HOST"),
     port,
     family: 4,
@@ -44,7 +45,9 @@ export async function sendProposalEmail(input: {
       rejectUnauthorized:
         (process.env.SMTP_ALLOW_SELF_SIGNED || "").toLowerCase() === "true" ? false : true,
     },
-  });
+  };
+
+  const transporter = nodemailer.createTransport(transportConfig);
 
   await transporter.sendMail({
     from: getRequired("EMAIL_FROM"),
