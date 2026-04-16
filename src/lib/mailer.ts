@@ -28,7 +28,7 @@ export async function sendProposalEmail(input: {
   const secure = getRequired("SMTP_SECURE").toLowerCase() === "true";
   const port = Number(getRequired("SMTP_PORT"));
 
-  const transportConfig: SMTPTransport.Options = {
+  const transportConfig: SMTPTransport.Options & { family: 4 } = {
     host: getRequired("SMTP_HOST"),
     port,
     family: 4,
