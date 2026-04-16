@@ -2030,7 +2030,7 @@ export async function sendVideoPaywallToClientAction(formData: FormData) {
   const timestamp = new Date().toISOString();
   logProjectMessage(db, {
     sender: "Sam Visual",
-    clientName: project.client,
+    clientName: resolvedProject.client,
     projectId,
     direction: "OUTBOUND",
     channel: "Email",
@@ -2042,13 +2042,13 @@ export async function sendVideoPaywallToClientAction(formData: FormData) {
   updateProjectRecentActivity(
     db,
     projectId,
-    createRecentActivity(`${paywall.title} purchase page emailed`, timestamp),
+    createRecentActivity(`${resolvedPaywall.title} purchase page emailed`, timestamp),
     timestamp
   );
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/deliverables`);
-  revalidatePath(`/video-paywall/${paywall.public_token}`);
+  revalidatePath(`/video-paywall/${resolvedPaywall.public_token}`);
   revalidatePath("/messages");
   redirectWithStatus("paywallSent", "1");
 }
