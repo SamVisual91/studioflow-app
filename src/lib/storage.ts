@@ -31,14 +31,18 @@ export function getUploadStorageDir(...segments: string[]) {
 }
 
 export function getUploadPublicPath(...segments: string[]) {
-  return `/${["uploads", ...normalizeUploadSegments(segments)].join("/")}`;
+  return `/${["api", "uploads", ...normalizeUploadSegments(segments)].join("/")}`;
 }
 
 export function resolveUploadStoragePath(publicPath: string) {
-  if (!publicPath.startsWith("/uploads/")) {
+  const normalizedPath = publicPath.startsWith("/api/uploads/")
+    ? publicPath.replace(/^\/api/, "")
+    : publicPath;
+
+  if (!normalizedPath.startsWith("/uploads/")) {
     throw new Error("INVALID_UPLOAD_PUBLIC_PATH");
   }
 
-  const segments = publicPath.replace(/^\/uploads\//, "").split("/");
+  const segments = normalizedPath.replace(/^\/uploads\//, "").split("/");
   return join(uploadsRoot, ...normalizeUploadSegments(segments));
 }
