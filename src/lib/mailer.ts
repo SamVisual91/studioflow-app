@@ -24,14 +24,21 @@ export async function sendProposalEmail(input: {
     throw new Error("SMTP_NOT_CONFIGURED");
   }
 
+  const secure = getRequired("SMTP_SECURE").toLowerCase() === "true";
+  const port = Number(getRequired("SMTP_PORT"));
+
   const transporter = nodemailer.createTransport({
     host: getRequired("SMTP_HOST"),
-    port: Number(getRequired("SMTP_PORT")),
-    secure: getRequired("SMTP_SECURE").toLowerCase() === "true",
+    port,
+    secure,
+    requireTLS: !secure && port === 587,
     auth: {
       user: getRequired("SMTP_USER"),
       pass: getRequired("SMTP_PASS"),
     },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
     tls: {
       rejectUnauthorized:
         (process.env.SMTP_ALLOW_SELF_SIGNED || "").toLowerCase() === "true" ? false : true,
