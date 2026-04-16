@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { join } from "node:path";
 import { hashPassword } from "@/lib/crypto";
+import { getStorageRoot } from "@/lib/storage";
 
 type DbSingleton = {
   db?: DatabaseSync;
@@ -10,7 +11,7 @@ type DbSingleton = {
 };
 
 const globalForDb = globalThis as unknown as DbSingleton;
-const dbPath = join(process.cwd(), "data", "studioflow.db");
+const dbPath = join(getStorageRoot(), "studioflow.db");
 
 function nowIso() {
   return new Date().toISOString();
@@ -1300,7 +1301,7 @@ export function ensureDefaultPackagePresets(db: DatabaseSync) {
 
 export function getDb() {
   if (!globalForDb.db) {
-    mkdirSync(join(process.cwd(), "data"), { recursive: true });
+    mkdirSync(getStorageRoot(), { recursive: true });
     globalForDb.db = new DatabaseSync(dbPath);
   }
 

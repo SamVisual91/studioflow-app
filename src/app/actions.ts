@@ -19,6 +19,7 @@ import { sendProposalEmail } from "@/lib/mailer";
 import { getProjectFileTemplate } from "@/lib/project-files";
 import { getStripe } from "@/lib/stripe";
 import { ensureDocumentTemplatesTable } from "@/lib/templates";
+import { getUploadPublicPath, getUploadStorageDir, resolveUploadStoragePath } from "@/lib/storage";
 import { createVideoPaywallToken, ensureVideoPaywallsTable } from "@/lib/video-paywalls";
 
 function getString(formData: FormData, key: string) {
@@ -246,13 +247,13 @@ async function savePackageCover(file: File) {
     .slice(0, 40) || "package-cover";
   const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const fileName = `${safeBaseName}-${randomUUID()}.${extension}`;
-  const publicDir = join(process.cwd(), "public", "uploads", "package-covers");
+  const publicDir = getUploadStorageDir("package-covers");
   const filePath = join(publicDir, fileName);
 
   await mkdir(publicDir, { recursive: true });
   await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
 
-  return `/uploads/package-covers/${fileName}`;
+  return getUploadPublicPath("package-covers", fileName);
 }
 
 async function saveClientUploadImage(file: File) {
@@ -264,13 +265,13 @@ async function saveClientUploadImage(file: File) {
     .slice(0, 40) || "client-upload";
   const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const fileName = `${safeBaseName}-${randomUUID()}.${extension}`;
-  const publicDir = join(process.cwd(), "public", "uploads", "client-uploads");
+  const publicDir = getUploadStorageDir("client-uploads");
   const filePath = join(publicDir, fileName);
 
   await mkdir(publicDir, { recursive: true });
   await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
 
-  return `/uploads/client-uploads/${fileName}`;
+  return getUploadPublicPath("client-uploads", fileName);
 }
 
 async function saveLedgerReceipt(file: File) {
@@ -282,13 +283,13 @@ async function saveLedgerReceipt(file: File) {
     .slice(0, 40) || "ledger-receipt";
   const extension = file.name.split(".").pop()?.toLowerCase() || "pdf";
   const fileName = `${safeBaseName}-${randomUUID()}.${extension}`;
-  const publicDir = join(process.cwd(), "public", "uploads", "ledger-receipts");
+  const publicDir = getUploadStorageDir("ledger-receipts");
   const filePath = join(publicDir, fileName);
 
   await mkdir(publicDir, { recursive: true });
   await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
 
-  return `/uploads/ledger-receipts/${fileName}`;
+  return getUploadPublicPath("ledger-receipts", fileName);
 }
 
 async function saveProjectDeliverableFile(file: File, mediaType: "VIDEO" | "PHOTO") {
@@ -300,13 +301,13 @@ async function saveProjectDeliverableFile(file: File, mediaType: "VIDEO" | "PHOT
     .slice(0, 48) || "deliverable";
   const extension = file.name.split(".").pop()?.toLowerCase() || (mediaType === "VIDEO" ? "mp4" : "jpg");
   const fileName = `${safeBaseName}-${randomUUID()}.${extension}`;
-  const publicDir = join(process.cwd(), "public", "uploads", "project-deliverables", mediaType.toLowerCase());
+  const publicDir = getUploadStorageDir("project-deliverables", mediaType.toLowerCase());
   const filePath = join(publicDir, fileName);
 
   await mkdir(publicDir, { recursive: true });
   await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
 
-  return `/uploads/project-deliverables/${mediaType.toLowerCase()}/${fileName}`;
+  return getUploadPublicPath("project-deliverables", mediaType.toLowerCase(), fileName);
 }
 
 async function saveProjectDeliverableThumbnail(file: File) {
@@ -318,13 +319,13 @@ async function saveProjectDeliverableThumbnail(file: File) {
     .slice(0, 48) || "deliverable-thumbnail";
   const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const fileName = `${safeBaseName}-${randomUUID()}.${extension}`;
-  const publicDir = join(process.cwd(), "public", "uploads", "project-deliverables", "thumbnails");
+  const publicDir = getUploadStorageDir("project-deliverables", "thumbnails");
   const filePath = join(publicDir, fileName);
 
   await mkdir(publicDir, { recursive: true });
   await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
 
-  return `/uploads/project-deliverables/thumbnails/${fileName}`;
+  return getUploadPublicPath("project-deliverables", "thumbnails", fileName);
 }
 
 async function saveProjectDeliverableBanner(file: File) {
@@ -336,13 +337,13 @@ async function saveProjectDeliverableBanner(file: File) {
     .slice(0, 48) || "deliverable-banner";
   const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const fileName = `${safeBaseName}-${randomUUID()}.${extension}`;
-  const publicDir = join(process.cwd(), "public", "uploads", "project-deliverables", "banners");
+  const publicDir = getUploadStorageDir("project-deliverables", "banners");
   const filePath = join(publicDir, fileName);
 
   await mkdir(publicDir, { recursive: true });
   await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
 
-  return `/uploads/project-deliverables/banners/${fileName}`;
+  return getUploadPublicPath("project-deliverables", "banners", fileName);
 }
 
 async function saveProjectHeroBanner(file: File) {
@@ -354,13 +355,13 @@ async function saveProjectHeroBanner(file: File) {
     .slice(0, 48) || "project-banner";
   const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const fileName = `${safeBaseName}-${randomUUID()}.${extension}`;
-  const publicDir = join(process.cwd(), "public", "uploads", "project-banners");
+  const publicDir = getUploadStorageDir("project-banners");
   const filePath = join(publicDir, fileName);
 
   await mkdir(publicDir, { recursive: true });
   await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
 
-  return `/uploads/project-banners/${fileName}`;
+  return getUploadPublicPath("project-banners", fileName);
 }
 
 async function saveUserAvatar(file: File) {
@@ -372,13 +373,13 @@ async function saveUserAvatar(file: File) {
     .slice(0, 48) || "user-avatar";
   const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const fileName = `${safeBaseName}-${randomUUID()}.${extension}`;
-  const publicDir = join(process.cwd(), "public", "uploads", "user-avatars");
+  const publicDir = getUploadStorageDir("user-avatars");
   const filePath = join(publicDir, fileName);
 
   await mkdir(publicDir, { recursive: true });
   await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
 
-  return `/uploads/user-avatars/${fileName}`;
+  return getUploadPublicPath("user-avatars", fileName);
 }
 
 async function deleteProjectHeroBannerIfLocal(path: string) {
@@ -386,7 +387,7 @@ async function deleteProjectHeroBannerIfLocal(path: string) {
     return;
   }
 
-  const filePath = join(process.cwd(), "public", ...path.replace(/^\//, "").split("/"));
+  const filePath = resolveUploadStoragePath(path);
 
   try {
     await unlink(filePath);
@@ -400,7 +401,7 @@ async function deleteUserAvatarIfLocal(path: string) {
     return;
   }
 
-  const filePath = join(process.cwd(), "public", ...path.replace(/^\//, "").split("/"));
+  const filePath = resolveUploadStoragePath(path);
 
   try {
     await unlink(filePath);
@@ -414,7 +415,7 @@ async function deletePackageCoverIfLocal(coverImage: string) {
     return;
   }
 
-  const filePath = join(process.cwd(), "public", ...coverImage.replace(/^\//, "").split("/"));
+  const filePath = resolveUploadStoragePath(coverImage);
 
   try {
     await unlink(filePath);
