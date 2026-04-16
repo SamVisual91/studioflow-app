@@ -1,8 +1,9 @@
 import { access, mkdir, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import Link from "next/link";
-import { deleteWorkVideoAction, uploadWorkVideosAction } from "@/app/actions";
+import { deleteWorkVideoAction } from "@/app/actions";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { MediaLibraryUploadForm } from "@/components/media-library-upload-form";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getWorkVideosRoot } from "@/lib/storage";
 
@@ -129,29 +130,15 @@ export default async function MediaLibraryPage({
             </div>
           ) : null}
 
-          <form action={uploadWorkVideosAction} className="mt-8 grid gap-4">
-            <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
-              Select one or more video files
-              <input
-                accept=".mp4,.mov,.m4v,.webm,video/*"
-                className="rounded-2xl border border-black/10 bg-white px-4 py-3"
-                multiple
-                name="videos"
-                type="file"
-              />
-            </label>
-            <div className="flex flex-wrap gap-3">
-              <button className="rounded-2xl bg-[var(--ink)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110" type="submit">
-                Upload videos
-              </button>
-              <Link
-                className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/5"
-                href="/video-production"
-              >
-                View public site
-              </Link>
-            </div>
-          </form>
+          <MediaLibraryUploadForm />
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link
+              className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/5"
+              href="/video-production"
+            >
+              View public site
+            </Link>
+          </div>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
