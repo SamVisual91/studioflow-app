@@ -1,7 +1,8 @@
 import { join } from "node:path";
 
-const storageRoot = join(process.cwd(), "data");
+const storageRoot = join(/* turbopackIgnore: true */ process.cwd(), "data");
 const uploadsRoot = join(storageRoot, "uploads");
+const workVideosRoot = join(storageRoot, "work-videos");
 
 function normalizeUploadSegments(segments: string[]) {
   const cleaned = segments
@@ -24,6 +25,10 @@ export function getStorageRoot() {
 
 export function getUploadsRoot() {
   return uploadsRoot;
+}
+
+export function getWorkVideosRoot() {
+  return workVideosRoot;
 }
 
 export function getUploadStorageDir(...segments: string[]) {
