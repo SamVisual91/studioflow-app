@@ -9,8 +9,9 @@ export function MediaLibraryUploadForm() {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
+  const [statusLabel, setStatusLabel] = useState("");
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const input = inputRef.current;
@@ -21,51 +22,67 @@ export function MediaLibraryUploadForm() {
       return;
     }
 
-    const formData = new FormData();
-    Array.from(files).forEach((file) => {
-      formData.append("videos", file);
-    });
+    const filesList = Array.from(files);
+    const totalBytes = filesList.reduce((sum, file) => sum + file.size, 0);
+    let uploadedBytes = 0;
 
-    const request = new XMLHttpRequest();
-    request.open("POST", "/api/work-videos/upload");
-    request.withCredentials = true;
+    setIsUploading(true);
+    setProgress(0);
+    setError("");
 
-    request.upload.onprogress = (uploadEvent) => {
-      if (!uploadEvent.lengthComputable) {
-        return;
+    try {
+      for (let index = 0; index < filesList.length; index += 1) {
+        const file = filesList[index];
+        setStatusLabel(`Uploading ${index + 1} of ${filesList.length}: ${file.name}`);
+
+        await new Promise<void>((resolve, reject) => {
+          const request = new XMLHttpRequest();
+          request.open("POST", "/api/work-videos/upload");
+          request.withCredentials = true;
+          request.setRequestHeader("x-file-name", encodeURIComponent(file.name));
+          request.setRequestHeader("content-type", file.type || "application/octet-stream");
+
+          request.upload.onprogress = (uploadEvent) => {
+            const currentFileBytes = uploadEvent.lengthComputable ? uploadEvent.loaded : 0;
+            const completedBytes = uploadedBytes + currentFileBytes;
+            const nextProgress =
+              totalBytes > 0 ? Math.min(Math.round((completedBytes / totalBytes) * 100), 99) : 0;
+            setProgress(nextProgress);
+          };
+
+          request.onerror = () => {
+            reject(new Error("network"));
+          };
+
+          request.onload = () => {
+            if (request.status >= 200 && request.status < 300) {
+              uploadedBytes += file.size;
+              setProgress(totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 100);
+              resolve();
+              return;
+            }
+
+            reject(new Error("upload"));
+          };
+
+          request.send(file);
+        });
       }
 
-      setProgress(Math.round((uploadEvent.loaded / uploadEvent.total) * 100));
-    };
-
-    request.onloadstart = () => {
-      setIsUploading(true);
-      setProgress(0);
-      setError("");
-    };
-
-    request.onerror = () => {
+      setStatusLabel("Finishing up...");
+      setProgress(100);
       setIsUploading(false);
-      setError("The upload ran into a network problem. Please try again.");
-    };
-
-    request.onload = () => {
-      if (request.status >= 200 && request.status < 300) {
-        setProgress(100);
-        setIsUploading(false);
-        if (input) {
-          input.value = "";
-        }
-        router.push("/media-library?uploaded=1");
-        router.refresh();
-        return;
+      setStatusLabel("");
+      if (input) {
+        input.value = "";
       }
-
+      router.push("/media-library?uploaded=1");
+      router.refresh();
+    } catch {
       setIsUploading(false);
+      setStatusLabel("");
       setError("We couldn't upload those videos right now.");
-    };
-
-    request.send(formData);
+    }
   }
 
   return (
@@ -84,7 +101,7 @@ export function MediaLibraryUploadForm() {
       {isUploading ? (
         <div className="grid gap-2">
           <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
-            <span>Uploading videos...</span>
+            <span>{statusLabel || "Uploading videos..."}</span>
             <span>{progress}%</span>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-black/10">

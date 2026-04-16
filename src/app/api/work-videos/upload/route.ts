@@ -1,5 +1,8 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
@@ -28,24 +31,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const formData = await request.formData();
-  const videos = formData
-    .getAll("videos")
-    .filter((value): value is File => value instanceof File && value.size > 0);
+  const rawFileName = request.headers.get("x-file-name") || "";
+  const normalizedFileName = normalizeVideoFileName(decodeURIComponent(rawFileName));
 
-  if (videos.length === 0) {
+  if (!request.body) {
     return NextResponse.json({ error: "videos-missing" }, { status: 400 });
   }
 
   const workVideosRoot = getWorkVideosRoot();
   await mkdir(workVideosRoot, { recursive: true });
-
-  for (const video of videos) {
-    const normalizedFileName = normalizeVideoFileName(video.name);
-    const outputPath = join(workVideosRoot, normalizedFileName);
-    const bytes = Buffer.from(await video.arrayBuffer());
-    await writeFile(outputPath, bytes);
-  }
+  const outputPath = join(workVideosRoot, normalizedFileName);
+  const fileStream = createWriteStream(outputPath);
+  await pipeline(Readable.fromWeb(request.body as never), fileStream);
 
   revalidatePath("/");
   revalidatePath("/home");
@@ -56,4 +53,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true });
 }
-
