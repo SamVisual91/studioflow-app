@@ -2434,11 +2434,12 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
     redirectWithStatus("error", "package-selection-invalid");
   }
 
-  const selectedPackageName = packageOverrides[selectedPackage.id]?.name || selectedPackage.name;
+  const resolvedSelectedPackage = selectedPackage!;
+  const selectedPackageName = packageOverrides[resolvedSelectedPackage.id]?.name || resolvedSelectedPackage.name;
   const selectedPackageAmount =
-    typeof packageOverrides[selectedPackage.id]?.amount === "number"
-      ? Number(packageOverrides[selectedPackage.id]?.amount || 0)
-      : Number(selectedPackage.amount || 0);
+    typeof packageOverrides[resolvedSelectedPackage.id]?.amount === "number"
+      ? Number(packageOverrides[resolvedSelectedPackage.id]?.amount || 0)
+      : Number(resolvedSelectedPackage.amount || 0);
 
   const owner = db
     .prepare("SELECT email, name FROM users ORDER BY created_at ASC LIMIT 1")
