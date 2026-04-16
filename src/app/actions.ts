@@ -2485,7 +2485,7 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
     randomUUID(),
     resolvedBrochure.id,
     resolvedBrochure.project_id,
-    selectedPackage.id,
+    resolvedSelectedPackage.id,
     clientName,
     clientEmail,
     clientNote,
