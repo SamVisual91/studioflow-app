@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import { createPublicInquiryAction } from "@/app/actions";
 
 const weddingBudgetOptions = [
@@ -26,35 +27,25 @@ const otherBudgetOptions = [
 const fieldClassName =
   "border border-white/10 bg-[#151515] px-4 py-3 text-white placeholder:text-white/28 focus:outline-none focus:ring-1 focus:ring-[#d0b18a]";
 
-export function PublicContactForm() {
-  const [service, setService] = useState("Wedding");
-  const [pending, startTransition] = useTransition();
+function SubmitInquiryButton() {
+  const { pending } = useFormStatus();
 
   return (
-    <form
-      action={createPublicInquiryAction}
-      className="mt-6 grid gap-4"
-      onSubmit={(event) => {
-        if (pending) {
-          event.preventDefault();
-          return;
-        }
-
-        const form = event.currentTarget;
-
-        if (!form.reportValidity()) {
-          event.preventDefault();
-          return;
-        }
-
-        event.preventDefault();
-        const formData = new FormData(form);
-
-        startTransition(async () => {
-          await createPublicInquiryAction(formData);
-        });
-      }}
+    <button
+      className="mt-2 bg-[#c97d21] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#15120f] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+      disabled={pending}
+      type="submit"
     >
+      {pending ? "Sending..." : "Send inquiry"}
+    </button>
+  );
+}
+
+export function PublicContactForm() {
+  const [service, setService] = useState("Wedding");
+
+  return (
+    <form action={createPublicInquiryAction} className="mt-6 grid gap-4">
       <p className="text-xs uppercase tracking-[0.16em] text-white/45">Fields marked * are required.</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-2 text-sm font-medium text-white/88">
@@ -248,13 +239,7 @@ export function PublicContactForm() {
         </>
       ) : null}
 
-      <button
-        className="mt-2 bg-[#c97d21] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#15120f] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={pending}
-        type="submit"
-      >
-        {pending ? "Sending..." : "Send inquiry"}
-      </button>
+      <SubmitInquiryButton />
     </form>
   );
 }
