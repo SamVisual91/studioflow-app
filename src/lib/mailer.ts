@@ -30,6 +30,7 @@ export async function sendProposalEmail(input: {
   const transporter = nodemailer.createTransport({
     host: getRequired("SMTP_HOST"),
     port,
+    family: 4,
     secure,
     requireTLS: !secure && port === 587,
     auth: {
