@@ -1981,8 +1981,8 @@ export async function sendVideoPaywallToClientAction(formData: FormData) {
     redirectWithStatus("error", "paywall-send-invalid");
   }
 
-  const resolvedProject = project;
-  const resolvedPaywall = paywall;
+  const resolvedProject = project!;
+  const resolvedPaywall = paywall!;
 
   const client = db
     .prepare("SELECT contact_email FROM clients WHERE name = ? LIMIT 1")
