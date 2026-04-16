@@ -1981,9 +1981,12 @@ export async function sendVideoPaywallToClientAction(formData: FormData) {
     redirectWithStatus("error", "paywall-send-invalid");
   }
 
+  const resolvedProject = project;
+  const resolvedPaywall = paywall;
+
   const client = db
     .prepare("SELECT contact_email FROM clients WHERE name = ? LIMIT 1")
-    .get(project.client) as { contact_email?: string | null } | undefined;
+    .get(resolvedProject.client) as { contact_email?: string | null } | undefined;
   const projectContact = db
     .prepare("SELECT email FROM project_contacts WHERE project_id = ? ORDER BY created_at ASC LIMIT 1")
     .get(projectId) as { email?: string | null } | undefined;
@@ -1993,13 +1996,13 @@ export async function sendVideoPaywallToClientAction(formData: FormData) {
     redirectWithStatus("error", "paywall-email-missing");
   }
 
-  const paywallUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/video-paywall/${paywall.public_token}`;
-  const subject = `${project.name} add-on video is ready to purchase`;
-  const priceText = currencyFormatter.format(Number(paywall.price || 0));
+  const paywallUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/video-paywall/${resolvedPaywall.public_token}`;
+  const subject = `${resolvedProject.name} add-on video is ready to purchase`;
+  const priceText = currencyFormatter.format(Number(resolvedPaywall.price || 0));
   const body = [
-    `Hi ${project.client},`,
+    `Hi ${resolvedProject.client},`,
     "",
-    `Your add-on video "${paywall.title}" is ready to view and purchase.`,
+    `Your add-on video "${resolvedPaywall.title}" is ready to view and purchase.`,
     "",
     `Price: ${priceText}`,
     "",
