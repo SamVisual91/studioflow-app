@@ -673,21 +673,6 @@ export async function createPublicInquiryAction(formData: FormData) {
     </div>
   `;
 
-  try {
-    await sendProposalEmail({
-      to: inquiryRecipient,
-      subject,
-      text: plainText,
-      html,
-    });
-  } catch (error) {
-    const reason =
-      error instanceof Error && error.message === "SMTP_NOT_CONFIGURED"
-        ? "smtp-missing"
-        : "send-failed";
-    redirect(`/contact?error=${reason}`);
-  }
-
   const db = getDb();
   const timestamp = new Date().toISOString();
   db.prepare(
@@ -708,6 +693,23 @@ export async function createPublicInquiryAction(formData: FormData) {
   revalidatePath("/overview");
   revalidatePath("/projects");
   revalidatePath("/crm");
+
+  try {
+    await sendProposalEmail({
+      to: inquiryRecipient,
+      subject,
+      text: plainText,
+      html,
+    });
+  } catch (error) {
+    console.error("Public inquiry email failed", error);
+    const reason =
+      error instanceof Error && error.message === "SMTP_NOT_CONFIGURED"
+        ? "smtp-missing"
+        : "send-failed";
+    redirect(`/contact?sent=1&error=${reason}`);
+  }
+
   redirect("/contact?sent=1");
 }
 
