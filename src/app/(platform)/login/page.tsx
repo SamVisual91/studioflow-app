@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { loginAction } from "@/app/actions";
 import { getCurrentUser } from "@/lib/auth";
+import { getDefaultAppPath } from "@/lib/roles";
 
 export const metadata: Metadata = {
   title: "StudioFlow Login",
@@ -15,7 +16,7 @@ export default async function LoginPage({
   const user = await getCurrentUser();
 
   if (user) {
-    redirect("/overview");
+    redirect(getDefaultAppPath(user.role));
   }
 
   const params = await searchParams;

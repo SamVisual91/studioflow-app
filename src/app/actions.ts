@@ -25,7 +25,7 @@ import {
 import { sendProposalEmail } from "@/lib/mailer";
 import { type MileageTripType } from "@/lib/mileage";
 import { getProjectFileTemplate } from "@/lib/project-files";
-import { canCreateProjects, normalizeUserRole, type UserRole } from "@/lib/roles";
+import { canCreateProjects, getDefaultAppPath, normalizeUserRole, type UserRole } from "@/lib/roles";
 import { getStripe } from "@/lib/stripe";
 import { ensureDocumentTemplatesTable } from "@/lib/templates";
 import {
@@ -617,7 +617,7 @@ export async function loginAction(formData: FormData) {
   }
 
   await createUserSession(user.id);
-  redirect("/overview");
+  redirect(getDefaultAppPath(normalizeUserRole(user.role)));
 }
 
 export async function logoutAction() {
