@@ -178,50 +178,57 @@ export default async function UsersPage({
               <p className="text-sm text-[var(--muted)]">{users.length} total logins</p>
             </div>
 
-            <div className="mt-6 grid gap-4">
+            <div className="mt-6 grid gap-3">
               {users.map((account) => {
                 const isCurrentUser = account.id === user.id;
 
                 return (
-                  <article className="border border-black/[0.06] bg-white p-5 shadow-[0_8px_26px_rgba(31,27,24,0.04)]" key={account.id}>
+                  <article className="border border-black/[0.06] bg-white px-5 py-4 shadow-[0_8px_26px_rgba(31,27,24,0.04)]" key={account.id}>
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-3">
-                          <p className="text-xl font-semibold text-[var(--ink)]">{account.name}</p>
+                          <p className="text-lg font-semibold text-[var(--ink)]">{account.name}</p>
                           {isCurrentUser ? (
                             <span className="rounded-full bg-[rgba(47,125,92,0.1)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--forest)]">
-                              Signed in now
+                              Current
                             </span>
                           ) : null}
                         </div>
-                        <p className="mt-2 text-sm text-[var(--muted)]">{account.email}</p>
-                        <p className="mt-3 text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
+                        <p className="mt-1 text-sm text-[var(--muted)]">{account.email}</p>
+                        <p className="mt-2 text-xs text-[var(--muted)]">
                           Created {new Date(account.created_at).toLocaleString("en-US")}
                         </p>
                       </div>
 
-                      <div className="grid gap-4 lg:min-w-[320px]">
-                        <form action={updateUserPasswordAction} className="grid gap-3 rounded-[1.1rem] border border-black/[0.06] bg-[#fbf8f3] p-4">
-                          <input name="userId" type="hidden" value={account.id} />
-                          <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">Reset password</p>
-                          <input
-                            className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3 text-sm"
-                            name="password"
-                            placeholder="New password"
-                            required
-                            type="password"
-                          />
-                          <input
-                            className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3 text-sm"
-                            name="confirmPassword"
-                            placeholder="Confirm new password"
-                            required
-                            type="password"
-                          />
-                          <button className="rounded-full border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--forest)] hover:text-[var(--forest)]">
-                            Save password
-                          </button>
-                        </form>
+                      <div className="flex w-full max-w-[360px] flex-col gap-3">
+                        <details className="group rounded-[1.1rem] border border-black/[0.06] bg-[#fbf8f3]">
+                          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[var(--ink)]">
+                            <span>Reset password</span>
+                            <span className="text-xs uppercase tracking-[0.14em] text-[var(--muted)] transition group-open:rotate-180">
+                              +
+                            </span>
+                          </summary>
+                          <form action={updateUserPasswordAction} className="grid gap-3 border-t border-black/[0.06] p-4">
+                            <input name="userId" type="hidden" value={account.id} />
+                            <input
+                              className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3 text-sm"
+                              name="password"
+                              placeholder="New password"
+                              required
+                              type="password"
+                            />
+                            <input
+                              className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3 text-sm"
+                              name="confirmPassword"
+                              placeholder="Confirm new password"
+                              required
+                              type="password"
+                            />
+                            <button className="rounded-full border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--forest)] hover:text-[var(--forest)]">
+                              Save password
+                            </button>
+                          </form>
+                        </details>
 
                         {!isCurrentUser ? (
                           <form action={deleteUserAccountAction}>
