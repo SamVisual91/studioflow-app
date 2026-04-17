@@ -35,7 +35,7 @@ export default async function ContactPage({
       : query.error === "email"
         ? "Please enter a valid email address."
         : query.error === "smtp-missing"
-          ? "Inquiry email is not configured yet. Please set up SMTP to send submissions to contactme@samthao.com."
+          ? "Inquiry email is not configured yet. Please connect Resend so submissions can send properly."
           : query.error === "send-failed"
             ? "We couldn't send your inquiry email right now. Please try again."
         : "";
