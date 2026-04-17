@@ -11,6 +11,7 @@ export async function sendProposalEmail(input: {
   subject: string;
   html: string;
   text: string;
+  replyTo?: string;
 }) {
   if (!hasMailerConfig()) {
     throw new Error("SMTP_NOT_CONFIGURED");
@@ -25,6 +26,7 @@ export async function sendProposalEmail(input: {
     body: JSON.stringify({
       from: getRequired("EMAIL_FROM"),
       to: [input.to],
+      reply_to: input.replyTo,
       subject: input.subject,
       html: input.html,
       text: input.text,

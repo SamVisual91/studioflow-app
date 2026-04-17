@@ -697,6 +697,7 @@ export async function createPublicInquiryAction(formData: FormData) {
   try {
     await sendProposalEmail({
       to: inquiryRecipient,
+      replyTo: email,
       subject,
       text: plainText,
       html,
