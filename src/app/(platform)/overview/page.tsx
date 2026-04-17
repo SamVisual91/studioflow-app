@@ -228,6 +228,11 @@ export default async function HomePage() {
 
   const attentionItems = [
     {
+      label: "New inquiries",
+      value: data.leads.filter((lead) => lead.stage === "INQUIRY").length,
+      href: "/leads",
+    },
+    {
       label: "Unread client replies",
       value: unreadClientMessages.length,
       href: unreadClientMessages[0]?.projectId ? `/projects/${unreadClientMessages[0].projectId}?tab=activity` : "/messages",
@@ -275,6 +280,14 @@ export default async function HomePage() {
       href: "/invoices",
     },
   ];
+
+  const recentInquiries = [...data.leads]
+    .sort((a, b) => {
+      const aTime = new Date(a.eventDate).getTime();
+      const bTime = new Date(b.eventDate).getTime();
+      return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+    })
+    .slice(0, 5);
 
   return (
     <DashboardShell
@@ -506,6 +519,49 @@ export default async function HomePage() {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
+            <article className="rounded-[1.75rem] border border-black/[0.08] bg-white/80 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Inquiries</p>
+                  <h3 className="mt-3 text-2xl font-semibold">New website inquiries</h3>
+                </div>
+                <Link className="text-sm font-semibold text-[var(--accent)] hover:underline" href="/leads">
+                  Open leads
+                </Link>
+              </div>
+              <div className="mt-5 grid gap-3">
+                {recentInquiries.length > 0 ? (
+                  recentInquiries.map((lead) => (
+                    <Link
+                      className="rounded-[1.1rem] border border-black/[0.08] bg-white p-4 transition hover:border-[var(--forest)]"
+                      href="/leads"
+                      key={lead.id}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-semibold text-[var(--ink)]">{lead.name}</p>
+                          <p className="mt-1 text-sm text-[var(--muted)]">
+                            {lead.service} • {lead.source}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-[rgba(207,114,79,0.12)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">
+                          {lead.stageLabel}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm text-[var(--muted)]">
+                        Event date {dateTime.format(new Date(lead.eventDate))}
+                      </p>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--muted)]">{lead.notes}</p>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="rounded-[1.1rem] border border-black/[0.08] bg-white p-5">
+                    <p className="text-sm text-[var(--muted)]">No website inquiries have been submitted yet.</p>
+                  </div>
+                )}
+              </div>
+            </article>
+
             <article className="rounded-[1.75rem] border border-black/[0.08] bg-white/80 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
               <div className="flex items-end justify-between gap-4">
                 <div>
