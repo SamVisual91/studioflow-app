@@ -1,10 +1,16 @@
+import { deleteLeadAction } from "@/app/actions";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { SectionHeader } from "@/components/dashboard-ui";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { currencyFormatter, dateTime } from "@/lib/formatters";
 
-export default async function LeadsPage() {
+export default async function LeadsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { user, data } = await getDashboardPageData();
+  const params = searchParams ? await searchParams : {};
   const leads = [...data.leads].sort((a, b) => {
     const aTime = new Date(a.eventDate).getTime();
     const bTime = new Date(b.eventDate).getTime();
@@ -13,6 +19,13 @@ export default async function LeadsPage() {
 
   const inquiryCount = leads.filter((lead) => lead.stage === "INQUIRY").length;
   const totalPipeline = leads.reduce((sum, lead) => sum + Number(lead.value || 0), 0);
+  const leadDeleted = params?.leadDeleted === "1";
+  const errorMessage =
+    params?.error === "lead-delete-invalid"
+      ? "That inquiry could not be deleted."
+      : params?.error === "lead-delete-missing"
+        ? "That inquiry was already removed."
+        : "";
 
   return (
     <DashboardShell
@@ -30,6 +43,17 @@ export default async function LeadsPage() {
           title="Website inquiries"
           copy="Review every inquiry captured from your public contact form, including source, service, event date, and the notes that were saved into the app."
         />
+
+        {leadDeleted ? (
+          <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+            Inquiry deleted successfully.
+          </div>
+        ) : null}
+        {errorMessage ? (
+          <div className="rounded-[1.5rem] border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-5 py-4 text-sm text-[var(--accent)]">
+            {errorMessage}
+          </div>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <article className="border border-black/[0.06] bg-white/92 p-5 shadow-[0_14px_36px_rgba(31,27,24,0.05)]">
@@ -92,6 +116,17 @@ export default async function LeadsPage() {
                         <span className="font-semibold text-[var(--ink)]">Budget:</span>{" "}
                         {lead.value > 0 ? currencyFormatter.format(lead.value) : "Not provided"}
                       </p>
+                      <div className="pt-2">
+                        <form action={deleteLeadAction}>
+                          <input name="leadId" type="hidden" value={lead.id} />
+                          <button
+                            className="rounded-full border border-[rgba(207,114,79,0.2)] bg-[rgba(207,114,79,0.08)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.14)]"
+                            type="submit"
+                          >
+                            Delete inquiry
+                          </button>
+                        </form>
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4 rounded-[1.1rem] border border-black/[0.06] bg-[#fbf8f3] p-4">

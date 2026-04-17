@@ -726,6 +726,31 @@ export async function createPublicInquiryAction(formData: FormData) {
   redirect("/contact?sent=1");
 }
 
+export async function deleteLeadAction(formData: FormData) {
+  await requireUser();
+
+  const leadId = getString(formData, "leadId");
+
+  if (!leadId) {
+    redirect("/leads?error=lead-delete-invalid");
+  }
+
+  const db = getDb();
+  const existingLead = db.prepare("SELECT id FROM leads WHERE id = ? LIMIT 1").get(leadId) as
+    | { id: string }
+    | undefined;
+
+  if (!existingLead) {
+    redirect("/leads?error=lead-delete-missing");
+  }
+
+  db.prepare("DELETE FROM leads WHERE id = ?").run(leadId);
+
+  revalidatePath("/overview");
+  revalidatePath("/leads");
+  redirect("/leads?leadDeleted=1");
+}
+
 export async function updateUserAvatarAction(formData: FormData) {
   const user = await requireUser();
 
