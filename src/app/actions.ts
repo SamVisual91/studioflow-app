@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { clearUserSession, createUserSession, requireUser, validateUserCredentials } from "@/lib/auth";
+import { hashPassword } from "@/lib/crypto";
 import { ensureDefaultPackagePresets, getDb } from "@/lib/db";
 import { ensureProjectDeliverablesTable } from "@/lib/deliverables";
 import { currencyFormatter } from "@/lib/formatters";
@@ -749,6 +750,122 @@ export async function deleteLeadAction(formData: FormData) {
   revalidatePath("/overview");
   revalidatePath("/leads");
   redirect("/leads?leadDeleted=1");
+}
+
+export async function createUserAccountAction(formData: FormData) {
+  await requireUser();
+
+  const name = getString(formData, "name");
+  const email = getString(formData, "email").toLowerCase();
+  const password = getString(formData, "password");
+  const confirmPassword = getString(formData, "confirmPassword");
+
+  if (!name || !email || !password || !confirmPassword) {
+    redirect("/users?error=user-missing");
+  }
+
+  if (!email.includes("@")) {
+    redirect("/users?error=user-email-invalid");
+  }
+
+  if (password.length < 8) {
+    redirect("/users?error=user-password-weak");
+  }
+
+  if (password !== confirmPassword) {
+    redirect("/users?error=user-password-mismatch");
+  }
+
+  const db = getDb();
+  const existingUser = db
+    .prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1")
+    .get(email) as { id: string } | undefined;
+
+  if (existingUser) {
+    redirect("/users?error=user-email-taken");
+  }
+
+  const timestamp = new Date().toISOString();
+  db.prepare(
+    "INSERT INTO users (id, email, name, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+  ).run(randomUUID(), email, name, hashPassword(password), timestamp, timestamp);
+
+  revalidatePath("/users");
+  redirect("/users?userCreated=1");
+}
+
+export async function updateUserPasswordAction(formData: FormData) {
+  await requireUser();
+
+  const userId = getString(formData, "userId");
+  const password = getString(formData, "password");
+  const confirmPassword = getString(formData, "confirmPassword");
+
+  if (!userId || !password || !confirmPassword) {
+    redirect("/users?error=password-missing");
+  }
+
+  if (password.length < 8) {
+    redirect("/users?error=user-password-weak");
+  }
+
+  if (password !== confirmPassword) {
+    redirect("/users?error=user-password-mismatch");
+  }
+
+  const db = getDb();
+  const existingUser = db.prepare("SELECT id FROM users WHERE id = ? LIMIT 1").get(userId) as
+    | { id: string }
+    | undefined;
+
+  if (!existingUser) {
+    redirect("/users?error=user-missing-record");
+  }
+
+  db.prepare("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?").run(
+    hashPassword(password),
+    new Date().toISOString(),
+    userId
+  );
+
+  revalidatePath("/users");
+  redirect("/users?passwordUpdated=1");
+}
+
+export async function deleteUserAccountAction(formData: FormData) {
+  const currentUser = await requireUser();
+  const userId = getString(formData, "userId");
+
+  if (!userId) {
+    redirect("/users?error=user-delete-invalid");
+  }
+
+  if (userId === currentUser.id) {
+    redirect("/users?error=user-delete-self");
+  }
+
+  const db = getDb();
+  const userCountRow = db.prepare("SELECT COUNT(*) AS count FROM users").get() as
+    | { count: number }
+    | undefined;
+  const userCount = Number(userCountRow?.count ?? 0);
+
+  if (userCount <= 1) {
+    redirect("/users?error=user-delete-last");
+  }
+
+  const existingUser = db.prepare("SELECT id FROM users WHERE id = ? LIMIT 1").get(userId) as
+    | { id: string }
+    | undefined;
+
+  if (!existingUser) {
+    redirect("/users?error=user-missing-record");
+  }
+
+  db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+
+  revalidatePath("/users");
+  redirect("/users?userDeleted=1");
 }
 
 export async function updateUserAvatarAction(formData: FormData) {

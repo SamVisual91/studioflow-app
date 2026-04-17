@@ -7,6 +7,7 @@ import { currencyFormatter, dateTime } from "@/lib/formatters";
 const navItems = [
   { href: "/overview", label: "Home" },
   { href: "/leads", label: "Leads" },
+  { href: "/users", label: "Users" },
   { href: "/projects", label: "Projects" },
   { href: "/schedule", label: "Schedule" },
   { href: "/invoices", label: "Invoice" },

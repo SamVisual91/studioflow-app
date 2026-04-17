@@ -30,14 +30,15 @@ export default async function LoginPage({
             Sign in to your client operating system.
           </h1>
           <p className="mt-6 max-w-xl text-base leading-7 text-white/76">
-            This MVP uses a local SQLite database with session auth, seeded business data,
-            and protected API routes for the main CRM, proposals, invoices, scheduling,
-            messages, projects, and automation modules.
+            StudioFlow uses a local SQLite database with session auth and protected routes
+            for your CRM, proposals, invoices, scheduling, messages, projects, and automation modules.
           </p>
           <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/8 p-5">
-            <p className="text-sm font-semibold">Seeded account</p>
-            <p className="mt-3 text-sm text-white/76">Email: `sam@studioflow.local`</p>
-            <p className="mt-1 text-sm text-white/76">Password: `studioflow123`</p>
+            <p className="text-sm font-semibold">Team access</p>
+            <p className="mt-3 text-sm text-white/76">
+              Each person can have their own StudioFlow login. Add or reset accounts from the in-app
+              Users page after you sign in.
+            </p>
           </div>
         </section>
 
@@ -46,7 +47,7 @@ export default async function LoginPage({
             <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">Login</p>
             <h2 className="mt-4 text-3xl font-semibold">Welcome back</h2>
             <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-              Use the seeded credentials to sign in, or swap them later once we add full user management.
+              Sign in with your StudioFlow email and password. Ask your admin to create an account for you if you do not have one yet.
             </p>
 
             {hasError ? (
@@ -60,8 +61,8 @@ export default async function LoginPage({
                 Email
                 <input
                   className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3 outline-none ring-0 transition focus:border-[var(--forest)]"
-                  defaultValue="sam@studioflow.local"
                   name="email"
+                  placeholder="you@samthao.com"
                   type="email"
                 />
               </label>
@@ -70,8 +71,8 @@ export default async function LoginPage({
                 Password
                 <input
                   className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3 outline-none ring-0 transition focus:border-[var(--forest)]"
-                  defaultValue="studioflow123"
                   name="password"
+                  placeholder="Enter your password"
                   type="password"
                 />
               </label>
