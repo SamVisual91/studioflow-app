@@ -644,8 +644,10 @@ export async function createPublicInquiryAction(formData: FormData) {
   const eventDateLine = eventDate ? `Project date: ${eventDate}` : "";
   const budgetLine = budgetInput ? `Budget: ${budgetInput}` : "";
   const detailsBlock = [eventDateLine, budgetLine, `Source: ${source}`, ...extraDetails].filter(Boolean);
-  const subject = `New ${service} inquiry from ${name}`;
+  const subject = `[Website Inquiry] ${service} inquiry from ${name}`;
   const plainText = [
+    "New website inquiry received.",
+    "",
     `Name: ${name}`,
     `Email: ${email}`,
     `Service: ${service}`,
@@ -653,9 +655,12 @@ export async function createPublicInquiryAction(formData: FormData) {
     "",
     "Project details:",
     combinedNotes,
+    "",
+    "Reply directly to this email to respond to the inquiry sender.",
   ].join("\n");
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.7; color: #1f1b18;">
+      <p style="margin: 0 0 8px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #8f6b39;">Website inquiry notification</p>
       <h2 style="margin-bottom: 14px;">${subject}</h2>
       <p><strong>Name:</strong> ${name}</p>
       <p><strong>Email:</strong> ${email}</p>
@@ -674,6 +679,9 @@ export async function createPublicInquiryAction(formData: FormData) {
         <p><strong>Project details:</strong></p>
         <p>${combinedNotes.replace(/\n/g, "<br />")}</p>
       </div>
+      <p style="margin-top: 20px; font-size: 13px; color: #5c554e;">
+        Reply directly to this email to respond to ${name}.
+      </p>
     </div>
   `;
 
