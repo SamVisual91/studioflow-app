@@ -1,6 +1,7 @@
 import {
   createUserAccountAction,
   deleteUserAccountAction,
+  updateUserProfileAction,
   updateUserPasswordAction,
 } from "@/app/actions";
 import { DashboardShell } from "@/components/dashboard-shell";
@@ -38,6 +39,8 @@ function formatErrorMessage(error: string | undefined) {
       return "StudioFlow must keep at least one login account.";
     case "user-missing-record":
       return "That account no longer exists.";
+    case "user-profile-missing":
+      return "Enter both a name and email before saving profile changes.";
     default:
       return "";
   }
@@ -56,6 +59,7 @@ export default async function UsersPage({
     .all() as UserRow[];
 
   const userCreated = params?.userCreated === "1";
+  const profileUpdated = params?.profileUpdated === "1";
   const passwordUpdated = params?.passwordUpdated === "1";
   const userDeleted = params?.userDeleted === "1";
   const errorMessage = formatErrorMessage(typeof params?.error === "string" ? params.error : undefined);
@@ -82,6 +86,11 @@ export default async function UsersPage({
             New user added successfully.
           </div>
         ) : null}
+        {profileUpdated ? (
+          <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+            Your profile was updated successfully.
+          </div>
+        ) : null}
         {passwordUpdated ? (
           <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
             Password updated successfully.
@@ -99,6 +108,38 @@ export default async function UsersPage({
         ) : null}
 
         <div className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
+          <section className="border border-black/[0.06] bg-white/92 p-6 shadow-[0_18px_50px_rgba(31,27,24,0.06)]">
+            <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Your account</p>
+            <h2 className="mt-2 text-2xl font-semibold text-[var(--ink)]">Update your login</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+              Change the Sam Visual display name or login email here before creating additional team accounts.
+            </p>
+            <form action={updateUserProfileAction} className="mt-6 grid gap-4">
+              <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
+                Display name
+                <input
+                  className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                  defaultValue={user.name}
+                  name="name"
+                  required
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
+                Login email
+                <input
+                  className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                  defaultValue={user.email}
+                  name="email"
+                  required
+                  type="email"
+                />
+              </label>
+              <button className="mt-2 rounded-full border border-black/[0.08] bg-white px-5 py-3 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--forest)] hover:text-[var(--forest)]">
+                Save profile changes
+              </button>
+            </form>
+          </section>
+
           <section className="border border-black/[0.06] bg-white/92 p-6 shadow-[0_18px_50px_rgba(31,27,24,0.06)]">
             <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Add user</p>
             <h2 className="mt-2 text-2xl font-semibold text-[var(--ink)]">Create a new login</h2>
@@ -128,7 +169,7 @@ export default async function UsersPage({
             </form>
           </section>
 
-          <section className="border border-black/[0.06] bg-white/92 p-6 shadow-[0_18px_50px_rgba(31,27,24,0.06)]">
+          <section className="border border-black/[0.06] bg-white/92 p-6 shadow-[0_18px_50px_rgba(31,27,24,0.06)] xl:col-span-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Account list</p>

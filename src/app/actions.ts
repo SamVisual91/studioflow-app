@@ -794,6 +794,40 @@ export async function createUserAccountAction(formData: FormData) {
   redirect("/users?userCreated=1");
 }
 
+export async function updateUserProfileAction(formData: FormData) {
+  const currentUser = await requireUser();
+
+  const name = getString(formData, "name");
+  const email = getString(formData, "email").toLowerCase();
+
+  if (!name || !email) {
+    redirect("/users?error=user-profile-missing");
+  }
+
+  if (!email.includes("@")) {
+    redirect("/users?error=user-email-invalid");
+  }
+
+  const db = getDb();
+  const conflictingUser = db
+    .prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ? LIMIT 1")
+    .get(email, currentUser.id) as { id: string } | undefined;
+
+  if (conflictingUser) {
+    redirect("/users?error=user-email-taken");
+  }
+
+  db.prepare("UPDATE users SET name = ?, email = ?, updated_at = ? WHERE id = ?").run(
+    name,
+    email,
+    new Date().toISOString(),
+    currentUser.id
+  );
+
+  revalidatePath("/users");
+  redirect("/users?profileUpdated=1");
+}
+
 export async function updateUserPasswordAction(formData: FormData) {
   await requireUser();
 
