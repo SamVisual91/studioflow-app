@@ -9,7 +9,7 @@ import {
 } from "@/app/actions";
 import { DoubleChevronDownIcon } from "@/components/double-chevron-down-icon";
 import { NewProjectModal } from "@/components/new-project-modal";
-import { canManageProjectBulkActions, type UserRole } from "@/lib/auth";
+import { canManageProjectBulkActions, type UserRole } from "@/lib/roles";
 
 type ProjectRow = {
   id: string;

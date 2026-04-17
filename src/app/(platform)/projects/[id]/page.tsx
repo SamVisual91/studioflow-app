@@ -19,12 +19,12 @@ import { ProjectFileLauncher } from "@/components/project-file-launcher";
 import { ProjectHeroBannerEditor } from "@/components/project-hero-banner-editor";
 import { ProjectThreadMessage } from "@/components/project-thread-message";
 import { UserAvatarUploader } from "@/components/user-avatar-uploader";
-import { canManageProjectFiles, canViewProjectFinancials } from "@/lib/auth";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getDb } from "@/lib/db";
 import { ensureProjectDeliverablesTable, type ProjectDeliverable } from "@/lib/deliverables";
 import { currencyFormatter, dateTime, shortDate } from "@/lib/formatters";
 import { syncInboxRepliesForProject } from "@/lib/inbox-sync";
+import { canManageProjectFiles, canViewProjectFinancials } from "@/lib/roles";
 
 const coverImages: Record<string, string> = {
   Wedding: "https://source.unsplash.com/1800x900/?wedding,couple,golden-hour",

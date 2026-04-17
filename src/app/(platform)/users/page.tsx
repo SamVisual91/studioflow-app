@@ -7,9 +7,9 @@ import {
 } from "@/app/actions";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { SectionHeader } from "@/components/dashboard-ui";
-import { type UserRole } from "@/lib/auth";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getDb } from "@/lib/db";
+import { type UserRole } from "@/lib/roles";
 
 type UserRow = {
   id: string;

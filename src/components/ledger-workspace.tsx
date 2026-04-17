@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { SectionHeader } from "@/components/dashboard-ui";
-import { type UserRole } from "@/lib/auth";
+import { type UserRole } from "@/lib/roles";
 
 const ledgerNav = [
   { href: "/ledger", label: "Overview" },

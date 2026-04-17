@@ -4,8 +4,8 @@ import {
 import { DashboardShell } from "@/components/dashboard-shell";
 import { NewProjectModal } from "@/components/new-project-modal";
 import { ProjectsTable } from "@/components/projects-table";
-import { canCreateProjects } from "@/lib/auth";
 import { getDashboardPageData } from "@/lib/dashboard-page";
+import { canCreateProjects } from "@/lib/roles";
 
 const stageOrder = [
   "Inquiry",

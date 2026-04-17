@@ -3,18 +3,16 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifyPassword } from "@/lib/crypto";
 import { getDb } from "@/lib/db";
+import {
+  canAccessPath,
+  canManageUsers,
+  getDefaultAppPath,
+  normalizeUserRole,
+  type CurrentUser,
+} from "@/lib/roles";
 
 const SESSION_COOKIE = "studioflow_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
-
-export type UserRole = "SUPER_ADMIN" | "ADMIN" | "USER";
-export type CurrentUser = {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  avatar_image?: string | null;
-};
 
 type SessionRow = {
   token: string;
@@ -30,67 +28,6 @@ type UserRow = {
   avatar_image?: string | null;
   password_hash: string;
 };
-
-const userAllowedPrefixes = ["/projects", "/schedule", "/crm", "/templates", "/packages"];
-
-export function normalizeUserRole(value?: string | null): UserRole {
-  if (value === "ADMIN" || value === "USER" || value === "SUPER_ADMIN") {
-    return value;
-  }
-
-  return "SUPER_ADMIN";
-}
-
-export function canManageUsers(role: UserRole) {
-  return role === "SUPER_ADMIN";
-}
-
-export function canManageProjectBulkActions(role: UserRole) {
-  return role !== "USER";
-}
-
-export function canCreateProjects(role: UserRole) {
-  return role !== "USER";
-}
-
-export function canViewProjectFinancials(role: UserRole) {
-  return role !== "USER";
-}
-
-export function canManageProjectFiles(role: UserRole) {
-  return role !== "USER";
-}
-
-export function getDefaultAppPath(role: UserRole) {
-  return role === "USER" ? "/projects" : "/overview";
-}
-
-export function canAccessPath(role: UserRole, pathname: string) {
-  if (!pathname || pathname === "/login") {
-    return true;
-  }
-
-  if (role === "SUPER_ADMIN") {
-    return true;
-  }
-
-  if (role === "ADMIN") {
-    return !pathname.startsWith("/users");
-  }
-
-  if (
-    pathname.startsWith("/projects/") &&
-    (pathname.includes("/invoices") ||
-      pathname.includes("/package-brochure") ||
-      pathname.includes("/video-paywalls"))
-  ) {
-    return false;
-  }
-
-  return userAllowedPrefixes.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-  );
-}
 
 export async function findUserByEmail(email: string) {
   const db = getDb();

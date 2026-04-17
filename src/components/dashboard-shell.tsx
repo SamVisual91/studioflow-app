@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { logoutAction, openNotificationMessageAction } from "@/app/actions";
 import { DoubleChevronDownIcon } from "@/components/double-chevron-down-icon";
-import { type UserRole } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { currencyFormatter, dateTime } from "@/lib/formatters";
+import { type UserRole } from "@/lib/roles";
 
 const navItems = [
   { href: "/overview", label: "Home", roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[] },

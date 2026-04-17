@@ -6,13 +6,10 @@ import { join } from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
-  canCreateProjects,
   clearUserSession,
   createUserSession,
-  normalizeUserRole,
   requireSuperAdmin,
   requireUser,
-  type UserRole,
   validateUserCredentials,
 } from "@/lib/auth";
 import { hashPassword } from "@/lib/crypto";
@@ -27,6 +24,7 @@ import {
 } from "@/lib/ledger";
 import { sendProposalEmail } from "@/lib/mailer";
 import { getProjectFileTemplate } from "@/lib/project-files";
+import { canCreateProjects, normalizeUserRole, type UserRole } from "@/lib/roles";
 import { getStripe } from "@/lib/stripe";
 import { ensureDocumentTemplatesTable } from "@/lib/templates";
 import {
