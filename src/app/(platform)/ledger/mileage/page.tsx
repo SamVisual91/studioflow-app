@@ -94,49 +94,61 @@ export default async function LedgerMileagePage({
                 No mileage trips saved yet. Add the first route on the left and the tracker will start building your travel history.
               </div>
             ) : (
-              mileage.entries.map((entry) => (
-                <article
-                  key={entry.id}
-                  className="rounded-[1rem] border border-black/[0.06] bg-[rgba(247,241,232,0.58)] px-4 py-3.5"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{entry.purpose}</p>
-                      <p className="mt-1 text-sm text-[var(--muted)]">
-                        {shortDate.format(new Date(entry.tripDate))} | {entry.tripType === "ROUND_TRIP" ? "Round trip" : "One way"}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-semibold">{entry.totalMiles.toFixed(1)} mi</p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
-                        {entry.oneWayMiles.toFixed(1)} one way
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid gap-2 text-sm text-[var(--muted)]">
-                    <p>
-                      <span className="font-semibold text-[var(--ink)]">From:</span> {entry.originLabel || entry.originAddress}
-                    </p>
-                    <p>
-                      <span className="font-semibold text-[var(--ink)]">To:</span> {entry.destinationLabel || entry.destinationAddress}
-                    </p>
-                    {entry.notes ? <p>{entry.notes}</p> : null}
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
-                      {entry.calculationSource || "Map estimate"}
-                    </p>
-                    <form action={deleteMileageLogAction}>
-                      <input name="mileageLogId" type="hidden" value={entry.id} />
-                      <button className="rounded-full border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-3 py-2 text-sm font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.12)]">
-                        Delete
-                      </button>
-                    </form>
-                  </div>
-                </article>
-              ))
+              <div className="overflow-x-auto rounded-[1.1rem] border border-black/[0.06]">
+                <table className="min-w-[980px] w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="bg-[rgba(16,33,52,0.04)] text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
+                      <th className="px-3 py-3 font-medium">Date</th>
+                      <th className="px-3 py-3 font-medium">Purpose</th>
+                      <th className="px-3 py-3 font-medium">From</th>
+                      <th className="px-3 py-3 font-medium">To</th>
+                      <th className="px-3 py-3 font-medium">Trip</th>
+                      <th className="px-3 py-3 font-medium text-right">One way</th>
+                      <th className="px-3 py-3 font-medium text-right">Total</th>
+                      <th className="px-3 py-3 font-medium">Notes</th>
+                      <th className="px-3 py-3 font-medium">Source</th>
+                      <th className="px-3 py-3 font-medium text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mileage.entries.map((entry) => (
+                      <tr key={entry.id} className="border-t border-black/[0.06] align-top">
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          {shortDate.format(new Date(entry.tripDate))}
+                        </td>
+                        <td className="px-3 py-3 font-semibold">{entry.purpose}</td>
+                        <td className="px-3 py-3 text-[var(--muted)]">
+                          {entry.originLabel || entry.originAddress}
+                        </td>
+                        <td className="px-3 py-3 text-[var(--muted)]">
+                          {entry.destinationLabel || entry.destinationAddress}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className="rounded-full bg-[rgba(16,33,52,0.05)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
+                            {entry.tripType === "ROUND_TRIP" ? "Round trip" : "One way"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-right font-medium">{entry.oneWayMiles.toFixed(1)} mi</td>
+                        <td className="px-3 py-3 text-right font-semibold">{entry.totalMiles.toFixed(1)} mi</td>
+                        <td className="px-3 py-3 text-[var(--muted)]">
+                          {entry.notes || <span className="text-black/35">-</span>}
+                        </td>
+                        <td className="px-3 py-3 text-[var(--muted)]">
+                          {entry.calculationSource || "Map estimate"}
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <form action={deleteMileageLogAction}>
+                            <input name="mileageLogId" type="hidden" value={entry.id} />
+                            <button className="rounded-full border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-3 py-2 text-sm font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.12)]">
+                              Delete
+                            </button>
+                          </form>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
