@@ -5,7 +5,16 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { clearUserSession, createUserSession, requireUser, validateUserCredentials } from "@/lib/auth";
+import {
+  canCreateProjects,
+  clearUserSession,
+  createUserSession,
+  normalizeUserRole,
+  requireSuperAdmin,
+  requireUser,
+  type UserRole,
+  validateUserCredentials,
+} from "@/lib/auth";
 import { hashPassword } from "@/lib/crypto";
 import { ensureDefaultPackagePresets, getDb } from "@/lib/db";
 import { ensureProjectDeliverablesTable } from "@/lib/deliverables";
@@ -29,6 +38,16 @@ import { createVideoPaywallToken, ensureVideoPaywallsTable } from "@/lib/video-p
 
 function getString(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
+}
+
+function getUserRole(formData: FormData, key = "role"): UserRole | null {
+  const rawRole = getString(formData, key);
+
+  if (!rawRole || !["SUPER_ADMIN", "ADMIN", "USER"].includes(rawRole)) {
+    return null;
+  }
+
+  return normalizeUserRole(rawRole);
 }
 
 function parseInvoiceLineItems(input: string) {
@@ -753,14 +772,15 @@ export async function deleteLeadAction(formData: FormData) {
 }
 
 export async function createUserAccountAction(formData: FormData) {
-  await requireUser();
+  await requireSuperAdmin();
 
   const name = getString(formData, "name");
   const email = getString(formData, "email").toLowerCase();
   const password = getString(formData, "password");
   const confirmPassword = getString(formData, "confirmPassword");
+  const role = getUserRole(formData);
 
-  if (!name || !email || !password || !confirmPassword) {
+  if (!name || !email || !password || !confirmPassword || !role) {
     redirect("/users?error=user-missing");
   }
 
@@ -787,8 +807,8 @@ export async function createUserAccountAction(formData: FormData) {
 
   const timestamp = new Date().toISOString();
   db.prepare(
-    "INSERT INTO users (id, email, name, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
-  ).run(randomUUID(), email, name, hashPassword(password), timestamp, timestamp);
+    "INSERT INTO users (id, email, name, role, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).run(randomUUID(), email, name, role, hashPassword(password), timestamp, timestamp);
 
   revalidatePath("/users");
   redirect("/users?userCreated=1");
@@ -829,7 +849,7 @@ export async function updateUserProfileAction(formData: FormData) {
 }
 
 export async function updateUserPasswordAction(formData: FormData) {
-  await requireUser();
+  await requireSuperAdmin();
 
   const userId = getString(formData, "userId");
   const password = getString(formData, "password");
@@ -866,8 +886,49 @@ export async function updateUserPasswordAction(formData: FormData) {
   redirect("/users?passwordUpdated=1");
 }
 
+export async function updateUserRoleAction(formData: FormData) {
+  await requireSuperAdmin();
+
+  const userId = getString(formData, "userId");
+  const role = getUserRole(formData);
+
+  if (!userId || !role) {
+    redirect("/users?error=user-role-invalid");
+  }
+
+  const db = getDb();
+  const existingUser = db.prepare("SELECT id, role FROM users WHERE id = ? LIMIT 1").get(userId) as
+    | { id: string; role?: string | null }
+    | undefined;
+
+  if (!existingUser) {
+    redirect("/users?error=user-missing-record");
+  }
+
+  const currentRole = normalizeUserRole(existingUser.role);
+
+  if (currentRole === "SUPER_ADMIN" && role !== "SUPER_ADMIN") {
+    const otherSuperAdminCount = db.prepare(
+      "SELECT COUNT(*) AS count FROM users WHERE role = 'SUPER_ADMIN' AND id != ?"
+    ).get(userId) as { count?: number } | undefined;
+
+    if (Number(otherSuperAdminCount?.count ?? 0) === 0) {
+      redirect("/users?error=user-last-super-admin");
+    }
+  }
+
+  db.prepare("UPDATE users SET role = ?, updated_at = ? WHERE id = ?").run(
+    role,
+    new Date().toISOString(),
+    userId
+  );
+
+  revalidatePath("/users");
+  redirect("/users?roleUpdated=1");
+}
+
 export async function deleteUserAccountAction(formData: FormData) {
-  const currentUser = await requireUser();
+  const currentUser = await requireSuperAdmin();
   const userId = getString(formData, "userId");
 
   if (!userId) {
@@ -888,12 +949,22 @@ export async function deleteUserAccountAction(formData: FormData) {
     redirect("/users?error=user-delete-last");
   }
 
-  const existingUser = db.prepare("SELECT id FROM users WHERE id = ? LIMIT 1").get(userId) as
-    | { id: string }
+  const existingUser = db.prepare("SELECT id, role FROM users WHERE id = ? LIMIT 1").get(userId) as
+    | { id: string; role?: string | null }
     | undefined;
 
   if (!existingUser) {
     redirect("/users?error=user-missing-record");
+  }
+
+  if (normalizeUserRole(existingUser.role) === "SUPER_ADMIN") {
+    const otherSuperAdminCount = db.prepare(
+      "SELECT COUNT(*) AS count FROM users WHERE role = 'SUPER_ADMIN' AND id != ?"
+    ).get(userId) as { count?: number } | undefined;
+
+    if (Number(otherSuperAdminCount?.count ?? 0) === 0) {
+      redirect("/users?error=user-last-super-admin");
+    }
   }
 
   db.prepare("DELETE FROM users WHERE id = ?").run(userId);
@@ -1593,7 +1664,11 @@ export async function importBankStatementAction(formData: FormData) {
 }
 
 export async function createProjectClientAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
+
+  if (!canCreateProjects(user.role)) {
+    redirect("/projects?error=project-create-forbidden");
+  }
 
   const clientName = getString(formData, "clientName");
   const projectName = getString(formData, "projectName");

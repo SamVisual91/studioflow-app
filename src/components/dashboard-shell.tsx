@@ -1,19 +1,21 @@
 import Link from "next/link";
 import { logoutAction, openNotificationMessageAction } from "@/app/actions";
 import { DoubleChevronDownIcon } from "@/components/double-chevron-down-icon";
+import { type UserRole } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { currencyFormatter, dateTime } from "@/lib/formatters";
 
 const navItems = [
-  { href: "/overview", label: "Home" },
-  { href: "/leads", label: "Leads" },
-  { href: "/users", label: "Users" },
-  { href: "/projects", label: "Projects" },
-  { href: "/schedule", label: "Schedule" },
-  { href: "/invoices", label: "Invoice" },
+  { href: "/overview", label: "Home", roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[] },
+  { href: "/leads", label: "Leads", roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[] },
+  { href: "/users", label: "Users", roles: ["SUPER_ADMIN"] as UserRole[] },
+  { href: "/projects", label: "Projects", roles: ["SUPER_ADMIN", "ADMIN", "USER"] as UserRole[] },
+  { href: "/schedule", label: "Schedule", roles: ["SUPER_ADMIN", "ADMIN", "USER"] as UserRole[] },
+  { href: "/invoices", label: "Invoice", roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[] },
   {
     href: "/templates",
     label: "Templates",
+    roles: ["SUPER_ADMIN", "ADMIN", "USER"] as UserRole[],
     children: [
       { href: "/packages", label: "Packages" },
       { href: "/templates/contract", label: "Contracts" },
@@ -26,9 +28,9 @@ const navItems = [
       { href: "/templates/welcome-guide", label: "Welcome guide" },
     ],
   },
-  { href: "/crm", label: "Production" },
-  { href: "/ledger", label: "Ledger" },
-  { href: "/automations", label: "Automations" },
+  { href: "/crm", label: "Production", roles: ["SUPER_ADMIN", "ADMIN", "USER"] as UserRole[] },
+  { href: "/ledger", label: "Ledger", roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[] },
+  { href: "/automations", label: "Automations", roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[] },
 ];
 
 const quickActions = [
@@ -36,21 +38,25 @@ const quickActions = [
     href: "/projects",
     label: "Make a project",
     copy: "Add a new client project from the Projects page.",
+    roles: ["SUPER_ADMIN", "ADMIN", "USER"] as UserRole[],
   },
   {
     href: "/projects",
     label: "Create a contact",
     copy: "Add a new client or contact from the Projects page.",
+    roles: ["SUPER_ADMIN", "ADMIN", "USER"] as UserRole[],
   },
   {
     href: "/projects",
     label: "Make an invoice",
     copy: "Open a project, then create an invoice from Files.",
+    roles: ["SUPER_ADMIN", "ADMIN", "USER"] as UserRole[],
   },
   {
     href: "/follow-ups",
     label: "Do a follow-up",
     copy: "Send a client follow-up from the queue.",
+    roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[],
   },
 ];
 
@@ -59,6 +65,7 @@ type ShellProps = {
   user: {
     name: string;
     email: string;
+    role: UserRole;
     avatar_image?: string | null;
   };
   summary: {
@@ -163,6 +170,8 @@ function getUnreadClientNotifications() {
 export function DashboardShell({ currentPath, user, summary, children }: ShellProps) {
   const notifications = getUnreadClientNotifications();
   const notificationCount = notifications.length;
+  const visibleNavItems = navItems.filter((item) => item.roles.includes(user.role));
+  const visibleQuickActions = quickActions.filter((action) => action.roles.includes(user.role));
 
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)]" data-app-shell>
@@ -193,7 +202,7 @@ export function DashboardShell({ currentPath, user, summary, children }: ShellPr
               </div>
 
               <nav className="hidden gap-2 lg:grid">
-                {navItems.map((item) => (
+                {visibleNavItems.map((item) => (
                   <NavigationLink currentPath={currentPath} item={item} key={item.href} />
                 ))}
               </nav>
@@ -203,7 +212,7 @@ export function DashboardShell({ currentPath, user, summary, children }: ShellPr
                   Navigation
                 </summary>
                 <nav className="grid gap-2 border-t border-white/10 p-3">
-                  {navItems.map((item) => (
+                  {visibleNavItems.map((item) => (
                     <NavigationLink currentPath={currentPath} item={item} key={item.href} />
                   ))}
                 </nav>
@@ -231,6 +240,13 @@ export function DashboardShell({ currentPath, user, summary, children }: ShellPr
                   <div className="min-w-0">
                     <p className="text-xs uppercase tracking-[0.28em] text-white/60">Signed in</p>
                     <p className="mt-2 text-lg font-semibold text-white">{user.name}</p>
+                    <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-white/55">
+                      {user.role === "SUPER_ADMIN"
+                        ? "Super Admin"
+                        : user.role === "ADMIN"
+                          ? "Admin"
+                          : "User"}
+                    </p>
                   </div>
                 </div>
                 <p className="mt-2 break-words text-sm text-white/70">{user.email}</p>
@@ -351,7 +367,7 @@ export function DashboardShell({ currentPath, user, summary, children }: ShellPr
                   <p className="mt-1 text-sm font-semibold">What do you want to make?</p>
                 </div>
                 <div className="grid gap-1 p-2">
-                  {quickActions.map((action) => (
+                  {visibleQuickActions.map((action) => (
                     <Link
                       key={action.label}
                       className="rounded-[1rem] px-3 py-3 transition hover:bg-[rgba(47,125,92,0.08)]"

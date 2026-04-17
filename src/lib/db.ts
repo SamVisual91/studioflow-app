@@ -170,6 +170,7 @@ function createSchema(db: DatabaseSync) {
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'SUPER_ADMIN',
       avatar_image TEXT,
       password_hash TEXT NOT NULL,
       created_at TEXT NOT NULL,
@@ -601,6 +602,8 @@ function createSchema(db: DatabaseSync) {
   ensureColumn(db, "recurring_ledger_rules", "project_id", "TEXT");
   ensureColumn(db, "recurring_ledger_rules", "tax_category", "TEXT");
   ensureColumn(db, "recurring_ledger_rules", "active", "INTEGER NOT NULL DEFAULT 1");
+  ensureColumn(db, "users", "role", "TEXT NOT NULL DEFAULT 'SUPER_ADMIN'");
+  db.prepare("UPDATE users SET role = 'SUPER_ADMIN' WHERE role IS NULL OR TRIM(role) = ''").run();
   ensureColumn(db, "recurring_ledger_rules", "next_run_date", "TEXT");
   ensureColumn(db, "recurring_ledger_rules", "last_run_date", "TEXT");
   ensureColumn(db, "gear_inventory", "serial_number", "TEXT");

@@ -4,6 +4,7 @@ import {
 import { DashboardShell } from "@/components/dashboard-shell";
 import { NewProjectModal } from "@/components/new-project-modal";
 import { ProjectsTable } from "@/components/projects-table";
+import { canCreateProjects } from "@/lib/auth";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 
 const stageOrder = [
@@ -121,6 +122,7 @@ export default async function ProjectsPage({
   }>;
 }) {
   const { user, data } = await getDashboardPageData();
+  const canCreateNewProjects = canCreateProjects(user.role);
   const params = await searchParams;
   const query = String(params.q ?? "").trim();
   const showCreated = params.created === "1";
@@ -146,6 +148,8 @@ export default async function ProjectsPage({
               ? "Choose Business, Wedding, or Others before updating the project type."
         : params.error === "project-delete-invalid"
           ? "That project could not be deleted."
+        : params.error === "project-create-forbidden"
+          ? "This account can work inside projects, but it cannot create brand-new ones."
       : "";
 
   const clientEmailByProject = new Map(
@@ -234,7 +238,7 @@ export default async function ProjectsPage({
           </div>
 
           <div className="flex items-center gap-4 self-start">
-            <NewProjectModal unavailableDates={unavailableDates} />
+            {canCreateNewProjects ? <NewProjectModal unavailableDates={unavailableDates} /> : null}
           </div>
         </div>
 
@@ -437,6 +441,7 @@ export default async function ProjectsPage({
         <ProjectsTable
           activeStages={activeStages}
           projects={sortedProjects}
+          userRole={user.role}
           unavailableDates={unavailableDates}
         />
       </section>

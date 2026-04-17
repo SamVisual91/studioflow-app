@@ -9,6 +9,7 @@ import {
 } from "@/app/actions";
 import { DoubleChevronDownIcon } from "@/components/double-chevron-down-icon";
 import { NewProjectModal } from "@/components/new-project-modal";
+import { canManageProjectBulkActions, type UserRole } from "@/lib/auth";
 
 type ProjectRow = {
   id: string;
@@ -31,6 +32,7 @@ type ProjectRow = {
 type Props = {
   projects: ProjectRow[];
   activeStages: string[];
+  userRole: UserRole;
   unavailableDates: Array<{
     label: string;
     projectId?: string;
@@ -127,7 +129,7 @@ function shortenText(value: string, maxLength: number) {
   return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
 }
 
-export function ProjectsTable({ projects, activeStages, unavailableDates }: Props) {
+export function ProjectsTable({ projects, activeStages, unavailableDates, userRole }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
   const [openStatusProjectId, setOpenStatusProjectId] = useState<string | null>(null);
@@ -137,6 +139,7 @@ export function ProjectsTable({ projects, activeStages, unavailableDates }: Prop
     () => projects.length > 0 && projects.every((project) => selectedIds.includes(project.id)),
     [projects, selectedIds]
   );
+  const canManageBulkActions = canManageProjectBulkActions(userRole);
   const openProject = projects.find((project) => project.id === openProjectId) ?? null;
   const openStatusProject = projects.find((project) => project.id === openStatusProjectId) ?? null;
 
@@ -167,58 +170,62 @@ export function ProjectsTable({ projects, activeStages, unavailableDates }: Prop
   return (
     <>
       <div className="overflow-hidden border border-black/[0.05] bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(250,249,246,0.96))] shadow-[0_22px_60px_rgba(31,27,24,0.06)]">
-        <div className="flex flex-col gap-4 border-b border-[#e5ebf3] bg-white/86 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-[var(--ink)]">Bulk project actions</p>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Select one or more projects to archive them safely or delete them permanently.
-            </p>
-          </div>
+        {canManageBulkActions ? (
+          <div className="flex flex-col gap-4 border-b border-[#e5ebf3] bg-white/86 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[var(--ink)]">Bulk project actions</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Select one or more projects to archive them safely or delete them permanently.
+              </p>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              className="min-w-[9.75rem] border border-[#d8dfeb] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] shadow-[0_8px_18px_rgba(31,27,24,0.04)] transition hover:bg-[#f8fafc]"
-              onClick={toggleAllVisible}
-              type="button"
-            >
-              {allVisibleSelected ? "Clear visible" : "Select visible"}
-            </button>
-
-            <form action={archiveProjectsAction}>
-              {selectedIds.map((projectId) => (
-                <input key={`archive-${projectId}`} name="projectIds" type="hidden" value={projectId} />
-              ))}
+            <div className="flex flex-wrap items-center gap-3">
               <button
-                className="min-w-[11.5rem] border border-[rgba(47,125,92,0.16)] bg-[rgba(47,125,92,0.08)] px-4 py-2 text-[0.92rem] font-semibold text-[var(--forest)] transition hover:bg-[rgba(47,125,92,0.14)] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={selectedIds.length === 0}
+                className="min-w-[9.75rem] border border-[#d8dfeb] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] shadow-[0_8px_18px_rgba(31,27,24,0.04)] transition hover:bg-[#f8fafc]"
+                onClick={toggleAllVisible}
+                type="button"
               >
-                Archive selected ({selectedIds.length})
+                {allVisibleSelected ? "Clear visible" : "Select visible"}
               </button>
-            </form>
 
-            <form action={bulkDeleteProjectsAction}>
-              {selectedIds.map((projectId) => (
-                <input key={`delete-${projectId}`} name="projectIds" type="hidden" value={projectId} />
-              ))}
-              <button
-                className="min-w-[10.75rem] border border-[rgba(207,114,79,0.16)] bg-[rgba(207,114,79,0.08)] px-4 py-2 text-[0.92rem] font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.14)] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={selectedIds.length === 0}
-              >
-                Delete selected
-              </button>
-            </form>
+              <form action={archiveProjectsAction}>
+                {selectedIds.map((projectId) => (
+                  <input key={`archive-${projectId}`} name="projectIds" type="hidden" value={projectId} />
+                ))}
+                <button
+                  className="min-w-[11.5rem] border border-[rgba(47,125,92,0.16)] bg-[rgba(47,125,92,0.08)] px-4 py-2 text-[0.92rem] font-semibold text-[var(--forest)] transition hover:bg-[rgba(47,125,92,0.14)] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={selectedIds.length === 0}
+                >
+                  Archive selected ({selectedIds.length})
+                </button>
+              </form>
+
+              <form action={bulkDeleteProjectsAction}>
+                {selectedIds.map((projectId) => (
+                  <input key={`delete-${projectId}`} name="projectIds" type="hidden" value={projectId} />
+                ))}
+                <button
+                  className="min-w-[10.75rem] border border-[rgba(207,114,79,0.16)] bg-[rgba(207,114,79,0.08)] px-4 py-2 text-[0.92rem] font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.14)] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={selectedIds.length === 0}
+                >
+                  Delete selected
+                </button>
+              </form>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="overflow-x-auto bg-white">
           <table className="w-full min-w-[1120px] table-fixed border-collapse xl:min-w-0">
             <thead className="border-b border-[#e5ebf3] bg-[rgba(247,249,252,0.9)] text-left">
               <tr className="text-xs uppercase tracking-[0.18em] text-[#7c8aa0]">
                 <th className="w-10 px-3 py-4 font-semibold">
-                  <label className="flex items-center justify-center">
-                    <input checked={allVisibleSelected} onChange={toggleAllVisible} type="checkbox" />
-                    <span className="sr-only">Select visible projects</span>
-                  </label>
+                  {canManageBulkActions ? (
+                    <label className="flex items-center justify-center">
+                      <input checked={allVisibleSelected} onChange={toggleAllVisible} type="checkbox" />
+                      <span className="sr-only">Select visible projects</span>
+                    </label>
+                  ) : null}
                 </th>
                 <th className="w-[19%] px-4 py-4 font-semibold">Name</th>
                 <th className="w-[17%] px-4 py-4 font-semibold">Contact</th>
@@ -250,11 +257,13 @@ export function ProjectsTable({ projects, activeStages, unavailableDates }: Prop
                 projects.map((project) => (
                   <tr key={project.id} className="border-t border-[#edf1f6] transition hover:bg-[#fbfcff]">
                     <td className="px-3 py-4 text-center align-middle">
-                      <input
-                        checked={selectedIds.includes(project.id)}
-                        onChange={() => toggleProject(project.id)}
-                        type="checkbox"
-                      />
+                        {canManageBulkActions ? (
+                          <input
+                            checked={selectedIds.includes(project.id)}
+                            onChange={() => toggleProject(project.id)}
+                            type="checkbox"
+                          />
+                        ) : null}
                     </td>
                     <td className="min-w-0 px-4 py-4 align-middle">
                       <div className="flex min-w-0 items-center gap-3">

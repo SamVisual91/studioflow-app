@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { SectionHeader } from "@/components/dashboard-ui";
+import { type UserRole } from "@/lib/auth";
 
 const ledgerNav = [
   { href: "/ledger", label: "Overview" },
@@ -16,6 +17,8 @@ type LedgerWorkspaceProps = {
   user: {
     name: string;
     email: string;
+    role: UserRole;
+    avatar_image?: string | null;
   };
   summary: {
     weeklyRevenue: number;

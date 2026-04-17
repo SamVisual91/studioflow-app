@@ -19,6 +19,7 @@ import { ProjectFileLauncher } from "@/components/project-file-launcher";
 import { ProjectHeroBannerEditor } from "@/components/project-hero-banner-editor";
 import { ProjectThreadMessage } from "@/components/project-thread-message";
 import { UserAvatarUploader } from "@/components/user-avatar-uploader";
+import { canManageProjectFiles, canViewProjectFinancials } from "@/lib/auth";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getDb } from "@/lib/db";
 import { ensureProjectDeliverablesTable, type ProjectDeliverable } from "@/lib/deliverables";
@@ -194,21 +195,26 @@ export default async function ProjectClientPage({
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const requestedTab = (query.tab || "").toLowerCase();
+  const requestedTemplate = (query.template || "").toLowerCase() as TaskTemplateKey;
+  const selectedTaskTemplate = requestedTemplate in taskTemplates ? taskTemplates[requestedTemplate] : null;
+
+  const { user, data } = await getDashboardPageData();
+  const canSeeFinancials = canViewProjectFinancials(user.role);
+  const canDeleteProjectFiles = canManageProjectFiles(user.role);
+  const availableProjectTabs: ProjectTab[] = canSeeFinancials
+    ? [...projectTabs]
+    : projectTabs.filter((tab) => tab !== "financials");
   const activeTab: ProjectTab =
     requestedTab === "buy-videos"
       ? "deliverables"
-      : projectTabs.includes(requestedTab as ProjectTab)
+      : availableProjectTabs.includes(requestedTab as ProjectTab)
         ? (requestedTab as ProjectTab)
         : "activity";
-  const requestedTemplate = (query.template || "").toLowerCase() as TaskTemplateKey;
-  const selectedTaskTemplate = requestedTemplate in taskTemplates ? taskTemplates[requestedTemplate] : null;
 
   let syncResult: { imported: number; skipped: number; error: string } | null = null;
   if (activeTab === "activity") {
     syncResult = await syncInboxRepliesForProject(id);
   }
-
-  const { user, data } = await getDashboardPageData();
 
   const project = data.projects.find((item) => item.id === id);
 
@@ -301,7 +307,9 @@ export default async function ProjectClientPage({
         created_at: invoice.dueDate,
         synthetic: true,
       })),
-  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  ]
+    .filter((file) => canSeeFinancials || file.type !== "INVOICE")
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   const normalizedProjectClient = project.client.trim().toLowerCase();
   const messages = data.messages.filter((item) => {
     const isEmail = item.channel.toLowerCase() === "email";
@@ -509,7 +517,7 @@ export default async function ProjectClientPage({
         </div>
 
         <div className="flex flex-wrap gap-6 border-b border-black/[0.08] pb-4 text-sm font-semibold text-[var(--muted)]">
-          {projectTabs.map((tab) => (
+          {availableProjectTabs.map((tab) => (
             <Link
               key={tab}
               className={`border-b-2 pb-3 capitalize transition ${
@@ -652,16 +660,18 @@ export default async function ProjectClientPage({
                             </p>
                           </Link>
                           <div className="mt-4 flex justify-end">
-                            <form action={deleteProjectFileAction}>
-                              <input name="projectId" type="hidden" value={project.id} />
-                              <input name="fileId" type="hidden" value={file.id} />
-                              <button
-                                className="rounded-full border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-4 py-2 text-xs font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.12)]"
-                                type="submit"
-                              >
-                                Delete file
-                              </button>
-                            </form>
+                            {canDeleteProjectFiles ? (
+                              <form action={deleteProjectFileAction}>
+                                <input name="projectId" type="hidden" value={project.id} />
+                                <input name="fileId" type="hidden" value={file.id} />
+                                <button
+                                  className="rounded-full border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-4 py-2 text-xs font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.12)]"
+                                  type="submit"
+                                >
+                                  Delete file
+                                </button>
+                              </form>
+                            ) : null}
                           </div>
                         </article>
                           );
@@ -772,7 +782,7 @@ export default async function ProjectClientPage({
               </form>
             ) : null}
 
-            {activeTab === "financials" ? (
+            {activeTab === "financials" && canSeeFinancials ? (
               <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
                 <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Invoice progress</p>
                 <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
