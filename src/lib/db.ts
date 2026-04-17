@@ -483,6 +483,24 @@ function createSchema(db: DatabaseSync) {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS ledger_mileage_logs (
+      id TEXT PRIMARY KEY,
+      trip_date TEXT NOT NULL,
+      origin_label TEXT,
+      origin_address TEXT NOT NULL,
+      destination_label TEXT,
+      destination_address TEXT NOT NULL,
+      trip_type TEXT NOT NULL,
+      one_way_miles REAL NOT NULL,
+      total_miles REAL NOT NULL,
+      project_id TEXT,
+      purpose TEXT NOT NULL,
+      notes TEXT,
+      calculation_source TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS gear_inventory (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,

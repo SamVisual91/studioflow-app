@@ -23,6 +23,7 @@ import {
   suggestLedgerImportMatch,
 } from "@/lib/ledger";
 import { sendProposalEmail } from "@/lib/mailer";
+import { type MileageTripType } from "@/lib/mileage";
 import { getProjectFileTemplate } from "@/lib/project-files";
 import { canCreateProjects, normalizeUserRole, type UserRole } from "@/lib/roles";
 import { getStripe } from "@/lib/stripe";
@@ -46,6 +47,10 @@ function getUserRole(formData: FormData, key = "role"): UserRole | null {
   }
 
   return normalizeUserRole(rawRole);
+}
+
+function getMileageTripType(formData: FormData, key = "tripType"): MileageTripType {
+  return getString(formData, key) === "ROUND_TRIP" ? "ROUND_TRIP" : "ONE_WAY";
 }
 
 function parseInvoiceLineItems(input: string) {
@@ -1400,6 +1405,95 @@ export async function updateLedgerTransactionAction(formData: FormData) {
   revalidatePath("/ledger/reports");
   revalidatePath("/ledger/reconciliation");
   redirect("/ledger/transactions?updated=1");
+}
+
+export async function createMileageLogAction(formData: FormData) {
+  await requireUser();
+
+  const tripDate = getString(formData, "tripDate");
+  const originLabel = getString(formData, "originLabel");
+  const originAddress = getString(formData, "originAddress");
+  const destinationLabel = getString(formData, "destinationLabel");
+  const destinationAddress = getString(formData, "destinationAddress");
+  const tripType = getMileageTripType(formData);
+  const projectId = getString(formData, "projectId");
+  const purpose = getString(formData, "purpose");
+  const notes = getString(formData, "notes");
+  const calculationSource = getString(formData, "calculationSource") || "Map estimate";
+  const oneWayMiles = Number(getString(formData, "oneWayMiles"));
+  const totalMiles = Number(getString(formData, "totalMiles"));
+
+  if (
+    !tripDate ||
+    !originAddress ||
+    !destinationAddress ||
+    !purpose ||
+    Number.isNaN(oneWayMiles) ||
+    Number.isNaN(totalMiles) ||
+    oneWayMiles <= 0 ||
+    totalMiles <= 0
+  ) {
+    redirect("/ledger/mileage?error=mileage-invalid");
+  }
+
+  const db = getDb();
+  const timestamp = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO ledger_mileage_logs (
+      id,
+      trip_date,
+      origin_label,
+      origin_address,
+      destination_label,
+      destination_address,
+      trip_type,
+      one_way_miles,
+      total_miles,
+      project_id,
+      purpose,
+      notes,
+      calculation_source,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    randomUUID(),
+    `${tripDate}T12:00:00.000Z`,
+    originLabel || "",
+    originAddress,
+    destinationLabel || "",
+    destinationAddress,
+    tripType,
+    oneWayMiles,
+    totalMiles,
+    projectId || "",
+    purpose,
+    notes || "",
+    calculationSource,
+    timestamp,
+    timestamp
+  );
+
+  revalidatePath("/ledger");
+  revalidatePath("/ledger/mileage");
+  redirect("/ledger/mileage?saved=1");
+}
+
+export async function deleteMileageLogAction(formData: FormData) {
+  await requireUser();
+
+  const mileageLogId = getString(formData, "mileageLogId");
+
+  if (!mileageLogId) {
+    redirect("/ledger/mileage?error=mileage-invalid");
+  }
+
+  const db = getDb();
+  db.prepare("DELETE FROM ledger_mileage_logs WHERE id = ?").run(mileageLogId);
+
+  revalidatePath("/ledger");
+  revalidatePath("/ledger/mileage");
+  redirect("/ledger/mileage?deleted=1");
 }
 
 export async function createRecurringLedgerRuleAction(formData: FormData) {

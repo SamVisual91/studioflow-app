@@ -2,9 +2,11 @@ import Link from "next/link";
 import { LedgerWorkspace } from "@/components/ledger-workspace";
 import { shortDate } from "@/lib/formatters";
 import { getLedgerPageData, preciseCurrencyFormatter } from "@/lib/ledger-page";
+import { getMileageData } from "@/lib/mileage";
 
 export default async function LedgerOverviewPage() {
   const { user, data, ledger, shellSummary } = await getLedgerPageData();
+  const mileage = getMileageData();
   const recentEntries = ledger.entries.slice(0, 8);
   const unreconciledCount = ledger.entries.filter((entry) => !entry.isReconciled).length;
   const recurringActive = ledger.recurringRules.filter((rule) => rule.active).length;
@@ -185,6 +187,19 @@ export default async function LedgerOverviewPage() {
               Export Schedule C CSV
             </Link>
           </div>
+        </article>
+
+        <article className="rounded-[1.45rem] border border-black/[0.08] bg-white/94 p-5 shadow-[0_14px_28px_rgba(59,36,17,0.07)]">
+          <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--muted)]">Mileage</p>
+          <h2 className="mt-2 text-2xl font-semibold">Drive log</h2>
+          <div className="mt-4 rounded-[1rem] bg-[rgba(247,241,232,0.58)] px-3.5 py-3">
+            <p className="text-sm text-[var(--muted)]">Miles this month</p>
+            <p className="mt-1 text-2xl font-semibold">{mileage.summary.monthMiles.toFixed(1)} mi</p>
+            <p className="mt-1 text-sm text-[var(--muted)]">{mileage.summary.totalTrips} trips saved so far</p>
+          </div>
+          <Link className="mt-5 inline-flex text-sm font-semibold text-[var(--forest)] underline" href="/ledger/mileage">
+            Open mileage tracker
+          </Link>
         </article>
       </div>
     </LedgerWorkspace>

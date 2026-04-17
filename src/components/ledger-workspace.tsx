@@ -6,6 +6,7 @@ import { type UserRole } from "@/lib/roles";
 const ledgerNav = [
   { href: "/ledger", label: "Overview" },
   { href: "/ledger/transactions", label: "Transactions" },
+  { href: "/ledger/mileage", label: "Mileage" },
   { href: "/ledger/reconciliation", label: "Reconciliation" },
   { href: "/ledger/recurring", label: "Recurring" },
   { href: "/ledger/accounts-receivable", label: "Accounts receivable" },
