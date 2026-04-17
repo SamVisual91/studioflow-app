@@ -7,7 +7,7 @@ export function hasMailerConfig() {
 }
 
 export async function sendProposalEmail(input: {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
   text: string;
@@ -25,7 +25,7 @@ export async function sendProposalEmail(input: {
     },
     body: JSON.stringify({
       from: getRequired("EMAIL_FROM"),
-      to: [input.to],
+      to: Array.isArray(input.to) ? input.to : [input.to],
       reply_to: input.replyTo,
       subject: input.subject,
       html: input.html,

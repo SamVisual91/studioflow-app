@@ -618,6 +618,10 @@ export async function createPublicInquiryAction(formData: FormData) {
   const projectName = getString(formData, "projectName");
   const budgetValue = budgetInput ? Number(budgetInput.replace(/[^0-9.-]/g, "")) : 0;
   const inquiryRecipient = "contactme@samthao.com";
+  const backupInquiryRecipient = process.env.INQUIRY_BACKUP_EMAIL?.trim().toLowerCase() || "";
+  const inquiryRecipients = [inquiryRecipient, backupInquiryRecipient]
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index);
 
   if (!name || !email || !service || !notes) {
     redirect("/contact?error=missing");
@@ -696,7 +700,7 @@ export async function createPublicInquiryAction(formData: FormData) {
 
   try {
     await sendProposalEmail({
-      to: inquiryRecipient,
+      to: inquiryRecipients,
       replyTo: email,
       subject,
       text: plainText,
