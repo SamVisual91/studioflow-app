@@ -1,12 +1,12 @@
 import {
   createUserAccountAction,
   deleteUserAccountAction,
-  updateUserRoleAction,
   updateUserProfileAction,
   updateUserPasswordAction,
 } from "@/app/actions";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { SectionHeader } from "@/components/dashboard-ui";
+import { UserRoleForm } from "@/components/user-role-form";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getDb } from "@/lib/db";
 import { type UserRole } from "@/lib/roles";
@@ -353,29 +353,17 @@ export default async function UsersPage({
                       </div>
 
                       <div className="flex w-full max-w-[360px] flex-col gap-3">
-                        <form action={updateUserRoleAction} className="grid gap-2 rounded-[1.1rem] border border-black/[0.06] bg-[#fbf8f3] p-4">
-                          <input name="userId" type="hidden" value={account.id} />
-                          <label className="grid gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
-                            Role
-                            <select
-                              className={`rounded-2xl border px-4 py-3 text-sm font-medium normal-case tracking-normal ${getRoleSelectClass(account.role)}`}
-                              defaultValue={account.role}
-                              name="role"
-                            >
-                              {roleOptions.map((role) => (
-                                <option key={role.value} value={role.value}>
-                                  {role.label}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <p className="text-xs leading-5 text-[var(--muted)]">
+                        <div className="grid gap-2">
+                          <UserRoleForm
+                            options={roleOptions.map(({ value, label }) => ({ value, label }))}
+                            role={account.role}
+                            selectClassName={getRoleSelectClass(account.role)}
+                            userId={account.id}
+                          />
+                          <p className="px-1 text-xs leading-5 text-[var(--muted)]">
                             {roleOptions.find((role) => role.value === account.role)?.description}
                           </p>
-                          <button className="rounded-full border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--forest)] hover:text-[var(--forest)]">
-                            Save role
-                          </button>
-                        </form>
+                        </div>
 
                         <details className="group rounded-[1.1rem] border border-black/[0.06] bg-[#fbf8f3]">
                           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-[var(--ink)]">
