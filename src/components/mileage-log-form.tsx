@@ -108,21 +108,21 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
   }
 
   return (
-    <form action={createMileageLogAction} className="grid gap-4">
-      <div className="rounded-[1.2rem] border border-black/[0.06] bg-[rgba(247,241,232,0.42)] p-4">
+    <form action={createMileageLogAction} className="grid gap-3.5">
+      <div className="rounded-[1.15rem] border border-black/[0.06] bg-[rgba(247,241,232,0.42)] p-3.5">
         <div className="flex items-center justify-between gap-3 border-b border-black/[0.06] pb-3">
           <div>
             <p className="text-[10px] uppercase tracking-[0.24em] text-[var(--muted)]">Trip details</p>
-            <p className="mt-1 text-sm text-[var(--muted)]">Add the addresses, trip type, and what the drive was for.</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Add the addresses, trip type, and reason for the drive.</p>
           </div>
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[var(--forest)]">Mileage log</span>
+          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--forest)]">Log</span>
         </div>
 
-        <div className="mt-4 grid gap-3.5 md:grid-cols-2">
+        <div className="mt-3.5 grid gap-3 md:grid-cols-2">
           <label className="grid gap-2 text-sm font-semibold">
             <span>Date</span>
             <input
-              className="h-12 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm outline-none transition focus:border-[var(--forest)]"
+              className="h-11 rounded-[1rem] border border-black/[0.08] bg-white px-3.5 text-sm outline-none transition focus:border-[var(--forest)]"
               defaultValue={new Date().toISOString().slice(0, 10)}
               name="tripDate"
               required
@@ -132,7 +132,7 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
           <label className="grid gap-2 text-sm font-semibold">
             <span>Trip type</span>
             <select
-              className="h-12 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm outline-none transition focus:border-[var(--forest)]"
+              className="h-11 rounded-[1rem] border border-black/[0.08] bg-white px-3.5 text-sm outline-none transition focus:border-[var(--forest)]"
               name="tripType"
               value={tripType}
               onChange={(event) => {
@@ -147,7 +147,7 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
           <label className="grid gap-2 text-sm font-semibold md:col-span-2">
             <span>Starting address</span>
             <input
-              className="h-12 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm outline-none transition focus:border-[var(--forest)]"
+              className="h-11 rounded-[1rem] border border-black/[0.08] bg-white px-3.5 text-sm outline-none transition focus:border-[var(--forest)]"
               name="originAddress"
               placeholder="123 Main St, Minneapolis, MN"
               required
@@ -161,7 +161,7 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
           <label className="grid gap-2 text-sm font-semibold md:col-span-2">
             <span>Destination address</span>
             <input
-              className="h-12 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm outline-none transition focus:border-[var(--forest)]"
+              className="h-11 rounded-[1rem] border border-black/[0.08] bg-white px-3.5 text-sm outline-none transition focus:border-[var(--forest)]"
               name="destinationAddress"
               placeholder="Venue or travel destination"
               required
@@ -175,7 +175,7 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
           <label className="grid gap-2 text-sm font-semibold">
             <span>Purpose</span>
             <input
-              className="h-12 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm outline-none transition focus:border-[var(--forest)]"
+              className="h-11 rounded-[1rem] border border-black/[0.08] bg-white px-3.5 text-sm outline-none transition focus:border-[var(--forest)]"
               name="purpose"
               placeholder="Wedding day coverage"
               required
@@ -183,7 +183,7 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
           </label>
           <label className="grid gap-2 text-sm font-semibold">
             <span>Linked project</span>
-            <select className="h-12 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm outline-none transition focus:border-[var(--forest)]" name="projectId">
+            <select className="h-11 rounded-[1rem] border border-black/[0.08] bg-white px-3.5 text-sm outline-none transition focus:border-[var(--forest)]" name="projectId">
               <option value="">No linked project</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
@@ -195,7 +195,7 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
           <label className="grid gap-2 text-sm font-semibold md:col-span-2">
             <span>Notes</span>
             <textarea
-              className="min-h-[110px] rounded-[1.2rem] border border-black/[0.08] bg-white px-4 py-3 text-sm outline-none transition focus:border-[var(--forest)]"
+              className="min-h-[88px] rounded-[1rem] border border-black/[0.08] bg-white px-3.5 py-3 text-sm outline-none transition focus:border-[var(--forest)]"
               name="notes"
               placeholder="Optional notes about parking, tolls, or the reason for the drive."
             />
@@ -203,14 +203,14 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
         </div>
       </div>
 
-      <div className="rounded-[1.2rem] border border-black/[0.06] bg-white p-4">
+      <div className="rounded-[1.15rem] border border-black/[0.06] bg-white p-3.5">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.06] pb-3">
           <div>
             <p className="text-[10px] uppercase tracking-[0.24em] text-[var(--muted)]">Mileage estimate</p>
-            <p className="mt-1 text-sm text-[var(--muted)]">Use the route calculator before saving the trip.</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Calculate the route before saving the trip.</p>
           </div>
           <button
-            className="rounded-full bg-[var(--sidebar)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-full bg-[var(--sidebar)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={status === "calculating"}
             type="button"
             onClick={calculateMileage}
@@ -219,11 +219,11 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3.5 md:grid-cols-2">
+        <div className="mt-3.5 grid gap-3 md:grid-cols-2">
           <label className="grid gap-2 text-sm font-semibold">
             <span>One-way miles</span>
             <input
-              className="h-12 rounded-2xl border border-black/[0.08] bg-[rgba(16,33,52,0.04)] px-4 text-sm outline-none"
+              className="h-11 rounded-[1rem] border border-black/[0.08] bg-[rgba(16,33,52,0.04)] px-3.5 text-sm outline-none"
               name="oneWayMiles"
               readOnly
               value={estimate.oneWayMiles ? estimate.oneWayMiles.toFixed(1) : ""}
@@ -232,7 +232,7 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
           <label className="grid gap-2 text-sm font-semibold">
             <span>Total miles</span>
             <input
-              className="h-12 rounded-2xl border border-black/[0.08] bg-[rgba(16,33,52,0.04)] px-4 text-sm outline-none"
+              className="h-11 rounded-[1rem] border border-black/[0.08] bg-[rgba(16,33,52,0.04)] px-3.5 text-sm outline-none"
               name="totalMiles"
               readOnly
               value={displayedTotalMiles ? displayedTotalMiles.toFixed(1) : ""}
@@ -244,8 +244,8 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
         <input name="destinationLabel" type="hidden" value={estimate.destinationLabel} />
         <input name="calculationSource" type="hidden" value={estimate.calculationSource} />
 
-        <div className="mt-4 rounded-[1rem] bg-[rgba(16,33,52,0.04)] px-4 py-3">
-          <p className="text-sm text-[var(--muted)]">
+        <div className="mt-3.5 rounded-[1rem] bg-[rgba(16,33,52,0.04)] px-3.5 py-3">
+          <p className="text-sm leading-6 text-[var(--muted)]">
             {message || "We will save the map estimate with the trip so your ledger stays easy to audit later."}
           </p>
           {estimate.originLabel || estimate.destinationLabel ? (
@@ -257,9 +257,9 @@ export function MileageLogForm({ projects }: MileageLogFormProps) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.2rem] bg-[rgba(16,33,52,0.04)] px-4 py-3">
-        <p className="text-sm text-[var(--muted)]">Trip entries save into the ledger mileage tracker without creating a manual expense transaction.</p>
-        <button className="rounded-full bg-[var(--forest)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.15rem] bg-[rgba(16,33,52,0.04)] px-3.5 py-3">
+        <p className="text-sm leading-6 text-[var(--muted)]">Trip entries save into the ledger mileage tracker without creating a manual expense transaction.</p>
+        <button className="rounded-full bg-[var(--forest)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110">
           Save mileage trip
         </button>
       </div>

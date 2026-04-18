@@ -60,11 +60,11 @@ export default async function LedgerMileagePage({
         ))}
       </div>
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <div className="rounded-[1.45rem] border border-black/[0.08] bg-white/94 p-5 shadow-[0_14px_28px_rgba(59,36,17,0.07)]">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(320px,0.68fr)_minmax(0,1.32fr)]">
+        <div className="rounded-[1.35rem] border border-black/[0.08] bg-white/94 p-4 shadow-[0_14px_28px_rgba(59,36,17,0.07)]">
           <div>
             <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--muted)]">New mileage trip</p>
-            <h2 className="mt-2 text-2xl font-semibold">Log a drive</h2>
+            <h2 className="mt-2 text-[1.7rem] font-semibold">Log a drive</h2>
           </div>
           <div className="mt-5">
             <MileageLogForm
@@ -94,10 +94,11 @@ export default async function LedgerMileagePage({
                 No mileage trips saved yet. Add the first route on the left and the tracker will start building your travel history.
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-[1.1rem] border border-black/[0.06]">
-                <table className="min-w-[980px] w-full border-collapse text-left text-sm">
+              <div className="overflow-hidden rounded-[1.1rem] border border-black/[0.06] bg-white">
+                <div className="max-h-[860px] overflow-auto">
+                  <table className="min-w-[1220px] w-full border-collapse text-left text-sm">
                   <thead>
-                    <tr className="bg-[rgba(16,33,52,0.04)] text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
+                    <tr className="sticky top-0 z-10 bg-[#f5efe6] text-[10px] uppercase tracking-[0.2em] text-[var(--muted)] shadow-[inset_0_-1px_0_rgba(16,33,52,0.08)]">
                       <th className="px-3 py-3 font-medium">Date</th>
                       <th className="px-3 py-3 font-medium">Purpose</th>
                       <th className="px-3 py-3 font-medium">From</th>
@@ -111,16 +112,19 @@ export default async function LedgerMileagePage({
                     </tr>
                   </thead>
                   <tbody>
-                    {mileage.entries.map((entry) => (
-                      <tr key={entry.id} className="border-t border-black/[0.06] align-top">
+                    {mileage.entries.map((entry, index) => (
+                      <tr
+                        key={entry.id}
+                        className={`border-t border-black/[0.06] align-top ${index % 2 === 0 ? "bg-white" : "bg-[rgba(16,33,52,0.018)]"}`}
+                      >
                         <td className="px-3 py-3 whitespace-nowrap">
                           {shortDate.format(new Date(entry.tripDate))}
                         </td>
                         <td className="px-3 py-3 font-semibold">{entry.purpose}</td>
-                        <td className="px-3 py-3 text-[var(--muted)]">
+                        <td className="min-w-[220px] px-3 py-3 text-[var(--muted)]">
                           {entry.originLabel || entry.originAddress}
                         </td>
-                        <td className="px-3 py-3 text-[var(--muted)]">
+                        <td className="min-w-[220px] px-3 py-3 text-[var(--muted)]">
                           {entry.destinationLabel || entry.destinationAddress}
                         </td>
                         <td className="px-3 py-3">
@@ -130,10 +134,10 @@ export default async function LedgerMileagePage({
                         </td>
                         <td className="px-3 py-3 text-right font-medium">{entry.oneWayMiles.toFixed(1)} mi</td>
                         <td className="px-3 py-3 text-right font-semibold">{entry.totalMiles.toFixed(1)} mi</td>
-                        <td className="px-3 py-3 text-[var(--muted)]">
+                        <td className="min-w-[180px] px-3 py-3 text-[var(--muted)]">
                           {entry.notes || <span className="text-black/35">-</span>}
                         </td>
-                        <td className="px-3 py-3 text-[var(--muted)]">
+                        <td className="min-w-[170px] px-3 py-3 text-[var(--muted)]">
                           {entry.calculationSource || "Map estimate"}
                         </td>
                         <td className="px-3 py-3 text-right">
@@ -147,7 +151,8 @@ export default async function LedgerMileagePage({
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             )}
           </div>
