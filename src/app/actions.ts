@@ -5980,7 +5980,7 @@ async function upsertPackageTemplateBundleFromFormData(formData: FormData) {
 
   revalidatePath("/proposals");
   revalidatePath("/packages");
-  revalidatePath(`/packages/new?templateSetId=${encodeURIComponent(resolvedTemplateSetId)}`);
+  revalidatePath("/packages/new");
   revalidatePath(`/packages/${savedPackages[0]?.id || representativeId}`);
 
   return {
