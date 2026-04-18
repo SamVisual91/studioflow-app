@@ -99,7 +99,7 @@ export function PackagesTemplateGrid({
               <span className="sr-only">Open {templateSet.setName}</span>
             </Link>
 
-            <form action={deleteAction} className="absolute right-3 top-3 z-20">
+            <form action={deleteAction} className="absolute right-3 top-3 z-20" draggable={false}>
               <input name="templateSetId" type="hidden" value={templateSet.groupId} />
               <input name="resolvedTemplateSetId" type="hidden" value={templateSet.representativeTemplateSetId} />
               <input name="representativeId" type="hidden" value={templateSet.presetId} />
@@ -107,8 +107,15 @@ export function PackagesTemplateGrid({
               <button
                 aria-label={`Delete ${templateSet.setName}`}
                 className="inline-flex h-10 w-10 items-center justify-center bg-white/92 text-lg text-[var(--ink)] shadow-sm transition hover:text-[var(--accent)]"
-                onClick={(event) => event.stopPropagation()}
-                type="submit"
+                draggable={false}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  event.currentTarget.form?.requestSubmit();
+                }}
+                onMouseDown={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+                type="button"
               >
                 &#128465;
               </button>
