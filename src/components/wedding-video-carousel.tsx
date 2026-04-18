@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MediaCarousel } from "@/components/media-carousel";
 
 type WeddingVideoCarouselItem = {
@@ -12,7 +12,8 @@ type WeddingVideoCarouselItem = {
   accentFrom: string;
   accentTo: string;
   posterSrc?: string;
-  videoSrc: string;
+  videoSrc?: string;
+  youtubeEmbedSrc?: string;
 };
 
 type WeddingVideoCarouselProps = {
@@ -22,6 +23,34 @@ type WeddingVideoCarouselProps = {
 export function WeddingVideoCarousel({ items }: WeddingVideoCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const activeItem = selectedIndex === null ? null : items[selectedIndex];
+  const activeMediaType = useMemo(() => {
+    if (!activeItem) {
+      return null;
+    }
+
+    if (activeItem.youtubeEmbedSrc) {
+      return "youtube";
+    }
+
+    if (activeItem.videoSrc) {
+      return "video";
+    }
+
+    return null;
+  }, [activeItem]);
+
+  useEffect(() => {
+    if (!activeItem) {
+      return;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [activeItem]);
 
   return (
     <>
@@ -91,7 +120,10 @@ export function WeddingVideoCarousel({ items }: WeddingVideoCarouselProps) {
       </MediaCarousel>
 
       {activeItem ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/88 px-4 py-6 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-[rgba(4,4,4,0.9)] px-4 py-6 backdrop-blur-md"
+          onClick={() => setSelectedIndex(null)}
+        >
           <button
             aria-label="Close wedding video"
             className="absolute right-5 top-5 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/18 bg-black/32 text-white transition hover:bg-black/52"
@@ -103,14 +135,55 @@ export function WeddingVideoCarousel({ items }: WeddingVideoCarouselProps) {
             </svg>
           </button>
 
-          <div className="w-full max-w-6xl overflow-hidden border border-white/10 bg-black shadow-[0_20px_70px_rgba(0,0,0,0.45)]">
-            <video
-              autoPlay
-              className="aspect-video h-auto w-full bg-black object-contain"
-              controls
-              playsInline
-              src={activeItem.videoSrc}
-            />
+          <div
+            className="w-full max-w-6xl overflow-hidden border border-white/10 bg-[linear-gradient(180deg,#090909,#121212)] shadow-[0_24px_90px_rgba(0,0,0,0.52)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 text-white">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/54">
+                  {activeItem.eyebrow}
+                </p>
+                <h3 className="mt-2 font-display text-2xl leading-none sm:text-[2rem]">{activeItem.title}</h3>
+                <p className="mt-2 text-sm text-white/62">{activeItem.subtitle}</p>
+              </div>
+              <button
+                className="inline-flex h-10 items-center justify-center border border-white/14 px-4 text-xs font-semibold uppercase tracking-[0.18em] text-white/72 transition hover:border-white/24 hover:text-white"
+                onClick={() => setSelectedIndex(null)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="aspect-video w-full bg-black">
+              {activeMediaType === "youtube" ? (
+                <iframe
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="h-full w-full"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  src={activeItem.youtubeEmbedSrc}
+                  title={activeItem.title}
+                />
+              ) : activeMediaType === "video" ? (
+                <video
+                  autoPlay
+                  className="h-full w-full bg-black object-contain"
+                  controls
+                  playsInline
+                  src={activeItem.videoSrc}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-white/62">
+                  Video source unavailable.
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-white/10 px-5 py-4 text-sm leading-7 text-white/68">
+              {activeItem.detail}
+            </div>
           </div>
         </div>
       ) : null}
