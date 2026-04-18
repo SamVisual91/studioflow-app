@@ -1,5 +1,5 @@
-import { deleteMileageLogAction, updateMileageLogAction } from "@/app/actions";
 import { MileageEntryDialog } from "@/components/mileage-entry-dialog";
+import { MileageHistoryRow } from "@/components/mileage-history-row";
 import { LedgerWorkspace } from "@/components/ledger-workspace";
 import { shortDate } from "@/lib/formatters";
 import { getLedgerPageData } from "@/lib/ledger-page";
@@ -111,96 +111,7 @@ export default async function LedgerMileagePage({
                   </thead>
                   <tbody>
                     {mileage.entries.map((entry, index) => (
-                      <tr key={entry.id} className={index % 2 === 0 ? "bg-white" : "bg-[rgba(16,33,52,0.018)]"}>
-                        <td className="p-0" colSpan={10}>
-                          <form action={updateMileageLogAction}>
-                            <input name="mileageLogId" type="hidden" value={entry.id} />
-                            <div className="grid grid-cols-[8%_12%_17%_17%_8%_7%_7%_12%_7%_5%] border-t border-black/[0.06]">
-                              <div className="sticky left-0 z-10 border-r border-black/[0.08] bg-inherit px-2 py-2">
-                                <input
-                                  className="h-10 w-full rounded-[0.9rem] border border-transparent bg-transparent px-2.5 text-sm outline-none transition focus:border-[var(--forest)] focus:bg-white"
-                                  defaultValue={entry.tripDate.slice(0, 10)}
-                                  name="tripDate"
-                                  type="date"
-                                />
-                              </div>
-                              <div className="border-r border-black/[0.08] px-2 py-2">
-                                <input
-                                  className="h-10 w-full rounded-[0.9rem] border border-transparent bg-transparent px-2.5 text-sm font-semibold outline-none transition focus:border-[var(--forest)] focus:bg-white"
-                                  defaultValue={entry.purpose}
-                                  name="purpose"
-                                />
-                              </div>
-                              <div className="border-r border-black/[0.08] px-2 py-2">
-                                <input
-                                  className="h-10 w-full rounded-[0.9rem] border border-transparent bg-transparent px-2.5 text-sm text-[var(--muted)] outline-none transition focus:border-[var(--forest)] focus:bg-white focus:text-[var(--ink)]"
-                                  defaultValue={entry.originAddress}
-                                  name="originAddress"
-                                />
-                              </div>
-                              <div className="border-r border-black/[0.08] px-2 py-2">
-                                <input
-                                  className="h-10 w-full rounded-[0.9rem] border border-transparent bg-transparent px-2.5 text-sm text-[var(--muted)] outline-none transition focus:border-[var(--forest)] focus:bg-white focus:text-[var(--ink)]"
-                                  defaultValue={entry.destinationAddress}
-                                  name="destinationAddress"
-                                />
-                              </div>
-                              <div className="border-r border-black/[0.08] px-2 py-2">
-                                <select
-                                  className="h-10 w-full rounded-[0.9rem] border border-transparent bg-transparent px-2 text-sm outline-none transition focus:border-[var(--forest)] focus:bg-white"
-                                  defaultValue={entry.tripType}
-                                  name="tripType"
-                                >
-                                  <option value="ROUND_TRIP">Round trip</option>
-                                  <option value="ONE_WAY">One way</option>
-                                </select>
-                              </div>
-                              <div className="border-r border-black/[0.08] px-2 py-2">
-                                <input
-                                  className="h-10 w-full rounded-[0.9rem] border border-transparent bg-transparent px-2.5 text-right text-sm outline-none transition focus:border-[var(--forest)] focus:bg-white"
-                                  defaultValue={entry.oneWayMiles.toFixed(1)}
-                                  min="0.1"
-                                  name="oneWayMiles"
-                                  step="0.1"
-                                  type="number"
-                                />
-                              </div>
-                              <div className="border-r border-black/[0.08] px-2 py-2">
-                                <input
-                                  className="h-10 w-full rounded-[0.9rem] border border-transparent bg-transparent px-2.5 text-right text-sm font-semibold outline-none transition focus:border-[var(--forest)] focus:bg-white"
-                                  defaultValue={entry.totalMiles.toFixed(1)}
-                                  min="0.1"
-                                  name="totalMiles"
-                                  step="0.1"
-                                  type="number"
-                                />
-                              </div>
-                              <div className="border-r border-black/[0.08] px-2 py-2">
-                                <input
-                                  className="h-10 w-full rounded-[0.9rem] border border-transparent bg-transparent px-2.5 text-sm text-[var(--muted)] outline-none transition focus:border-[var(--forest)] focus:bg-white focus:text-[var(--ink)]"
-                                  defaultValue={entry.notes}
-                                  name="notes"
-                                  placeholder="-"
-                                />
-                              </div>
-                              <div className="border-r border-black/[0.08] px-3 py-3 text-sm text-[var(--muted)]">
-                                <span className="line-clamp-2">{entry.calculationSource || "Map estimate"}</span>
-                              </div>
-                              <div className="flex flex-col items-end justify-center gap-2 px-2 py-2">
-                                <button className="rounded-full bg-[var(--sidebar)] px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110">
-                                  Save row
-                                </button>
-                                <button
-                                  className="rounded-full border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-3 py-2 text-xs font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.12)]"
-                                  formAction={deleteMileageLogAction}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          </form>
-                        </td>
-                      </tr>
+                      <MileageHistoryRow key={entry.id} entry={entry} index={index} />
                     ))}
                   </tbody>
                   </table>
