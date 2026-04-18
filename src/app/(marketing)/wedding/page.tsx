@@ -72,7 +72,7 @@ const weddingVideos = [
     accentFrom: "#eec6b5",
     accentTo: "#9d6c62",
     posterSrc: "/brand/emily-alex-wedding-thumbnail.png",
-    videoSrc: "/work-videos/emily-alex-wedding.mp4",
+    youtubeEmbedSrc: "https://www.youtube.com/embed/HuEV0Byr2VA?si=EQbrKZ9RIaDuJuaV",
   },
 ];
 

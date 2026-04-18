@@ -67,7 +67,12 @@ export default async function PortfolioProjectPage({
             </div>
           </div>
 
-          <PublicWorkVideoLauncher posterSrc={work.image} title={work.title} videoSrc={work.videoSrc} />
+          <PublicWorkVideoLauncher
+            posterSrc={work.image}
+            title={work.title}
+            videoSrc={work.videoSrc}
+            youtubeEmbedSrc={work.youtubeEmbedSrc}
+          />
 
           <div className="mt-12 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
             <article className="border border-white/10 bg-[#101010] p-7 sm:p-8">

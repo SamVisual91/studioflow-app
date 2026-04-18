@@ -4,6 +4,7 @@ export type PublicWorkItem = {
   subtitle: string;
   image: string;
   videoSrc?: string;
+  youtubeEmbedSrc?: string;
   client: string;
   category: string;
   summary: string;
@@ -115,7 +116,7 @@ export const publicWorkSections: PublicWorkSection[] = [
         title: "Bulova Octava",
         subtitle: "Promotional Video",
         image: "/brand/bulova-octava-thumbnail.png",
-        videoSrc: "/work-videos/bulova-octava.mp4",
+        youtubeEmbedSrc: "https://www.youtube.com/embed/X1pbk-OQUSY?si=TQComvKPEF2qSdD5",
         client: "Bulova",
         category: "Brand Launches & Commercials",
         summary: "Luxury product visuals focused on texture, light, precision, and elevated presentation.",
@@ -129,7 +130,7 @@ export const publicWorkSections: PublicWorkSection[] = [
         title: "TRULY AD",
         subtitle: "Advertising Video",
         image: "/brand/truly-flavor-thumbnail.png",
-        videoSrc: "/work-videos/truly-ad.mp4",
+        youtubeEmbedSrc: "https://www.youtube.com/embed/Vyl5gB2rRhs?si=3wVjcUajxQN-K3ls",
         client: "Truly",
         category: "Brand Launches & Commercials",
         summary: "Flavor-forward campaign imagery built around freshness, energy, and bold visual contrast.",
