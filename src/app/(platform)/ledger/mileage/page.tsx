@@ -1,6 +1,6 @@
 import { deleteMileageLogAction, updateMileageLogAction } from "@/app/actions";
+import { MileageEntryDialog } from "@/components/mileage-entry-dialog";
 import { LedgerWorkspace } from "@/components/ledger-workspace";
-import { MileageLogForm } from "@/components/mileage-log-form";
 import { shortDate } from "@/lib/formatters";
 import { getLedgerPageData } from "@/lib/ledger-page";
 import { getMileageData } from "@/lib/mileage";
@@ -15,6 +15,11 @@ export default async function LedgerMileagePage({
     getLedgerPageData(),
   ]);
   const mileage = getMileageData();
+  const mileageProjects = data.projects.map((project) => ({
+    id: project.id,
+    name: project.name,
+    client: project.client,
+  }));
 
   return (
     <LedgerWorkspace
@@ -23,6 +28,7 @@ export default async function LedgerMileagePage({
       summary={shellSummary}
       title="Mileage Tracker"
       user={user}
+      actions={<MileageEntryDialog projects={mileageProjects} />}
     >
       {saved ? (
         <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
@@ -67,32 +73,6 @@ export default async function LedgerMileagePage({
       </div>
 
       <div className="grid gap-6">
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(320px,520px)_minmax(0,1fr)]">
-        <div className="rounded-[1.35rem] border border-black/[0.08] bg-white/94 p-4 shadow-[0_14px_28px_rgba(59,36,17,0.07)]">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--muted)]">New mileage trip</p>
-            <h2 className="mt-2 text-[1.7rem] font-semibold">Log a drive</h2>
-          </div>
-          <div className="mt-5">
-            <MileageLogForm
-              projects={data.projects.map((project) => ({
-                id: project.id,
-                name: project.name,
-                client: project.client,
-              }))}
-            />
-          </div>
-        </div>
-
-        <article className="rounded-[1.35rem] border border-black/[0.08] bg-[rgba(16,33,52,0.04)] p-4 shadow-[0_14px_28px_rgba(59,36,17,0.05)]">
-          <p className="text-[10px] uppercase tracking-[0.24em] text-[var(--muted)]">Spreadsheet workflow</p>
-          <h3 className="mt-2 text-xl font-semibold">Edit directly in the mileage sheet</h3>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            Use the form to calculate a new route, then adjust dates, addresses, notes, or mileage totals directly inside the trip history sheet below. Each row saves independently.
-          </p>
-        </article>
-        </div>
-
         <div className="rounded-[1.45rem] border border-black/[0.08] bg-white/94 p-5 shadow-[0_14px_28px_rgba(59,36,17,0.07)]">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -113,21 +93,20 @@ export default async function LedgerMileagePage({
                 No mileage trips saved yet. Add the first route on the left and the tracker will start building your travel history.
               </div>
             ) : (
-              <div className="overflow-hidden rounded-[1.15rem] border border-black/[0.08]">
-                <div className="max-h-[1120px] overflow-auto">
-                  <table className="min-w-[1480px] w-full border-collapse text-left text-sm">
+              <div className="rounded-[1.15rem] border border-black/[0.08]">
+                  <table className="w-full table-fixed border-collapse text-left text-sm">
                   <thead>
                     <tr className="sticky top-0 z-10 bg-[rgba(16,33,52,0.06)] text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
-                      <th className="sticky left-0 z-20 min-w-[120px] border-b border-r border-black/[0.08] bg-[rgba(16,33,52,0.06)] px-3 py-3 font-medium">Date</th>
-                      <th className="min-w-[180px] border-b border-r border-black/[0.08] px-3 py-3 font-medium">Purpose</th>
-                      <th className="min-w-[260px] border-b border-r border-black/[0.08] px-3 py-3 font-medium">From</th>
-                      <th className="min-w-[260px] border-b border-r border-black/[0.08] px-3 py-3 font-medium">To</th>
-                      <th className="min-w-[120px] border-b border-r border-black/[0.08] px-3 py-3 font-medium">Trip</th>
-                      <th className="min-w-[120px] border-b border-r border-black/[0.08] px-3 py-3 font-medium text-right">One way</th>
-                      <th className="min-w-[120px] border-b border-r border-black/[0.08] px-3 py-3 font-medium text-right">Total</th>
-                      <th className="min-w-[220px] border-b border-r border-black/[0.08] px-3 py-3 font-medium">Notes</th>
-                      <th className="min-w-[190px] border-b border-r border-black/[0.08] px-3 py-3 font-medium">Source</th>
-                      <th className="min-w-[170px] border-b px-3 py-3 font-medium text-right">Row actions</th>
+                      <th className="sticky left-0 z-20 w-[8%] border-b border-r border-black/[0.08] bg-[rgba(16,33,52,0.06)] px-3 py-3 font-medium">Date</th>
+                      <th className="w-[12%] border-b border-r border-black/[0.08] px-3 py-3 font-medium">Purpose</th>
+                      <th className="w-[17%] border-b border-r border-black/[0.08] px-3 py-3 font-medium">From</th>
+                      <th className="w-[17%] border-b border-r border-black/[0.08] px-3 py-3 font-medium">To</th>
+                      <th className="w-[8%] border-b border-r border-black/[0.08] px-3 py-3 font-medium">Trip</th>
+                      <th className="w-[7%] border-b border-r border-black/[0.08] px-3 py-3 font-medium text-right">One way</th>
+                      <th className="w-[7%] border-b border-r border-black/[0.08] px-3 py-3 font-medium text-right">Total</th>
+                      <th className="w-[12%] border-b border-r border-black/[0.08] px-3 py-3 font-medium">Notes</th>
+                      <th className="w-[7%] border-b border-r border-black/[0.08] px-3 py-3 font-medium">Source</th>
+                      <th className="w-[5%] border-b px-3 py-3 font-medium text-right">Row actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -136,7 +115,7 @@ export default async function LedgerMileagePage({
                         <td className="p-0" colSpan={10}>
                           <form action={updateMileageLogAction}>
                             <input name="mileageLogId" type="hidden" value={entry.id} />
-                            <div className="grid min-w-[1480px] grid-cols-[120px_180px_260px_260px_120px_120px_120px_220px_190px_170px] border-t border-black/[0.06]">
+                            <div className="grid grid-cols-[8%_12%_17%_17%_8%_7%_7%_12%_7%_5%] border-t border-black/[0.06]">
                               <div className="sticky left-0 z-10 border-r border-black/[0.08] bg-inherit px-2 py-2">
                                 <input
                                   className="h-10 w-full rounded-[0.9rem] border border-transparent bg-transparent px-2.5 text-sm outline-none transition focus:border-[var(--forest)] focus:bg-white"
@@ -168,7 +147,7 @@ export default async function LedgerMileagePage({
                               </div>
                               <div className="border-r border-black/[0.08] px-2 py-2">
                                 <select
-                                  className="h-10 w-full rounded-[0.9rem] border border-transparent bg-transparent px-2.5 text-sm outline-none transition focus:border-[var(--forest)] focus:bg-white"
+                                  className="h-10 w-full rounded-[0.9rem] border border-transparent bg-transparent px-2 text-sm outline-none transition focus:border-[var(--forest)] focus:bg-white"
                                   defaultValue={entry.tripType}
                                   name="tripType"
                                 >
@@ -205,9 +184,9 @@ export default async function LedgerMileagePage({
                                 />
                               </div>
                               <div className="border-r border-black/[0.08] px-3 py-3 text-sm text-[var(--muted)]">
-                                {entry.calculationSource || "Map estimate"}
+                                <span className="line-clamp-2">{entry.calculationSource || "Map estimate"}</span>
                               </div>
-                              <div className="flex items-center justify-end gap-2 px-2 py-2">
+                              <div className="flex flex-col items-end justify-center gap-2 px-2 py-2">
                                 <button className="rounded-full bg-[var(--sidebar)] px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110">
                                   Save row
                                 </button>
@@ -225,7 +204,6 @@ export default async function LedgerMileagePage({
                     ))}
                   </tbody>
                   </table>
-                </div>
               </div>
             )}
           </div>
