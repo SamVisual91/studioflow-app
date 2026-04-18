@@ -2,8 +2,21 @@ import Link from "next/link";
 
 export default function SplashPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#111111] px-6 text-white">
-      <div className="grid justify-items-center gap-6 text-center">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#111111] px-6 text-white">
+      <video
+        autoPlay
+        className="absolute inset-0 h-full w-full object-cover"
+        loop
+        muted
+        playsInline
+        preload="auto"
+      >
+        <source src="/brand/splash-hero.mp4" type="video/mp4" />
+      </video>
+
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.42),rgba(8,8,8,0.62)_45%,rgba(8,8,8,0.78)_100%)]" />
+
+      <div className="relative grid justify-items-center gap-6 text-center">
         <p className="text-sm font-semibold uppercase tracking-[0.34em] text-white/70">
           Welcome to Filmchaser Media
         </p>
