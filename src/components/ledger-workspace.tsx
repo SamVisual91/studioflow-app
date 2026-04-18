@@ -81,31 +81,7 @@ export function LedgerWorkspace({
           <SectionHeader eyebrow="Ledger" title={title} copy={copy} />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)] xl:items-start">
-          <aside className="grid gap-4 xl:sticky xl:top-6">
-            <div className="rounded-[1.4rem] border border-black/[0.08] bg-white/92 p-4 shadow-[0_16px_32px_rgba(59,36,17,0.08)]">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-[var(--muted)]">Operating pulse</p>
-              <div className="mt-3 grid gap-3">
-                <div className="rounded-[1rem] bg-[rgba(16,33,52,0.04)] px-3 py-2.5">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">Weekly revenue</p>
-                  <p className="mt-1 text-lg font-semibold">${summary.weeklyRevenue.toLocaleString()}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-[1rem] bg-[rgba(16,33,52,0.04)] px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">Tasks</p>
-                    <p className="mt-1 text-lg font-semibold">{summary.tasksDue}</p>
-                  </div>
-                  <div className="rounded-[1rem] bg-[rgba(16,33,52,0.04)] px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">Events</p>
-                    <p className="mt-1 text-lg font-semibold">{summary.eventCount}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          <div className="grid gap-6">{children}</div>
-        </div>
+        <div className="grid gap-6">{children}</div>
       </section>
     </DashboardShell>
   );

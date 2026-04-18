@@ -25,8 +25,9 @@ export function MileageEntryDialog({ projects }: MileageEntryDialogProps) {
       </button>
 
       {isOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-8">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-[1.8rem] border border-black/[0.08] bg-[var(--paper)] p-5 shadow-[0_24px_90px_rgba(16,33,52,0.24)] sm:p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(16,24,39,0.68)] px-4 py-8 backdrop-blur-[2px]">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[1.8rem] border border-black/[0.08] bg-[#f7f1e8] shadow-[0_24px_90px_rgba(16,33,52,0.32)]">
+            <div className="max-h-[90vh] overflow-auto p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--muted)]">Mileage entry</p>
@@ -47,6 +48,7 @@ export function MileageEntryDialog({ projects }: MileageEntryDialogProps) {
 
             <div className="mt-5">
               <MileageLogForm projects={projects} />
+            </div>
             </div>
           </div>
         </div>
