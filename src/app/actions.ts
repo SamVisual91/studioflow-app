@@ -1496,6 +1496,64 @@ export async function deleteMileageLogAction(formData: FormData) {
   redirect("/ledger/mileage?deleted=1");
 }
 
+export async function updateMileageLogAction(formData: FormData) {
+  await requireUser();
+
+  const mileageLogId = getString(formData, "mileageLogId");
+  const tripDate = getString(formData, "tripDate");
+  const originAddress = getString(formData, "originAddress");
+  const destinationAddress = getString(formData, "destinationAddress");
+  const tripType = getMileageTripType(formData);
+  const purpose = getString(formData, "purpose");
+  const notes = getString(formData, "notes");
+  const oneWayMiles = Number(getString(formData, "oneWayMiles"));
+  const totalMiles = Number(getString(formData, "totalMiles"));
+
+  if (
+    !mileageLogId ||
+    !tripDate ||
+    !originAddress ||
+    !destinationAddress ||
+    !purpose ||
+    Number.isNaN(oneWayMiles) ||
+    Number.isNaN(totalMiles) ||
+    oneWayMiles <= 0 ||
+    totalMiles <= 0
+  ) {
+    redirect("/ledger/mileage?error=mileage-invalid");
+  }
+
+  const db = getDb();
+  db.prepare(
+    `UPDATE ledger_mileage_logs
+     SET trip_date = ?,
+         origin_address = ?,
+         destination_address = ?,
+         trip_type = ?,
+         one_way_miles = ?,
+         total_miles = ?,
+         purpose = ?,
+         notes = ?,
+         updated_at = ?
+     WHERE id = ?`
+  ).run(
+    `${tripDate}T12:00:00.000Z`,
+    originAddress,
+    destinationAddress,
+    tripType,
+    oneWayMiles,
+    totalMiles,
+    purpose,
+    notes || "",
+    new Date().toISOString(),
+    mileageLogId
+  );
+
+  revalidatePath("/ledger");
+  revalidatePath("/ledger/mileage");
+  redirect("/ledger/mileage?updated=1");
+}
+
 export async function createRecurringLedgerRuleAction(formData: FormData) {
   await requireUser();
 
