@@ -32,7 +32,7 @@ const weddingVideos = [
     accentFrom: "#f8d1b0",
     accentTo: "#c97a63",
     posterSrc: "/brand/karina-justin-wedding-thumbnail.png",
-    videoSrc: "/work-videos/karina-justin-wedding.mov",
+    youtubeEmbedSrc: "https://www.youtube.com/embed/3QZk8g-F9Uw?si=2zMs1Vf-AzV_xGvC",
   },
   {
     title: "Lauren + Aaron",
@@ -42,7 +42,7 @@ const weddingVideos = [
     accentFrom: "#ead4be",
     accentTo: "#8d6b55",
     posterSrc: "/brand/lauren-aaron-wedding-thumbnail.png",
-    videoSrc: "/work-videos/lauren-aaron-wedding.mov",
+    youtubeEmbedSrc: "https://www.youtube.com/embed/Xg0Azl4kpLc?si=335MThcXgz3sH4NS",
   },
   {
     title: "Lindsey + Matthew",
@@ -52,7 +52,7 @@ const weddingVideos = [
     accentFrom: "#f4dcc4",
     accentTo: "#9f6f50",
     posterSrc: "/brand/lindsey-matthew-wedding-thumbnail.png",
-    videoSrc: "/work-videos/lindsey-matthew-wedding.mp4",
+    youtubeEmbedSrc: "https://www.youtube.com/embed/s-gOmqvSwLU?si=zQhsruaJxYpDKeeF",
   },
   {
     title: "Catherine + Zach",
