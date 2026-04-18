@@ -5755,7 +5755,7 @@ export async function createPackagePresetAction(formData: FormData) {
   );
 }
 
-export async function createPackageTemplateBundleAction(formData: FormData) {
+async function upsertPackageTemplateBundleFromFormData(formData: FormData) {
   await requireUser();
 
   const category = getString(formData, "category");
@@ -5766,7 +5766,10 @@ export async function createPackageTemplateBundleAction(formData: FormData) {
   const representativeId = getString(formData, "representativeId");
   const templateSetCoverImageFile = getUploadFile(formData, "templateSetCoverImage");
   if (!category || !bundleInput) {
-    redirect("/packages/new?error=preset-invalid");
+    return {
+      error: "preset-invalid" as const,
+      ok: false as const,
+    };
   }
 
     let packageBundle: Array<{
@@ -5785,7 +5788,10 @@ export async function createPackageTemplateBundleAction(formData: FormData) {
   try {
     packageBundle = JSON.parse(bundleInput);
   } catch {
-    redirect("/packages/new?error=preset-invalid");
+    return {
+      error: "preset-invalid" as const,
+      ok: false as const,
+    };
   }
 
     const normalizedBundle = packageBundle
@@ -5823,7 +5829,10 @@ export async function createPackageTemplateBundleAction(formData: FormData) {
     );
 
   if (normalizedBundle.length === 0) {
-    redirect("/packages/new?error=preset-invalid");
+    return {
+      error: "preset-invalid" as const,
+      ok: false as const,
+    };
   }
 
   const db = getDb();
@@ -5890,6 +5899,8 @@ export async function createPackageTemplateBundleAction(formData: FormData) {
     templateSetCoverImage = nextTemplateSetCoverImage;
   }
 
+  const savedPackages: Array<{ coverImage: string; id: string }> = [];
+
   for (const [index, item] of normalizedBundle.entries()) {
     const uploadedCoverImage = getUploadFile(formData, `coverImage_${index}`);
     const existingPreset = existingSetPresets[index];
@@ -5924,11 +5935,16 @@ export async function createPackageTemplateBundleAction(formData: FormData) {
         timestamp,
         existingPreset.id
       );
+      savedPackages.push({
+        coverImage,
+        id: existingPreset.id,
+      });
       continue;
     }
 
+      const nextPresetId = randomUUID();
       insertPreset.run(
-        randomUUID(),
+        nextPresetId,
         resolvedTemplateSetId,
         nextTemplateSetName,
         templateSetCoverImage,
@@ -5950,6 +5966,10 @@ export async function createPackageTemplateBundleAction(formData: FormData) {
       timestamp,
       timestamp
     );
+    savedPackages.push({
+      coverImage,
+      id: nextPresetId,
+    });
   }
 
   const stalePresets = existingSetPresets.slice(normalizedBundle.length);
@@ -5961,7 +5981,27 @@ export async function createPackageTemplateBundleAction(formData: FormData) {
   revalidatePath("/proposals");
   revalidatePath("/packages");
   revalidatePath(`/packages/new?templateSetId=${encodeURIComponent(resolvedTemplateSetId)}`);
-  redirect(`/packages?category=${encodeURIComponent(normalizedCategory)}&saved=1`);
+  revalidatePath(`/packages/${savedPackages[0]?.id || representativeId}`);
+
+  return {
+    category: normalizedCategory,
+    ok: true as const,
+    packages: savedPackages,
+    representativeId: savedPackages[0]?.id || representativeId || "",
+    savedAt: timestamp,
+    templateSetCoverImage,
+    templateSetId: resolvedTemplateSetId,
+  };
+}
+
+export async function createPackageTemplateBundleAction(formData: FormData) {
+  const result = await upsertPackageTemplateBundleFromFormData(formData);
+
+  if (!result.ok) {
+    return result;
+  }
+
+  return result;
 }
 
 export async function createDocumentTemplateAction(formData: FormData) {

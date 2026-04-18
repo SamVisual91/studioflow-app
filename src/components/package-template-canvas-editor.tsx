@@ -1,8 +1,9 @@
 "use client";
 
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createPackageTemplateBundleAction } from "@/app/actions";
 
 type PackageCategory = {
@@ -205,8 +206,12 @@ export function PackageTemplateCanvasEditor({
   representativeId?: string;
   templateSetId?: string;
 }) {
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement | null>(null);
   const heroCoverInputRef = useRef<HTMLInputElement | null>(null);
   const packageCoverUrlsRef = useRef<Record<string, string>>({});
+  const initializedRef = useRef(false);
+  const suppressAutosaveRef = useRef(false);
   const heroDragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -222,6 +227,12 @@ export function PackageTemplateCanvasEditor({
     startPositionX: number;
     startPositionY: number;
   } | null>(null);
+  const [isSaving, startSavingTransition] = useTransition();
+  const [currentTemplateSetId, setCurrentTemplateSetId] = useState(templateSetId || "");
+  const [currentRepresentativeId, setCurrentRepresentativeId] = useState(representativeId || "");
+  const [autosaveMessage, setAutosaveMessage] = useState(
+    templateSetId || representativeId ? "All changes saved" : "Autosave ready"
+  );
   const [category, setCategory] = useState(initialCategory);
   const [heroLabel, setHeroLabel] = useState(`${initialCategory} package template`);
   const [heroTitle, setHeroTitle] = useState(initialTemplateSetName || "Build Your Collection Lineup");
@@ -307,6 +318,86 @@ export function PackageTemplateCanvasEditor({
       emailBody: `Hi,\n\nI put together ${item.name} for you. Let me know what you'd like to adjust.\n\nThanks,`,
     }))
   );
+
+  const autosaveFingerprint = JSON.stringify({
+    bundlePayload,
+    category,
+    coverPreviewUrl,
+    currentRepresentativeId,
+    currentTemplateSetId,
+    heroCoverPosition,
+    heroTitle,
+    packageCoverPreviewUrls: packages.map((item) => item.coverPreviewUrl),
+  });
+
+  const clearPendingFileInputs = useCallback(() => {
+    if (!formRef.current) {
+      return;
+    }
+
+    formRef.current
+      .querySelectorAll<HTMLInputElement>("input[type='file']")
+      .forEach((input) => {
+        input.value = "";
+      });
+  }, []);
+
+  const autosaveBundle = useCallback(() => {
+    if (!formRef.current) {
+      return;
+    }
+
+    setAutosaveMessage("Saving changes...");
+    startSavingTransition(async () => {
+      const result = await createPackageTemplateBundleAction(new FormData(formRef.current!));
+
+      if (!result?.ok) {
+        setAutosaveMessage("Complete the required package details to autosave");
+        return;
+      }
+
+      suppressAutosaveRef.current = true;
+
+      setCurrentTemplateSetId(result.templateSetId);
+      setCurrentRepresentativeId(result.representativeId);
+      setAutosaveMessage("All changes saved");
+
+      setCoverPreviewUrl((current) => {
+        if (current.startsWith("blob:") && current !== result.templateSetCoverImage) {
+          URL.revokeObjectURL(current);
+        }
+        return result.templateSetCoverImage || current;
+      });
+
+      setPackages((current) =>
+        current.map((item, index) => {
+          const savedPackage = result.packages[index];
+          const nextCoverImage = savedPackage?.coverImage || item.coverPreviewUrl;
+          const currentPreviewUrl = item.coverPreviewUrl;
+          if (currentPreviewUrl.startsWith("blob:") && currentPreviewUrl !== nextCoverImage) {
+            URL.revokeObjectURL(currentPreviewUrl);
+          }
+          delete packageCoverUrlsRef.current[item.id];
+          return {
+            ...item,
+            coverPreviewUrl: nextCoverImage,
+            id: savedPackage?.id || item.id,
+          };
+        })
+      );
+
+      clearPendingFileInputs();
+
+      const nextParams = new URLSearchParams({
+        category: result.category,
+        presetId: result.representativeId,
+      });
+      if (result.templateSetId) {
+        nextParams.set("templateSetId", result.templateSetId);
+      }
+      router.replace(`/packages/new?${nextParams.toString()}`, { scroll: false });
+    });
+  }, [clearPendingFileInputs, router]);
 
   function updatePackage(id: string, next: Partial<PackageCard>) {
     setPackages((current) =>
@@ -456,14 +547,34 @@ export function PackageTemplateCanvasEditor({
     }
   }
 
+  useEffect(() => {
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      return;
+    }
+
+    if (suppressAutosaveRef.current) {
+      suppressAutosaveRef.current = false;
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      autosaveBundle();
+    }, 700);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [autosaveBundle, autosaveFingerprint]);
+
   return (
-    <form action={createPackageTemplateBundleAction} className="grid gap-8">
+    <form className="grid gap-8" encType="multipart/form-data" ref={formRef}>
       <input name="category" type="hidden" value={category} />
       <input name="packageBundle" type="hidden" value={bundlePayload} />
       <input name="templateSetName" type="hidden" value={heroTitle} />
-      <input name="templateSetId" type="hidden" value={templateSetId || ""} />
+      <input name="templateSetId" type="hidden" value={currentTemplateSetId} />
       <input name="templateSetCoverPosition" type="hidden" value={heroCoverPosition} />
-      <input name="representativeId" type="hidden" value={representativeId || ""} />
+      <input name="representativeId" type="hidden" value={currentRepresentativeId} />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--muted)]">
@@ -477,7 +588,7 @@ export function PackageTemplateCanvasEditor({
           <span>New template</span>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           {packageCategories.map((option) => (
             <button
               key={option.value}
@@ -492,9 +603,9 @@ export function PackageTemplateCanvasEditor({
               {option.label}
             </button>
           ))}
-          <button className="bg-[var(--forest)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110">
-            Save template set
-          </button>
+          <div className="rounded-full border border-black/[0.08] bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+            {isSaving ? "Saving..." : autosaveMessage}
+          </div>
         </div>
       </div>
 
