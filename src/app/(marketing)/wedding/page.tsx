@@ -12,7 +12,7 @@ const weddingVideos = [
     accentFrom: "#f8d8b8",
     accentTo: "#ba7d50",
     posterSrc: "/brand/eloise-ken-wedding-thumbnail.png",
-    videoSrc: "/work-videos/eloise-ken-wedding.mov",
+    youtubeEmbedSrc: "https://www.youtube.com/embed/gN3EzWvtKXs?si=PtpaaL0vXIquUxTJ",
   },
   {
     title: "Tricia + Evan",
