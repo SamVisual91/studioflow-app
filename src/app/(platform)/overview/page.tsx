@@ -292,11 +292,6 @@ export default async function HomePage() {
   return (
     <DashboardShell
       currentPath="/overview"
-      summary={{
-        weeklyRevenue: data.invoices.reduce((sum, invoice) => sum + invoice.amount, 0),
-        tasksDue: data.stats.tasksDue,
-        eventCount: data.schedule.length,
-      }}
       user={user}
     >
       <section className="overflow-hidden rounded-[2rem] border border-black/[0.08] bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(255,248,240,0.72))] p-6 shadow-[0_24px_80px_rgba(58,34,17,0.12)] sm:p-8">
