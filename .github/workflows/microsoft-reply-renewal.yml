@@ -15,4 +15,5 @@ jobs:
         run: |
           test -n "$MAINTENANCE_TOKEN"
           curl --fail --silent --show-error \
-            "https://www.samthao.com/api/microsoft/project-replies/maintain?token=$MAINTENANCE_TOKEN"
+            -H "Authorization: Bearer $MAINTENANCE_TOKEN" \
+            "https://www.samthao.com/api/microsoft/project-replies/maintain"
