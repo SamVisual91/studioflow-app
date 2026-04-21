@@ -4871,6 +4871,15 @@ export async function addProjectContactAction(formData: FormData) {
   }
 
   const db = getDb();
+  const existingContact = db
+    .prepare("SELECT id FROM project_contacts WHERE project_id = ? AND lower(trim(email)) = ? LIMIT 1")
+    .get(projectId, email) as { id?: string } | undefined;
+
+  if (existingContact?.id) {
+    const fileSuffix = returnTab === "files" && returnFile ? `&file=${returnFile}` : "";
+    redirect(`/projects/${projectId}?tab=${returnTab}${fileSuffix}&error=participant-duplicate`);
+  }
+
   const timestamp = new Date().toISOString();
   db.prepare(
     "INSERT INTO project_contacts (id, project_id, name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"

@@ -407,6 +407,8 @@ export default async function ProjectClientPage({
             ? "This project needs a client email and portal link before you can send the invite."
           : query.error === "participant-invalid"
             ? "Add both a name and email before saving the project contact."
+          : query.error === "participant-duplicate"
+            ? "That email is already listed as a project contact."
         : query.error === "message-invalid"
           ? "Fill out the email subject and message before sending."
         : query.error === "contact-invalid"
