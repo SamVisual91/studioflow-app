@@ -1186,6 +1186,11 @@ export async function checkoutGearAction(formData: FormData) {
           | { id: string; client: string; name: string }
           | undefined)
       : undefined;
+
+  if (checkoutType === "PROJECT" && !project?.id) {
+    redirect("/crm?error=gear-checkout-invalid");
+  }
+
   const holder =
     checkoutType === "PROJECT"
       ? `${project?.client || "Project use"}${project?.name ? ` • ${project.name}` : ""}`
@@ -2129,12 +2134,21 @@ export async function scheduleZoomMeetingAction(formData: FormData) {
     "",
     "If you need to adjust the time, just reply to this email and I can update it.",
     "",
+
     "Thanks,",
     "Sam Visual",
   ]
     .filter((line) => line !== null)
     .join("\n");
 
+  const db = getDb();
+  const project = db
+    .prepare("SELECT id FROM projects WHERE id = ? LIMIT 1")
+    .get(projectId) as { id?: string } | undefined;
+
+  if (!project?.id) {
+    redirect("/schedule?error=zoom-invalid");
+  }
   try {
     await sendProposalEmail({
       to: recipientEmail,
@@ -2151,7 +2165,6 @@ export async function scheduleZoomMeetingAction(formData: FormData) {
     redirect(`/schedule?error=${reason}`);
   }
 
-  const db = getDb();
   const timestamp = new Date().toISOString();
   db.prepare(
     "INSERT INTO schedule_items (id, project_id, title, client, starts_at, type, sync, recipient_email, meeting_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"

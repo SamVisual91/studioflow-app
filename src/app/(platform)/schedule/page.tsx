@@ -27,9 +27,10 @@ export default async function SchedulePage({
   const contactOptions = [
     ...data.clients
       .map((client) => {
-        const project = data.projects.find(
-          (item) => item.client === client.name || item.name === client.project
-        );
+        const matchingProjects = data.projects.filter((item) => item.client === client.name);
+        const project =
+          data.projects.find((item) => item.name === client.project) ??
+          (matchingProjects.length === 1 ? matchingProjects[0] : undefined);
 
         if (!project?.id || !client.contactEmail) {
           return null;
