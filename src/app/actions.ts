@@ -4867,11 +4867,12 @@ export async function updateAdditionalProjectContactAction(formData: FormData) {
   }
 
   const db = getDb();
-  db.prepare("UPDATE project_contacts SET name = ?, email = ?, updated_at = ? WHERE id = ?").run(
+  db.prepare("UPDATE project_contacts SET name = ?, email = ?, updated_at = ? WHERE id = ? AND project_id = ?").run(
     name,
     email,
     new Date().toISOString(),
-    contactId
+    contactId,
+    projectId
   );
 
   revalidatePath(`/projects/${projectId}`);
