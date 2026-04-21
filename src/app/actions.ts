@@ -2985,6 +2985,8 @@ export async function sendProjectInvoiceEmailAction(formData: FormData) {
   const invoiceUrl = publicToken
     ? `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invoice/${publicToken}`
     : `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/projects/${projectId}/invoices/${invoiceId}`;
+  const replyToAddress =
+    (process.env.IMAP_USER || process.env.SMTP_USER || "").trim().toLowerCase() || undefined;
   const subject = `${label} from StudioFlow`;
   const plainText = [
     `Hi ${clientName},`,
@@ -3148,6 +3150,7 @@ export async function sendProjectInvoiceEmailAction(formData: FormData) {
   try {
     await sendProposalEmail({
       to: recipientEmail,
+      replyTo: replyToAddress,
       subject,
       text: plainText,
       html,
@@ -4170,12 +4173,11 @@ export async function createProjectInvoiceAction(formData: FormData) {
   redirect(`/projects/${projectId}/invoices/${invoiceId}`);
 }
 
-export async function updateProjectInvoiceAction(formData: FormData) {
-  await requireUser();
-
+function parseProjectInvoiceEditorInput(formData: FormData) {
   const projectId = getString(formData, "projectId");
   const invoiceId = getString(formData, "invoiceId");
   const previousLabel = getString(formData, "previousLabel");
+  const clientName = getString(formData, "clientName");
   const label = getString(formData, "label");
   const dueDate = getString(formData, "dueDate");
   const method = getString(formData, "method");
@@ -4187,66 +4189,367 @@ export async function updateProjectInvoiceAction(formData: FormData) {
   const taxAmount = Math.round(subtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
   const amount = subtotal + taxAmount;
 
-  if (
-    !projectId ||
-    !invoiceId ||
-    !label ||
-    !dueDate ||
-    !method ||
-    !status ||
-    Number.isNaN(taxRate) ||
-    lineItems.length === 0 ||
-    paymentSchedule.length === 0 ||
-    Number.isNaN(amount)
-  ) {
-    redirect(`/projects/${projectId || ""}/invoices/${invoiceId || ""}?error=invoice-invalid`);
-  }
+  return {
+    amount,
+    clientName,
+    dueDate,
+    invoiceId,
+    label,
+    lineItems,
+    method,
+    paymentSchedule,
+    previousLabel,
+    projectId,
+    status,
+    taxRate,
+  };
+}
 
-  const db = getDb();
-  const timestamp = new Date().toISOString();
+function updateProjectInvoiceRecordFromInput(
+  db: ReturnType<typeof getDb>,
+  input: ReturnType<typeof parseProjectInvoiceEditorInput>,
+  timestamp: string
+) {
   db.prepare(
     "UPDATE invoices SET label = ?, status = ?, due_date = ?, amount = ?, method = ?, tax_rate = ?, line_items = ?, payment_schedule = ?, updated_at = ? WHERE id = ?"
   ).run(
-    label,
-    status,
-    dueDate,
-    amount,
-    method,
-    taxRate,
-    JSON.stringify(lineItems),
-    JSON.stringify(paymentSchedule),
+    input.label,
+    input.status,
+    input.dueDate,
+    input.amount,
+    input.method,
+    input.taxRate,
+    JSON.stringify(input.lineItems),
+    JSON.stringify(input.paymentSchedule),
     timestamp,
-    invoiceId
+    input.invoiceId
   );
 
   db.prepare(
     "UPDATE project_files SET title = ?, summary = ?, body = ?, updated_at = ? WHERE project_id = ? AND type = 'INVOICE' AND (title = ? OR title = ?)"
   ).run(
-    label,
-    `Invoice due ${dueDate}`,
-    `Invoice: ${label}\nDue date: ${dueDate}\nMethod: ${method}\nTax rate: ${taxRate}%\n\nLine items:\n${lineItems
+    input.label,
+    `Invoice due ${input.dueDate}`,
+    `Invoice: ${input.label}\nDue date: ${input.dueDate}\nMethod: ${input.method}\nTax rate: ${input.taxRate}%\n\nLine items:\n${input.lineItems
       .map((item) => `- ${item.title}: ${item.description} ($${item.amount})`)
-      .join("\n")}\n\nPayment plan:\n${paymentSchedule
-        .map((item) => `- ${item.invoiceNumber}: ${item.dueDate} - $${item.amount} (${item.status})`)
-        .join("\n")}\n\nGrand total: $${amount}`,
+      .join("\n")}\n\nPayment plan:\n${input.paymentSchedule
+      .map((item) => `- ${item.invoiceNumber}: ${item.dueDate} - $${item.amount} (${item.status})`)
+      .join("\n")}\n\nGrand total: $${input.amount}`,
     timestamp,
-    projectId,
-    previousLabel || label,
-    label
+    input.projectId,
+    input.previousLabel || input.label,
+    input.label
   );
+}
 
+async function sendProjectInvoiceEmailById(projectId: string, invoiceId: string) {
+  const db = getDb();
+  const invoice = db
+    .prepare("SELECT * FROM invoices WHERE id = ? LIMIT 1")
+    .get(invoiceId) as Record<string, unknown> | undefined;
+  const project = db
+    .prepare("SELECT * FROM projects WHERE id = ? LIMIT 1")
+    .get(projectId) as Record<string, unknown> | undefined;
+
+  if (!invoice || !project) {
+    redirect(`/projects/${projectId}/invoices/${invoiceId}?error=invoice-send-failed`);
+  }
+
+  const clientName = String(project.client || invoice.client || "").trim();
+  const client = db
+    .prepare("SELECT * FROM clients WHERE name = ? LIMIT 1")
+    .get(clientName) as Record<string, unknown> | undefined;
+  const projectContact = db
+    .prepare("SELECT email FROM project_contacts WHERE project_id = ? ORDER BY created_at ASC LIMIT 1")
+    .get(projectId) as { email?: string | null } | undefined;
+  const recipientEmail = String(client?.contact_email || projectContact?.email || "").trim().toLowerCase();
+
+  if (!clientName || !recipientEmail) {
+    redirect(`/projects/${projectId}/invoices/${invoiceId}?error=invoice-send-invalid`);
+  }
+
+  const label = String(invoice.label || "Invoice");
+  const dueDate = String(invoice.due_date || "");
+  const method = String(invoice.method || "");
+  const taxRate = Number(invoice.tax_rate ?? 3);
+  const lineItems = parseInvoiceLineItems(String(invoice.line_items ?? "[]"));
+  const paymentSchedule = parsePaymentSchedule(String(invoice.payment_schedule ?? "[]"));
+  const subtotal = lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const taxAmount = Math.round(subtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
+  const grandTotal = subtotal + taxAmount;
+  const publicToken = String(invoice.public_token || "").trim();
+  const invoiceUrl = publicToken
+    ? `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invoice/${publicToken}`
+    : `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/projects/${projectId}/invoices/${invoiceId}`;
+  const subject = `${label} from StudioFlow`;
+  const plainText = [
+    `Hi ${clientName},`,
+    "",
+    `Your invoice "${label}" is ready.`,
+    `Due date: ${dueDate}`,
+    `Payment method: ${method}`,
+    "",
+    "Line items:",
+    ...lineItems.map((item) => `- ${item.title}: ${item.description} ($${item.amount})`),
+    "",
+    `Subtotal: $${subtotal}`,
+    `Tax (${taxRate}%): $${taxAmount}`,
+    `Grand total: $${grandTotal}`,
+    "",
+    "Payment plan:",
+    ...paymentSchedule.map(
+      (item) => `- ${item.invoiceNumber}: ${item.dueDate} - $${item.amount} (${item.status})`
+    ),
+    "",
+    `Review your invoice: ${invoiceUrl}`,
+  ].join("\n");
+  const html = `
+    <div style="margin:0; padding:32px 0; background:#f6f1ea; font-family:Arial, sans-serif; color:#1f1b18;">
+      <div style="max-width:760px; margin:0 auto; background:#ffffff; border:1px solid rgba(31,27,24,0.08); border-radius:28px; overflow:hidden; box-shadow:0 24px 60px rgba(58,34,17,0.10);">
+        <div style="padding:18px 28px; background:#1f1b18; color:#f8f4ef;">
+          <div style="font-size:11px; letter-spacing:0.28em; text-transform:uppercase; opacity:0.72;">StudioFlow invoice</div>
+        </div>
+
+        <div style="padding:36px 36px 28px; background:linear-gradient(135deg, rgba(31,27,24,0.92), rgba(67,49,37,0.72)); color:#ffffff;">
+          <div style="font-size:13px; letter-spacing:0.22em; text-transform:uppercase; opacity:0.72;">For ${clientName}</div>
+          <h1 style="margin:12px 0 10px; font-size:36px; line-height:1.08; font-weight:700;">${label}</h1>
+          <p style="margin:0; max-width:520px; font-size:15px; line-height:1.7; color:rgba(255,255,255,0.82);">
+            Your invoice is ready. Review the summary below and use the button to open the live invoice page anytime.
+          </p>
+
+          <div style="margin-top:26px; display:flex; flex-wrap:wrap; gap:12px;">
+            <div style="min-width:160px; padding:14px 16px; border-radius:18px; background:rgba(255,255,255,0.10);">
+              <div style="font-size:11px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.68;">Due date</div>
+              <div style="margin-top:8px; font-size:20px; font-weight:700;">${dueDate}</div>
+            </div>
+            <div style="min-width:160px; padding:14px 16px; border-radius:18px; background:rgba(255,255,255,0.10);">
+              <div style="font-size:11px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.68;">Grand total</div>
+              <div style="margin-top:8px; font-size:20px; font-weight:700;">$${grandTotal}</div>
+            </div>
+            <div style="min-width:160px; padding:14px 16px; border-radius:18px; background:rgba(255,255,255,0.10);">
+              <div style="font-size:11px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.68;">Method</div>
+              <div style="margin-top:8px; font-size:20px; font-weight:700;">${method}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:32px 36px;">
+          <p style="margin:0 0 18px; font-size:16px; line-height:1.7;">Hi ${clientName},</p>
+          <p style="margin:0 0 28px; font-size:15px; line-height:1.8; color:#5e5248;">
+            Here’s the current invoice breakdown and payment plan. If anything needs to be adjusted, just reply to this email and I can update it for you.
+          </p>
+
+          <div style="border:1px solid rgba(31,27,24,0.08); border-radius:22px; overflow:hidden;">
+            <div style="padding:18px 22px; background:#fbf8f4; border-bottom:1px solid rgba(31,27,24,0.08); font-size:12px; letter-spacing:0.22em; text-transform:uppercase; color:#7b7067; font-weight:700;">
+              Invoice items
+            </div>
+            <div style="padding:10px 22px 6px;">
+              ${lineItems
+                .map(
+                  (item) => `
+                    <div style="padding:16px 0; border-bottom:1px solid rgba(31,27,24,0.08);">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td style="padding:0; vertical-align:top;">
+                            <div style="font-size:17px; font-weight:700; color:#1f1b18;">${item.title}</div>
+                            <div style="margin-top:6px; font-size:14px; line-height:1.6; color:#7b7067;">${item.description || "No description"}</div>
+                          </td>
+                          <td style="padding:0; text-align:right; vertical-align:top; white-space:nowrap; font-size:18px; font-weight:700; color:#1f1b18;">
+                            $${item.amount}
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
+                  `
+                )
+                .join("")}
+            </div>
+            <div style="padding:20px 22px 24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="padding:6px 0; font-size:14px; color:#7b7067;">Subtotal</td>
+                  <td style="padding:6px 0; text-align:right; font-size:14px; color:#1f1b18;">$${subtotal}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0; font-size:14px; color:#7b7067;">Tax (${taxRate}%)</td>
+                  <td style="padding:6px 0; text-align:right; font-size:14px; color:#1f1b18;">$${taxAmount}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding-top:10px; border-top:2px solid #1f1b18;"></td>
+                </tr>
+                <tr>
+                  <td style="padding-top:12px; font-size:24px; font-weight:700; color:#1f1b18;">Grand total</td>
+                  <td style="padding-top:12px; text-align:right; font-size:24px; font-weight:700; color:#1f1b18;">$${grandTotal}</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <div style="margin-top:26px; border:1px solid rgba(31,27,24,0.08); border-radius:22px; overflow:hidden;">
+            <div style="padding:18px 22px; background:#fbf8f4; border-bottom:1px solid rgba(31,27,24,0.08); font-size:12px; letter-spacing:0.22em; text-transform:uppercase; color:#7b7067; font-weight:700;">
+              Payment plan
+            </div>
+            <div style="padding:12px 22px 8px;">
+              ${paymentSchedule
+                .map(
+                  (item) => `
+                    <div style="padding:14px 0; border-bottom:1px solid rgba(31,27,24,0.08);">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td style="padding:0; vertical-align:top;">
+                            <div style="font-size:16px; font-weight:700; color:#1f1b18;">$${item.amount}</div>
+                            <div style="margin-top:6px; font-size:14px; color:#7b7067;">${item.dueDate}</div>
+                            <div style="margin-top:6px; font-size:13px; color:#9a8f86;">${item.invoiceNumber}</div>
+                          </td>
+                          <td style="padding:0; text-align:right; vertical-align:top;">
+                            <span style="display:inline-block; padding:8px 12px; border-radius:999px; background:${
+                              item.status === "PAID"
+                                ? "rgba(47,125,92,0.12)"
+                                : item.status === "OVERDUE"
+                                  ? "rgba(122,27,27,0.12)"
+                                  : "rgba(207,114,79,0.12)"
+                            }; color:${
+                              item.status === "PAID"
+                                ? "#2f7d5c"
+                                : item.status === "OVERDUE"
+                                  ? "#7a1b1b"
+                                  : "#cf724f"
+                            }; font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">
+                              ${item.status.replace("_", " ")}
+                            </span>
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
+                  `
+                )
+                .join("")}
+            </div>
+          </div>
+
+          <div style="margin-top:30px;">
+            <a href="${invoiceUrl}" style="display:inline-block; padding:14px 24px; border-radius:999px; background:#1f1b18; color:#ffffff; text-decoration:none; font-size:14px; font-weight:700;">
+              Open invoice
+            </a>
+          </div>
+
+          <p style="margin:24px 0 0; font-size:13px; line-height:1.7; color:#9a8f86;">
+            If you have any questions, just reply to this email and I can update the invoice for you.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  try {
+    await sendProposalEmail({
+      to: recipientEmail,
+      subject,
+      text: plainText,
+      html,
+    });
+  } catch (error) {
+    const reason =
+      error instanceof Error && error.message === "SMTP_NOT_CONFIGURED"
+        ? "smtp-missing"
+        : "invoice-send-failed";
+    redirect(`/projects/${projectId}/invoices/${invoiceId}?error=${reason}`);
+  }
+
+  const timestamp = new Date().toISOString();
+  logProjectMessage(db, {
+    sender: "Sam Visual",
+    clientName,
+    projectId,
+    direction: "OUTBOUND",
+    channel: "Email",
+    time: timestamp,
+    subject,
+    preview: `Invoice emailed: ${label}`,
+    unread: 0,
+  });
   updateProjectRecentActivity(
     db,
     projectId,
-    createRecentActivity(`${label} updated`, timestamp),
+    createRecentActivity("Invoice emailed", timestamp),
     timestamp
   );
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/invoices/${invoiceId}`);
+  revalidatePath("/messages");
+  revalidatePath("/invoices");
+  redirect(`/projects/${projectId}/invoices/${invoiceId}?emailed=1`);
+}
+
+export async function updateProjectInvoiceAction(formData: FormData) {
+  await requireUser();
+
+  const input = parseProjectInvoiceEditorInput(formData);
+
+  if (
+    !input.projectId ||
+    !input.invoiceId ||
+    !input.label ||
+    !input.dueDate ||
+    !input.method ||
+    !input.status ||
+    Number.isNaN(input.taxRate) ||
+    input.lineItems.length === 0 ||
+    input.paymentSchedule.length === 0 ||
+    Number.isNaN(input.amount)
+  ) {
+    redirect(`/projects/${input.projectId || ""}/invoices/${input.invoiceId || ""}?error=invoice-invalid`);
+  }
+
+  const db = getDb();
+  const timestamp = new Date().toISOString();
+  updateProjectInvoiceRecordFromInput(db, input, timestamp);
+
+  updateProjectRecentActivity(
+    db,
+    input.projectId,
+    createRecentActivity(`${input.label} updated`, timestamp),
+    timestamp
+  );
+
+  revalidatePath(`/projects/${input.projectId}`);
+  revalidatePath(`/projects/${input.projectId}/invoices/${input.invoiceId}`);
   revalidatePath("/invoices");
   revalidatePath("/overview");
-  redirect(`/projects/${projectId}/invoices/${invoiceId}?updated=1`);
+  redirect(`/projects/${input.projectId}/invoices/${input.invoiceId}?updated=1`);
+}
+
+export async function sendProjectInvoiceWithCurrentDataAction(formData: FormData) {
+  await requireUser();
+
+  const input = parseProjectInvoiceEditorInput(formData);
+
+  if (
+    !input.projectId ||
+    !input.invoiceId ||
+    !input.label ||
+    !input.dueDate ||
+    !input.method ||
+    !input.status ||
+    Number.isNaN(input.taxRate) ||
+    input.lineItems.length === 0 ||
+    input.paymentSchedule.length === 0 ||
+    Number.isNaN(input.amount)
+  ) {
+    redirect(`/projects/${input.projectId || ""}/invoices/${input.invoiceId || ""}?error=invoice-invalid`);
+  }
+
+  const db = getDb();
+  const timestamp = new Date().toISOString();
+  updateProjectInvoiceRecordFromInput(db, input, timestamp);
+
+  revalidatePath(`/projects/${input.projectId}`);
+  revalidatePath(`/projects/${input.projectId}/invoices/${input.invoiceId}`);
+  revalidatePath("/invoices");
+  revalidatePath("/overview");
+
+  await sendProjectInvoiceEmailById(input.projectId, input.invoiceId);
 }
 
 export async function updateProjectDetailsAction(formData: FormData) {
