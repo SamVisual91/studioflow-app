@@ -40,9 +40,10 @@ export async function GET(
   context: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await context.params;
+  const publicBucket = isPublicUploadBucket(path);
 
   try {
-    if (!isPublicUploadBucket(path)) {
+    if (!publicBucket) {
       const user = await getCurrentUser();
 
       if (!user) {
@@ -61,7 +62,9 @@ export async function GET(
     return new NextResponse(new Uint8Array(file), {
       headers: {
         "Content-Type": contentTypes[extension] || "application/octet-stream",
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": publicBucket
+          ? "public, max-age=31536000, immutable"
+          : "private, no-store",
       },
     });
   } catch {
