@@ -229,8 +229,8 @@ function getShellSummary() {
   };
 }
 
-export function DashboardShell({ currentPath, user, children }: ShellProps) {
-  const summary = getShellSummary();
+export function DashboardShell({ currentPath, user, summary: summaryOverride, children }: ShellProps) {
+  const summary = summaryOverride ?? getShellSummary();
   const notifications = getUnreadClientNotifications();
   const notificationCount = notifications.length;
   const visibleNavItems = navItems.filter((item) => item.roles.includes(user.role));
