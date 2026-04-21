@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { getUploadsRoot } from "@/lib/storage";
 
 const contentTypes: Record<string, string> = {
@@ -23,6 +24,11 @@ function resolveRouteFilePath(pathSegments: string[]) {
   return join(getUploadsRoot(), ...pathSegments);
 }
 
+function isPublicUploadBucket(pathSegments: string[]) {
+  const bucket = String(pathSegments[0] || "").trim().toLowerCase();
+  return bucket === "client-uploads" || bucket === "project-deliverables";
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ path: string[] }> }
@@ -30,6 +36,14 @@ export async function GET(
   const { path } = await context.params;
 
   try {
+    if (!isPublicUploadBucket(path)) {
+      const user = await getCurrentUser();
+
+      if (!user) {
+        return new NextResponse("Unauthorized", { status: 401 });
+      }
+    }
+
     const filePath = resolveRouteFilePath(path);
     const file = await readFile(filePath);
     const extension = extname(filePath).toLowerCase();
