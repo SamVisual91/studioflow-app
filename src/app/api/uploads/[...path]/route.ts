@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { canAccessBackOffice } from "@/lib/roles";
 import { getUploadsRoot } from "@/lib/storage";
 
 const contentTypes: Record<string, string> = {
@@ -29,6 +30,11 @@ function isPublicUploadBucket(pathSegments: string[]) {
   return bucket === "client-uploads" || bucket === "project-deliverables";
 }
 
+function requiresBackOfficeAccess(pathSegments: string[]) {
+  const bucket = String(pathSegments[0] || "").trim().toLowerCase();
+  return bucket === "ledger-receipts";
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ path: string[] }> }
@@ -41,6 +47,10 @@ export async function GET(
 
       if (!user) {
         return new NextResponse("Unauthorized", { status: 401 });
+      }
+
+      if (requiresBackOfficeAccess(path) && !canAccessBackOffice(user.role)) {
+        return new NextResponse("Forbidden", { status: 403 });
       }
     }
 
