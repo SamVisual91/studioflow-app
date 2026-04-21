@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   addProjectContactAction,
   deleteProjectFileAction,
+  logClientReplyAction,
   sendProjectMessageAction,
   updateAdditionalProjectContactAction,
   updateProjectContactAction,
@@ -17,6 +18,7 @@ import { ProjectContactControls } from "@/components/project-contact-controls";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { ProjectFileLauncher } from "@/components/project-file-launcher";
 import { ProjectHeroBannerEditor } from "@/components/project-hero-banner-editor";
+import { ProjectReplyLogger } from "@/components/project-reply-logger";
 import { ProjectThreadMessage } from "@/components/project-thread-message";
 import { UserAvatarUploader } from "@/components/user-avatar-uploader";
 import { getDashboardPageData } from "@/lib/dashboard-page";
@@ -543,33 +545,50 @@ export default async function ProjectClientPage({
             {activeTab === "activity" ? (
               <>
                 <div className="grid gap-4">
-                  <details className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5">
+                  <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Reply</p>
-                        <h2 className="mt-2 text-xl font-semibold">Email {project.client}</h2>
+                        <h2 className="mt-2 text-xl font-semibold">Client communication</h2>
                         <p className="mt-1 text-sm text-[var(--muted)]">
-                          Open to compose a live email from this project.
+                          Send a new email or log a client reply so the whole conversation stays on this project.
                         </p>
                       </div>
-                      <span className="text-base font-semibold leading-none text-[var(--muted)]" aria-hidden="true">
-                        v
-                      </span>
-                    </summary>
+                      <ProjectReplyLogger
+                        action={logClientReplyAction}
+                        clientName={project.client}
+                        projectId={project.id}
+                      />
+                    </div>
 
-                    <form
-                      action={sendProjectMessageAction}
-                      className="border-t border-black/[0.08] px-6 pb-6 pt-5"
-                    >
-                      <input name="projectId" type="hidden" value={project.id} />
-                      <input name="clientName" type="hidden" value={project.client} />
-                      <input name="recipientEmail" type="hidden" value={client?.contactEmail || ""} />
-                      <MessageAiAssistant clientName={project.client} />
-                      <button className="mt-5 rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-                        Send email
-                      </button>
-                    </form>
-                  </details>
+                    <details className="mt-5 rounded-[1.5rem] border border-black/[0.08] bg-[rgba(247,241,232,0.54)]">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Outbound</p>
+                          <h3 className="mt-2 text-lg font-semibold">Email {project.client}</h3>
+                          <p className="mt-1 text-sm text-[var(--muted)]">
+                            Open to compose a live email from this project.
+                          </p>
+                        </div>
+                        <span className="text-base font-semibold leading-none text-[var(--muted)]" aria-hidden="true">
+                          v
+                        </span>
+                      </summary>
+
+                      <form
+                        action={sendProjectMessageAction}
+                        className="border-t border-black/[0.08] px-6 pb-6 pt-5"
+                      >
+                        <input name="projectId" type="hidden" value={project.id} />
+                        <input name="clientName" type="hidden" value={project.client} />
+                        <input name="recipientEmail" type="hidden" value={client?.contactEmail || ""} />
+                        <MessageAiAssistant clientName={project.client} />
+                        <button className="mt-5 rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+                          Send email
+                        </button>
+                      </form>
+                    </details>
+                  </div>
                 </div>
 
                 <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
