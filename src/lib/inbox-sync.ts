@@ -32,10 +32,16 @@ export async function syncInboxRepliesForProject(projectId: string) {
     .get(projectId) as
     | { id: string; client: string; contact_email?: string | null }
     | undefined;
+  const projectContacts = db
+    .prepare("SELECT email FROM project_contacts WHERE project_id = ?")
+    .all(projectId) as Array<{ email?: string | null }>;
+  const replyEmails = new Set(
+    [project?.contact_email, ...projectContacts.map((contact) => contact.email)]
+      .map((value) => String(value ?? "").trim().toLowerCase())
+      .filter(Boolean)
+  );
 
-  const clientEmail = String(project?.contact_email ?? "").toLowerCase();
-
-  if (!project?.id || !clientEmail) {
+  if (!project?.id || replyEmails.size === 0) {
     return { imported: 0, skipped: 0, error: "" };
   }
 
@@ -71,7 +77,7 @@ export async function syncInboxRepliesForProject(projectId: string) {
       { uid: true, envelope: true, source: true }
     )) {
       const fromAddress = message.envelope?.from?.[0]?.address?.toLowerCase() || "";
-      if (fromAddress !== clientEmail) {
+      if (!replyEmails.has(fromAddress)) {
         continue;
       }
 
