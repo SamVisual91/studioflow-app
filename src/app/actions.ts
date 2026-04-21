@@ -2000,6 +2000,14 @@ export async function updateProjectClientAction(formData: FormData) {
   const resolvedLeadSource = leadSource || "Direct";
   const resolvedDescription = description || "Project updated from the Projects page.";
   const timestamp = new Date().toISOString();
+  const siblingProjectCount = Number(
+    (
+      (db.prepare("SELECT COUNT(*) AS count FROM projects WHERE client = ?").get(existingProject.client || "") as
+        | { count?: number }
+        | undefined) ?? { count: 0 }
+    ).count ?? 0
+  );
+  const canUseLegacyClientScope = siblingProjectCount === 1;
 
   db.prepare(
     "UPDATE projects SET name = ?, client = ?, project_type = ?, project_date = ?, location = ?, description = ?, lead_source = ?, updated_at = ? WHERE id = ?"
@@ -2016,7 +2024,7 @@ export async function updateProjectClientAction(formData: FormData) {
   );
 
   db.prepare(
-    "UPDATE clients SET name = ?, category = ?, project = ?, contact_email = ?, updated_at = ? WHERE project = ? OR name = ?"
+    "UPDATE clients SET name = ?, category = ?, project = ?, contact_email = ?, updated_at = ? WHERE project = ? OR (? = 1 AND name = ?)"
   ).run(
     resolvedClientName,
     category,
@@ -2024,6 +2032,7 @@ export async function updateProjectClientAction(formData: FormData) {
     contactEmail,
     timestamp,
     existingProject.name || "",
+    canUseLegacyClientScope ? 1 : 0,
     existingProject.client || ""
   );
 
@@ -4741,42 +4750,69 @@ export async function updateProjectContactAction(formData: FormData) {
 
   const db = getDb();
   const timestamp = new Date().toISOString();
+  const siblingProjectCount = Number(
+    (
+      (db.prepare("SELECT COUNT(*) AS count FROM projects WHERE client = ?").get(clientName) as
+        | { count?: number }
+        | undefined) ?? { count: 0 }
+    ).count ?? 0
+  );
+  const canUseLegacyClientScope = siblingProjectCount === 1;
 
   db.prepare("UPDATE projects SET client = ?, updated_at = ? WHERE id = ?").run(
     nextClientName,
     timestamp,
     projectId
   );
-  db.prepare("UPDATE clients SET name = ?, contact_email = ?, updated_at = ? WHERE name = ?").run(
+  db.prepare("UPDATE clients SET name = ?, contact_email = ?, updated_at = ? WHERE project = ? OR (? = 1 AND name = ?)").run(
     nextClientName,
     contactEmail,
     timestamp,
+    projectId,
+    canUseLegacyClientScope ? 1 : 0,
     clientName
   );
-  db.prepare("UPDATE proposals SET client = ?, recipient_email = ?, updated_at = ? WHERE client = ?").run(
+  db.prepare(
+    "UPDATE proposals SET client = ?, recipient_email = ?, updated_at = ? WHERE project_id = ? OR (? = 1 AND client = ?)"
+  ).run(
     nextClientName,
     contactEmail,
     timestamp,
+    projectId,
+    canUseLegacyClientScope ? 1 : 0,
     clientName
   );
-  db.prepare("UPDATE invoices SET client = ?, updated_at = ? WHERE client = ?").run(
+  db.prepare("UPDATE invoices SET client = ?, updated_at = ? WHERE project_id = ? OR (? = 1 AND client = ?)").run(
     nextClientName,
     timestamp,
+    projectId,
+    canUseLegacyClientScope ? 1 : 0,
     clientName
   );
-  db.prepare("UPDATE schedule_items SET client = ?, updated_at = ? WHERE client = ?").run(
+  db.prepare("UPDATE schedule_items SET client = ?, updated_at = ? WHERE project_id = ? OR (? = 1 AND client = ?)").run(
     nextClientName,
     timestamp,
+    projectId,
+    canUseLegacyClientScope ? 1 : 0,
     clientName
   );
-  db.prepare("UPDATE messages SET client_name = ?, updated_at = ? WHERE client_name = ?").run(
+  db.prepare(
+    "UPDATE messages SET client_name = ?, updated_at = ? WHERE project_id = ? OR (? = 1 AND client_name = ?)"
+  ).run(
     nextClientName,
     timestamp,
+    projectId,
+    canUseLegacyClientScope ? 1 : 0,
     clientName
   );
-  db.prepare("UPDATE messages SET sender = ?, updated_at = ? WHERE sender = ?").run(
+  db.prepare(
+    "UPDATE messages SET sender = ?, updated_at = ? WHERE (project_id = ? AND sender = ?) OR (? = 1 AND sender = ?)"
+  ).run(
     nextClientName,
     timestamp,
+    projectId,
+    clientName,
+    canUseLegacyClientScope ? 1 : 0,
     clientName
   );
 
