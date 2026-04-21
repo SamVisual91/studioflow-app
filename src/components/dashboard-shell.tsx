@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { logoutAction, openNotificationMessageAction } from "@/app/actions";
 import { DoubleChevronDownIcon } from "@/components/double-chevron-down-icon";
-import { getDb } from "@/lib/db";
+import { getDb, parseJsonList } from "@/lib/db";
 import { currencyFormatter, dateTime } from "@/lib/formatters";
 import { type UserRole } from "@/lib/roles";
 
@@ -68,13 +68,24 @@ type ShellProps = {
     role: UserRole;
     avatar_image?: string | null;
   };
-  summary: {
+  summary?: {
     weeklyRevenue: number;
     tasksDue: number;
     eventCount: number;
   };
   children: React.ReactNode;
 };
+
+function getWeekRange(referenceDate: Date) {
+  const weekStart = new Date(referenceDate);
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+
+  return { weekStart, weekEnd };
+}
 
 function isNavItemActive(
   item: (typeof navItems)[number],
@@ -153,7 +164,7 @@ function getUnreadClientNotifications() {
 
   return db
     .prepare(
-      "SELECT messages.id, messages.sender, messages.client_name, messages.project_id, messages.time, messages.subject, messages.preview, projects.name AS project_name FROM messages LEFT JOIN projects ON projects.id = messages.project_id WHERE messages.deleted_at IS NULL AND messages.unread = 1 AND LOWER(messages.direction) = 'inbound' AND LOWER(messages.channel) = 'email' ORDER BY messages.time DESC LIMIT 8"
+      "SELECT messages.id, messages.sender, messages.client_name, messages.project_id, messages.time, messages.subject, messages.preview, projects.name AS project_name FROM messages LEFT JOIN projects ON projects.id = messages.project_id WHERE messages.deleted_at IS NULL AND messages.unread = 1 AND messages.project_id IS NOT NULL AND LOWER(messages.direction) = 'inbound' AND LOWER(messages.channel) = 'email' ORDER BY messages.time DESC LIMIT 8"
     )
     .all() as Array<{
     id: string;
@@ -167,7 +178,59 @@ function getUnreadClientNotifications() {
   }>;
 }
 
-export function DashboardShell({ currentPath, user, summary, children }: ShellProps) {
+function getShellSummary() {
+  const db = getDb();
+  const { weekStart, weekEnd } = getWeekRange(new Date());
+  const weekStartTime = weekStart.getTime();
+  const weekEndTime = weekEnd.getTime();
+
+  const ledgerRows = db
+    .prepare(
+      "SELECT transaction_date, amount FROM ledger_transactions WHERE direction = 'INCOME' AND invoice_id IS NOT NULL"
+    )
+    .all() as Array<{ transaction_date: string; amount: number }>;
+  const projectRows = db
+    .prepare("SELECT tasks, archived_at FROM projects")
+    .all() as Array<{ tasks: string | null; archived_at: string | null }>;
+  const scheduleRows = db
+    .prepare("SELECT starts_at FROM schedule_items")
+    .all() as Array<{ starts_at: string | null }>;
+
+  const weeklyRevenue = ledgerRows.reduce((sum, row) => {
+    const transactionTime = new Date(row.transaction_date).getTime();
+    if (Number.isNaN(transactionTime) || transactionTime < weekStartTime || transactionTime >= weekEndTime) {
+      return sum;
+    }
+
+    return sum + Number(row.amount || 0);
+  }, 0);
+
+  const tasksDue = projectRows.reduce((sum, row) => {
+    if (row.archived_at) {
+      return sum;
+    }
+
+    return sum + parseJsonList(String(row.tasks ?? "")).length;
+  }, 0);
+
+  const eventCount = scheduleRows.reduce((sum, row) => {
+    const startsAtTime = new Date(String(row.starts_at ?? "")).getTime();
+    if (Number.isNaN(startsAtTime) || startsAtTime < weekStartTime || startsAtTime >= weekEndTime) {
+      return sum;
+    }
+
+    return sum + 1;
+  }, 0);
+
+  return {
+    weeklyRevenue,
+    tasksDue,
+    eventCount,
+  };
+}
+
+export function DashboardShell({ currentPath, user, children }: ShellProps) {
+  const summary = getShellSummary();
   const notifications = getUnreadClientNotifications();
   const notificationCount = notifications.length;
   const visibleNavItems = navItems.filter((item) => item.roles.includes(user.role));
@@ -197,7 +260,7 @@ export function DashboardShell({ currentPath, user, summary, children }: ShellPr
                   {currencyFormatter.format(summary.weeklyRevenue)}
                 </p>
                 <p className="mt-2 text-sm text-white/70">
-                  {summary.tasksDue} tasks due and {summary.eventCount} client events on deck
+                  {summary.tasksDue} active tasks and {summary.eventCount} client events on deck
                 </p>
               </div>
 
