@@ -24,6 +24,7 @@ import { getDb } from "@/lib/db";
 import { ensureProjectDeliverablesTable, type ProjectDeliverable } from "@/lib/deliverables";
 import { currencyFormatter, dateTime, shortDate } from "@/lib/formatters";
 import { syncInboxRepliesForProject } from "@/lib/inbox-sync";
+import { hasProjectReplyRoutingConfig } from "@/lib/reply-routing";
 import { canManageProjectFiles, canViewProjectFinancials } from "@/lib/roles";
 
 const coverImages: Record<string, string> = {
@@ -214,7 +215,7 @@ export default async function ProjectClientPage({
         : "activity";
 
   let syncResult: { imported: number; skipped: number; error: string } | null = null;
-  if (activeTab === "activity") {
+  if (activeTab === "activity" && !hasProjectReplyRoutingConfig()) {
     syncResult = await syncInboxRepliesForProject(id);
     if (syncResult.imported > 0) {
       data = (await getDashboardPageData()).data;

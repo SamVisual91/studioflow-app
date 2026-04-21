@@ -25,6 +25,7 @@ import {
 import { sendProposalEmail } from "@/lib/mailer";
 import { type MileageTripType } from "@/lib/mileage";
 import { getProjectFileTemplate } from "@/lib/project-files";
+import { getProjectReplyAddress } from "@/lib/reply-routing";
 import { canCreateProjects, getDefaultAppPath, normalizeUserRole, type UserRole } from "@/lib/roles";
 import { getStripe } from "@/lib/stripe";
 import { ensureDocumentTemplatesTable } from "@/lib/templates";
@@ -1984,9 +1985,12 @@ export async function sendProjectMessageAction(formData: FormData) {
     redirect(`/projects/${projectId || ""}?tab=activity&error=message-invalid`);
   }
 
+  const replyToAddress = getProjectReplyAddress(projectId);
+
   try {
     await sendProposalEmail({
       to: recipientEmail,
+      replyTo: replyToAddress,
       subject,
       text: body,
       html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f1b18;">${body.replace(/\n/g, "<br />")}</div>`,
@@ -2058,6 +2062,7 @@ export async function scheduleZoomMeetingAction(formData: FormData) {
         minute: "2-digit",
       });
   const subject = `${title} Zoom call`;
+  const replyToAddress = getProjectReplyAddress(projectId);
   const body = [
     `Hi ${clientName},`,
     "",
@@ -2078,6 +2083,7 @@ export async function scheduleZoomMeetingAction(formData: FormData) {
   try {
     await sendProposalEmail({
       to: recipientEmail,
+      replyTo: replyToAddress,
       subject,
       text: body,
       html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f1b18;">${body.replace(/\n/g, "<br />")}</div>`,
@@ -2143,6 +2149,8 @@ export async function sendFollowUpMessageAction(formData: FormData) {
     redirect("/follow-ups?error=follow-up-invalid");
   }
 
+  const replyToAddress = getProjectReplyAddress(projectId);
+
   const db = getDb();
   const project = db
     .prepare("SELECT id FROM projects WHERE id = ? LIMIT 1")
@@ -2155,6 +2163,7 @@ export async function sendFollowUpMessageAction(formData: FormData) {
   try {
     await sendProposalEmail({
       to: recipientEmail,
+      replyTo: replyToAddress,
       subject,
       text: body,
       html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f1b18;">${body.replace(/\n/g, "<br />")}</div>`,
@@ -2207,6 +2216,7 @@ export async function sendProjectPortalLinkAction(formData: FormData) {
   }
 
   const subject = `${projectName} client portal access`;
+  const replyToAddress = getProjectReplyAddress(projectId);
   const body = [
     `Hi ${clientName},`,
     "",
@@ -2223,6 +2233,7 @@ export async function sendProjectPortalLinkAction(formData: FormData) {
   try {
     await sendProposalEmail({
       to: recipientEmail,
+      replyTo: replyToAddress,
       subject,
       text: body,
       html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f1b18;">${body.replace(/\n/g, "<br />")}</div>`,
@@ -2314,6 +2325,7 @@ export async function sendProjectMediaGalleryAction(formData: FormData) {
 
   const galleryUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/client-portal/${portalToken}?tab=buy-videos`;
   const subject = `${projectName} media gallery is ready`;
+  const replyToAddress = getProjectReplyAddress(projectId);
   const body = [
     `Hi ${clientName},`,
     "",
@@ -2330,6 +2342,7 @@ export async function sendProjectMediaGalleryAction(formData: FormData) {
   try {
     await sendProposalEmail({
       to: recipientEmail,
+      replyTo: replyToAddress,
       subject,
       text: body,
       html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f1b18;">${body.replace(/\n/g, "<br />")}</div>`,
@@ -2419,6 +2432,7 @@ export async function sendVideoPaywallToClientAction(formData: FormData) {
 
   const paywallUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/video-paywall/${resolvedPaywall.public_token}`;
   const subject = `${resolvedProject.name} add-on video is ready to purchase`;
+  const replyToAddress = getProjectReplyAddress(projectId);
   const priceText = currencyFormatter.format(Number(resolvedPaywall.price || 0));
   const body = [
     `Hi ${resolvedProject.client},`,
@@ -2436,6 +2450,7 @@ export async function sendVideoPaywallToClientAction(formData: FormData) {
   try {
     await sendProposalEmail({
       to: recipientEmail,
+      replyTo: replyToAddress,
       subject,
       text: body,
       html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f1b18;">${body.replace(/\n/g, "<br />")}</div>`,
@@ -2590,6 +2605,7 @@ export async function sendPackageBrochureAction(formData: FormData) {
   const brochureUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/package-brochure/${token}`;
   const brochureTitle = `${category} packages brochure`;
   const subject = `${projectName} ${category.toLowerCase()} packages`;
+  const replyToAddress = getProjectReplyAddress(projectId);
   const plainText = [
     `Hi ${clientName},`,
     "",
@@ -2651,6 +2667,7 @@ export async function sendPackageBrochureAction(formData: FormData) {
   try {
     await sendProposalEmail({
       to: recipientEmail,
+      replyTo: replyToAddress,
       subject,
       text: plainText,
       html,
@@ -2985,8 +3002,7 @@ export async function sendProjectInvoiceEmailAction(formData: FormData) {
   const invoiceUrl = publicToken
     ? `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invoice/${publicToken}`
     : `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/projects/${projectId}/invoices/${invoiceId}`;
-  const replyToAddress =
-    (process.env.IMAP_USER || process.env.SMTP_USER || "").trim().toLowerCase() || undefined;
+  const replyToAddress = getProjectReplyAddress(projectId);
   const subject = `${label} from StudioFlow`;
   const plainText = [
     `Hi ${clientName},`,
@@ -4281,8 +4297,7 @@ async function sendProjectInvoiceEmailById(projectId: string, invoiceId: string)
   const invoiceUrl = publicToken
     ? `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invoice/${publicToken}`
     : `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/projects/${projectId}/invoices/${invoiceId}`;
-  const replyToAddress =
-    (process.env.IMAP_USER || process.env.SMTP_USER || "").trim().toLowerCase() || undefined;
+  const replyToAddress = getProjectReplyAddress(projectId);
   const subject = `${label} from StudioFlow`;
   const plainText = [
     `Hi ${clientName},`,
