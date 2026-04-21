@@ -19,7 +19,8 @@ export function hasMicrosoftGraphReplySyncConfig() {
       getEnv("MICROSOFT_GRAPH_CLIENT_ID") &&
       getEnv("MICROSOFT_GRAPH_CLIENT_SECRET") &&
       getEnv("MICROSOFT_GRAPH_MAILBOX_USER_ID") &&
-      getEnv("MICROSOFT_GRAPH_WEBHOOK_CLIENT_STATE")
+      getEnv("MICROSOFT_GRAPH_WEBHOOK_CLIENT_STATE") &&
+      getMicrosoftGraphNotificationUrl()
   );
 }
 
@@ -29,6 +30,10 @@ export function getMicrosoftGraphWebhookClientState() {
 
 export function getMicrosoftGraphMailboxUserId() {
   return getEnv("MICROSOFT_GRAPH_MAILBOX_USER_ID");
+}
+
+export function getMicrosoftGraphMaintenanceToken() {
+  return getEnv("MICROSOFT_GRAPH_MAINTENANCE_TOKEN") || getMicrosoftGraphWebhookClientState();
 }
 
 function getMicrosoftGraphNotificationUrl() {
@@ -203,8 +208,6 @@ export async function ensureMicrosoftGraphMessageSubscription() {
     return { status: "skipped" as const };
   }
 
-  setIntegrationState("microsoft_graph_subscription_checked_at", String(now));
-
   const mailboxUserId = getMicrosoftGraphMailboxUserId();
   const notificationUrl = getMicrosoftGraphNotificationUrl();
   const desiredResource = SUBSCRIPTION_RESOURCE(mailboxUserId);
@@ -217,6 +220,7 @@ export async function ensureMicrosoftGraphMessageSubscription() {
 
   if (!existing?.id) {
     const created = await createMicrosoftGraphSubscription(accessToken);
+    setIntegrationState("microsoft_graph_subscription_checked_at", String(now));
     setIntegrationState("microsoft_graph_subscription_id", String(created.id || ""));
     setIntegrationState(
       "microsoft_graph_subscription_expires_at",
@@ -232,11 +236,13 @@ export async function ensureMicrosoftGraphMessageSubscription() {
     expiresAt.getTime() - now <= SUBSCRIPTION_RENEW_WINDOW_MS
   ) {
     const renewedExpiration = await renewMicrosoftGraphSubscription(accessToken, existing.id);
+    setIntegrationState("microsoft_graph_subscription_checked_at", String(now));
     setIntegrationState("microsoft_graph_subscription_id", existing.id);
     setIntegrationState("microsoft_graph_subscription_expires_at", renewedExpiration);
     return { status: "renewed" as const };
   }
 
+  setIntegrationState("microsoft_graph_subscription_checked_at", String(now));
   setIntegrationState("microsoft_graph_subscription_id", existing.id);
   setIntegrationState(
     "microsoft_graph_subscription_expires_at",

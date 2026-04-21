@@ -2,6 +2,8 @@ function getRequiredEnv(name: string) {
   return process.env[name]?.trim() || "";
 }
 
+const PROJECT_REPLY_TOKEN_PATTERN = /\[sf:([a-z0-9-]+)\]/i;
+
 export function hasProjectReplyRoutingConfig() {
   return Boolean(getRequiredEnv("REPLY_INBOX_DOMAIN"));
 }
@@ -24,6 +26,21 @@ export function getProjectReplyAddress(projectId: string) {
 
 export function getInboundWebhookToken() {
   return getRequiredEnv("RESEND_INBOUND_WEBHOOK_TOKEN");
+}
+
+export function withProjectReplyToken(subject: string, projectId: string) {
+  const normalizedSubject = String(subject || "").trim();
+
+  if (!normalizedSubject || !projectId || PROJECT_REPLY_TOKEN_PATTERN.test(normalizedSubject)) {
+    return normalizedSubject;
+  }
+
+  return `${normalizedSubject} [SF:${projectId}]`;
+}
+
+export function extractProjectIdFromSubject(subject: string) {
+  const match = String(subject || "").trim().match(PROJECT_REPLY_TOKEN_PATTERN);
+  return String(match?.[1] || "").trim();
 }
 
 export function extractProjectIdFromReplyAddress(addresses: string[]) {

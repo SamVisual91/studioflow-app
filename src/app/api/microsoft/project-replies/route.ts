@@ -6,6 +6,7 @@ import {
   getMicrosoftGraphWebhookClientState,
 } from "@/lib/microsoft-graph-mail";
 import { upsertInboundProjectReply } from "@/lib/project-inbox";
+import { extractProjectIdFromSubject } from "@/lib/reply-routing";
 
 type GraphNotification = {
   changeType?: string;
@@ -72,7 +73,7 @@ async function processNotification(notification: GraphNotification) {
     return;
   }
 
-  const projectId = findProjectIdByReplyAddress(message.fromAddress);
+  const projectId = extractProjectIdFromSubject(message.subject) || findProjectIdByReplyAddress(message.fromAddress);
 
   if (!projectId) {
     return;

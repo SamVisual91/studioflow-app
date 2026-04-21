@@ -25,7 +25,7 @@ import {
 import { sendProposalEmail } from "@/lib/mailer";
 import { type MileageTripType } from "@/lib/mileage";
 import { getProjectFileTemplate } from "@/lib/project-files";
-import { getProjectReplyAddress } from "@/lib/reply-routing";
+import { getProjectReplyAddress, withProjectReplyToken } from "@/lib/reply-routing";
 import { canCreateProjects, getDefaultAppPath, normalizeUserRole, type UserRole } from "@/lib/roles";
 import { getStripe } from "@/lib/stripe";
 import { ensureDocumentTemplatesTable } from "@/lib/templates";
@@ -1978,7 +1978,7 @@ export async function sendProjectMessageAction(formData: FormData) {
   const projectId = getString(formData, "projectId");
   const clientName = getString(formData, "clientName");
   const recipientEmail = getString(formData, "recipientEmail").toLowerCase();
-  const subject = getString(formData, "subject");
+  const subject = withProjectReplyToken(getString(formData, "subject"), projectId);
   const body = getString(formData, "body");
 
   if (!projectId || !clientName || !recipientEmail || !subject || !body) {
@@ -2061,7 +2061,7 @@ export async function scheduleZoomMeetingAction(formData: FormData) {
         hour: "numeric",
         minute: "2-digit",
       });
-  const subject = `${title} Zoom call`;
+  const subject = withProjectReplyToken(`${title} Zoom call`, projectId);
   const replyToAddress = getProjectReplyAddress(projectId);
   const body = [
     `Hi ${clientName},`,
@@ -2142,7 +2142,7 @@ export async function sendFollowUpMessageAction(formData: FormData) {
   const projectName = getString(formData, "projectName");
   const clientName = getString(formData, "clientName");
   const recipientEmail = getString(formData, "recipientEmail").toLowerCase();
-  const subject = getString(formData, "subject");
+  const subject = withProjectReplyToken(getString(formData, "subject"), projectId);
   const body = getString(formData, "body");
 
   if (!projectId || !projectName || !clientName || !recipientEmail || !subject || !body) {
@@ -2215,7 +2215,7 @@ export async function sendProjectPortalLinkAction(formData: FormData) {
     redirect(`/projects/${projectId || ""}?tab=activity&error=portal-invalid`);
   }
 
-  const subject = `${projectName} client portal access`;
+  const subject = withProjectReplyToken(`${projectName} client portal access`, projectId);
   const replyToAddress = getProjectReplyAddress(projectId);
   const body = [
     `Hi ${clientName},`,
@@ -2324,7 +2324,7 @@ export async function sendProjectMediaGalleryAction(formData: FormData) {
   }
 
   const galleryUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/client-portal/${portalToken}?tab=buy-videos`;
-  const subject = `${projectName} media gallery is ready`;
+  const subject = withProjectReplyToken(`${projectName} media gallery is ready`, projectId);
   const replyToAddress = getProjectReplyAddress(projectId);
   const body = [
     `Hi ${clientName},`,
@@ -2431,7 +2431,7 @@ export async function sendVideoPaywallToClientAction(formData: FormData) {
   }
 
   const paywallUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/video-paywall/${resolvedPaywall.public_token}`;
-  const subject = `${resolvedProject.name} add-on video is ready to purchase`;
+  const subject = withProjectReplyToken(`${resolvedProject.name} add-on video is ready to purchase`, projectId);
   const replyToAddress = getProjectReplyAddress(projectId);
   const priceText = currencyFormatter.format(Number(resolvedPaywall.price || 0));
   const body = [
@@ -2604,7 +2604,7 @@ export async function sendPackageBrochureAction(formData: FormData) {
 
   const brochureUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/package-brochure/${token}`;
   const brochureTitle = `${category} packages brochure`;
-  const subject = `${projectName} ${category.toLowerCase()} packages`;
+  const subject = withProjectReplyToken(`${projectName} ${category.toLowerCase()} packages`, projectId);
   const replyToAddress = getProjectReplyAddress(projectId);
   const plainText = [
     `Hi ${clientName},`,
@@ -3003,7 +3003,7 @@ export async function sendProjectInvoiceEmailAction(formData: FormData) {
     ? `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invoice/${publicToken}`
     : `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/projects/${projectId}/invoices/${invoiceId}`;
   const replyToAddress = getProjectReplyAddress(projectId);
-  const subject = `${label} from StudioFlow`;
+  const subject = withProjectReplyToken(`${label} from StudioFlow`, projectId);
   const plainText = [
     `Hi ${clientName},`,
     "",
@@ -4298,7 +4298,7 @@ async function sendProjectInvoiceEmailById(projectId: string, invoiceId: string)
     ? `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invoice/${publicToken}`
     : `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/projects/${projectId}/invoices/${invoiceId}`;
   const replyToAddress = getProjectReplyAddress(projectId);
-  const subject = `${label} from StudioFlow`;
+  const subject = withProjectReplyToken(`${label} from StudioFlow`, projectId);
   const plainText = [
     `Hi ${clientName},`,
     "",
