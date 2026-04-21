@@ -7,6 +7,12 @@ export function hasProjectReplyRoutingConfig() {
 }
 
 export function getProjectReplyAddress(projectId: string) {
+  const directReplyAddress = (getRequiredEnv("CLIENT_REPLY_TO") || "contactme@samthao.com").toLowerCase();
+
+  if (directReplyAddress) {
+    return directReplyAddress;
+  }
+
   const domain = getRequiredEnv("REPLY_INBOX_DOMAIN");
 
   if (!projectId || !domain) {
@@ -60,4 +66,3 @@ export function normalizeEmailAddresses(values: unknown): string[] {
 
   return [];
 }
-
