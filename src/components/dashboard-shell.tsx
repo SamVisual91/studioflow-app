@@ -38,19 +38,19 @@ const quickActions = [
     href: "/projects",
     label: "Make a project",
     copy: "Add a new client project from the Projects page.",
-    roles: ["SUPER_ADMIN", "ADMIN", "USER"] as UserRole[],
+    roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[],
   },
   {
     href: "/projects",
     label: "Create a contact",
     copy: "Add a new client or contact from the Projects page.",
-    roles: ["SUPER_ADMIN", "ADMIN", "USER"] as UserRole[],
+    roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[],
   },
   {
     href: "/projects",
     label: "Make an invoice",
     copy: "Open a project, then create an invoice from Files.",
-    roles: ["SUPER_ADMIN", "ADMIN", "USER"] as UserRole[],
+    roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[],
   },
   {
     href: "/follow-ups",

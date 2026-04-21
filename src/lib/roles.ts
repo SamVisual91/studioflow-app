@@ -22,6 +22,10 @@ export function canManageUsers(role: UserRole) {
   return role === "SUPER_ADMIN";
 }
 
+export function canAccessBackOffice(role: UserRole) {
+  return role !== "USER";
+}
+
 export function canManageProjectBulkActions(role: UserRole) {
   return role !== "USER";
 }

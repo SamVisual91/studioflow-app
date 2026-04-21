@@ -5,7 +5,10 @@ import { verifyPassword } from "@/lib/crypto";
 import { getDb } from "@/lib/db";
 import {
   canAccessPath,
+  canAccessBackOffice,
   canManageUsers,
+  canManageProjectFiles,
+  canViewProjectFinancials,
   getDefaultAppPath,
   normalizeUserRole,
   type CurrentUser,
@@ -95,6 +98,36 @@ export async function requireSuperAdmin() {
   const user = await requireUser();
 
   if (!canManageUsers(user.role)) {
+    redirect(getDefaultAppPath(user.role));
+  }
+
+  return user;
+}
+
+export async function requireBackOfficeAccess() {
+  const user = await requireUser();
+
+  if (!canAccessBackOffice(user.role)) {
+    redirect(getDefaultAppPath(user.role));
+  }
+
+  return user;
+}
+
+export async function requireProjectFinancialAccess() {
+  const user = await requireUser();
+
+  if (!canViewProjectFinancials(user.role)) {
+    redirect(getDefaultAppPath(user.role));
+  }
+
+  return user;
+}
+
+export async function requireProjectFileManagement() {
+  const user = await requireUser();
+
+  if (!canManageProjectFiles(user.role)) {
     redirect(getDefaultAppPath(user.role));
   }
 

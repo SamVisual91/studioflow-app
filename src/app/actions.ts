@@ -6,6 +6,9 @@ import { join } from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  requireBackOfficeAccess,
+  requireProjectFileManagement,
+  requireProjectFinancialAccess,
   clearUserSession,
   createUserSession,
   requireSuperAdmin,
@@ -1301,7 +1304,7 @@ export async function deleteGearItemAction(formData: FormData) {
 }
 
 export async function createLedgerTransactionAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const transactionDate = getString(formData, "transactionDate");
   const direction = getString(formData, "direction").toUpperCase();
@@ -1353,7 +1356,7 @@ export async function createLedgerTransactionAction(formData: FormData) {
 }
 
 export async function reconcileLedgerTransactionAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const transactionId = getString(formData, "transactionId");
   const reconciliationNote = getString(formData, "reconciliationNote");
@@ -1372,7 +1375,7 @@ export async function reconcileLedgerTransactionAction(formData: FormData) {
 }
 
 export async function deleteLedgerTransactionsAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const transactionIds = formData
     .getAll("transactionIds")
@@ -1398,7 +1401,7 @@ export async function deleteLedgerTransactionsAction(formData: FormData) {
 }
 
 export async function updateLedgerTransactionAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const transactionId = getString(formData, "transactionId");
   const transactionDate = getString(formData, "transactionDate");
@@ -1461,7 +1464,7 @@ export async function updateLedgerTransactionAction(formData: FormData) {
 }
 
 export async function createMileageLogAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const tripDate = getString(formData, "tripDate");
   const originLabel = getString(formData, "originLabel");
@@ -1533,7 +1536,7 @@ export async function createMileageLogAction(formData: FormData) {
 }
 
 export async function deleteMileageLogAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const mileageLogId = getString(formData, "mileageLogId");
 
@@ -1550,7 +1553,7 @@ export async function deleteMileageLogAction(formData: FormData) {
 }
 
 export async function updateMileageLogAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const mileageLogId = getString(formData, "mileageLogId");
   const tripDate = getString(formData, "tripDate");
@@ -1608,7 +1611,7 @@ export async function updateMileageLogAction(formData: FormData) {
 }
 
 export async function createRecurringLedgerRuleAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const name = getString(formData, "name");
   const direction = getString(formData, "direction").toUpperCase();
@@ -1674,7 +1677,7 @@ export async function createRecurringLedgerRuleAction(formData: FormData) {
 }
 
 export async function updateRecurringLedgerRuleAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const id = getString(formData, "id");
   const name = getString(formData, "name");
@@ -1744,7 +1747,7 @@ export async function updateRecurringLedgerRuleAction(formData: FormData) {
 }
 
 export async function toggleRecurringLedgerRuleAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const id = getString(formData, "id");
   const nextActive = getString(formData, "nextActive") === "1" ? 1 : 0;
@@ -1765,7 +1768,7 @@ export async function toggleRecurringLedgerRuleAction(formData: FormData) {
 }
 
 export async function deleteRecurringLedgerRuleAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const id = getString(formData, "id");
 
@@ -1781,7 +1784,7 @@ export async function deleteRecurringLedgerRuleAction(formData: FormData) {
 }
 
 export async function importBankStatementAction(formData: FormData) {
-  await requireUser();
+  await requireBackOfficeAccess();
 
   const statementFile = getUploadFile(formData, "statement");
   const defaultCategory = getString(formData, "defaultCategory").toUpperCase() || "OTHER_EXPENSE";
@@ -2543,7 +2546,7 @@ export async function sendVideoPaywallToClientAction(formData: FormData) {
 }
 
 export async function sendPackageBrochureAction(formData: FormData) {
-  await requireUser();
+  await requireProjectFileManagement();
 
   const projectId = getString(formData, "projectId");
   const category = normalizePackageCategoryValue(getString(formData, "category"));
@@ -2781,7 +2784,7 @@ export async function sendPackageBrochureAction(formData: FormData) {
 }
 
 export async function savePackageBrochureAction(formData: FormData) {
-  await requireUser();
+  await requireProjectFileManagement();
 
   const projectId = getString(formData, "projectId");
   const category = normalizePackageCategoryValue(getString(formData, "category"));
@@ -3011,7 +3014,7 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
 }
 
 export async function sendProjectInvoiceEmailAction(formData: FormData) {
-  await requireUser();
+  await requireProjectFinancialAccess();
 
   const projectId = getString(formData, "projectId");
   const invoiceId = getString(formData, "invoiceId");
@@ -4100,7 +4103,7 @@ export async function bulkDeleteProjectsAction(formData: FormData) {
 }
 
 export async function updateProjectFilesAction(formData: FormData) {
-  await requireUser();
+  await requireProjectFileManagement();
 
   const projectId = getString(formData, "projectId");
   const fileNotes = getString(formData, "fileNotes");
@@ -4161,7 +4164,7 @@ export async function updateProjectTasksAction(formData: FormData) {
 }
 
 export async function createProjectInvoiceAction(formData: FormData) {
-  await requireUser();
+  await requireProjectFinancialAccess();
 
   const projectId = getString(formData, "projectId");
   const clientName = getString(formData, "clientName");
@@ -4551,7 +4554,7 @@ async function sendProjectInvoiceEmailById(projectId: string, invoiceId: string)
 }
 
 export async function updateProjectInvoiceAction(formData: FormData) {
-  await requireUser();
+  await requireProjectFinancialAccess();
 
   const input = parseProjectInvoiceEditorInput(formData);
 
@@ -4590,7 +4593,7 @@ export async function updateProjectInvoiceAction(formData: FormData) {
 }
 
 export async function sendProjectInvoiceWithCurrentDataAction(formData: FormData) {
-  await requireUser();
+  await requireProjectFinancialAccess();
 
   const input = parseProjectInvoiceEditorInput(formData);
 
@@ -5757,7 +5760,7 @@ export async function saveVideoPaywallAction(formData: FormData) {
 }
 
 export async function deleteVideoPaywallAction(formData: FormData) {
-  await requireUser();
+  await requireProjectFileManagement();
 
   const projectId = getString(formData, "projectId");
   const paywallId = getString(formData, "paywallId");
@@ -5806,7 +5809,7 @@ export async function deleteVideoPaywallAction(formData: FormData) {
 }
 
 export async function deleteProjectFileAction(formData: FormData) {
-  await requireUser();
+  await requireProjectFileManagement();
 
   const projectId = getString(formData, "projectId");
   const fileId = getString(formData, "fileId");
@@ -5877,7 +5880,7 @@ export async function deleteProjectFileAction(formData: FormData) {
 }
 
 export async function createProposalAction(formData: FormData) {
-  await requireUser();
+  await requireProjectFinancialAccess();
 
   const projectId = getString(formData, "projectId");
   const client = getString(formData, "client");
