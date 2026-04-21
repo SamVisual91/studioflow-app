@@ -56,11 +56,11 @@ export default async function AccountsReceivablePage() {
       <section className="rounded-[1.45rem] border border-black/[0.08] bg-white/94 p-5 shadow-[0_14px_28px_rgba(59,36,17,0.07)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--muted)]">Client subcategories</p>
-            <h2 className="mt-2 text-2xl font-semibold">Receivables by client</h2>
+            <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--muted)]">Project subcategories</p>
+            <h2 className="mt-2 text-2xl font-semibold">Receivables by project</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-              New clients with invoice schedules appear here automatically. Click a client to see their balance,
-              paid total, next payments, and overdue items.
+              Projects with invoice schedules appear here automatically. Click a project card to see its balance,
+              paid total, next payments, and overdue items without blending repeat clients together.
             </p>
           </div>
         </div>

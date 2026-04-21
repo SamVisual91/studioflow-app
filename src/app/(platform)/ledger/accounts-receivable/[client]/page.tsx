@@ -31,8 +31,8 @@ export default async function ClientReceivablePage({
     getLedgerPageData(),
     Promise.resolve(getAccountsReceivableData()),
   ]);
-  const clientName = decodeURIComponent(client);
-  const clientSummary = receivables.clientSummaries.find((item) => item.client === clientName);
+  const summaryId = decodeURIComponent(client);
+  const clientSummary = receivables.clientSummaries.find((item) => item.id === encodeURIComponent(summaryId));
 
   if (!clientSummary) {
     notFound();
@@ -46,10 +46,10 @@ export default async function ClientReceivablePage({
 
   return (
     <LedgerWorkspace
-      copy={`Receivables detail for ${clientSummary.client}. Review their balance, paid total, next payments, and overdue items.`}
+      copy={`Receivables detail for ${clientSummary.projectName || clientSummary.client}. Review the balance, paid total, next payments, and overdue items for this project.`}
       currentPath="/ledger/accounts-receivable"
       summary={shellSummary}
-      title={clientSummary.client}
+      title={clientSummary.projectName || clientSummary.client}
       user={user}
       actions={
         <Link
@@ -64,7 +64,7 @@ export default async function ClientReceivablePage({
         {[
           { label: "Balance", value: preciseCurrencyFormatter.format(clientSummary.outstanding), note: `${clientSummary.openCount} open payments` },
           { label: "Paid", value: preciseCurrencyFormatter.format(clientSummary.paid), note: "Collected so far" },
-          { label: "Billed", value: preciseCurrencyFormatter.format(clientSummary.billed), note: clientSummary.projectName || "Client total" },
+          { label: "Billed", value: preciseCurrencyFormatter.format(clientSummary.billed), note: clientSummary.projectName || "Project total" },
           { label: "Overdue", value: preciseCurrencyFormatter.format(clientSummary.overdue), note: `${clientSummary.overdueCount} overdue payments` },
         ].map((card) => (
           <article key={card.label} className="rounded-[1.35rem] border border-black/[0.08] bg-white/94 p-4 shadow-[0_14px_28px_rgba(59,36,17,0.07)]">
@@ -79,6 +79,10 @@ export default async function ClientReceivablePage({
         <section className="rounded-[1.45rem] border border-black/[0.08] bg-white/94 p-5 shadow-[0_14px_28px_rgba(59,36,17,0.07)]">
           <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--muted)]">Next payments</p>
           <h2 className="mt-2 text-2xl font-semibold">What is coming up</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            Viewing receivables for {clientSummary.projectName || clientSummary.client}
+            {clientSummary.projectName ? ` | ${clientSummary.client}` : ""}.
+          </p>
           <div className="mt-5 grid gap-3">
             {nextPayments.length > 0 ? (
               nextPayments.slice(0, 6).map((payment) => (

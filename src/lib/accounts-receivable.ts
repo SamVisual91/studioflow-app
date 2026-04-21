@@ -1,4 +1,5 @@
 import { getDb, parseJsonList } from "@/lib/db";
+import { resolveProjectForInvoice } from "@/lib/invoice-project";
 
 type PaymentScheduleRow = {
   id?: string;
@@ -17,6 +18,7 @@ type InvoiceRow = {
   amount: number;
   method: string;
   payment_schedule: string | null;
+  project_id?: string | null;
 };
 
 type ProjectRow = {
@@ -29,6 +31,7 @@ type ProjectRow = {
 export type AccountsReceivableRow = {
   id: string;
   invoiceId: string;
+  projectId: string;
   client: string;
   projectName: string;
   projectType: string;
@@ -99,10 +102,12 @@ export function getAccountsReceivableData() {
   const db = getDb();
   const invoices = db.prepare("SELECT * FROM invoices ORDER BY due_date ASC").all() as InvoiceRow[];
   const projects = db.prepare("SELECT id, client, name, project_type FROM projects ORDER BY updated_at DESC").all() as ProjectRow[];
-  const projectByClient = new Map(projects.map((project) => [project.client, project]));
+  const projectById = new Map(projects.map((project) => [project.id, project]));
 
   const rows: AccountsReceivableRow[] = invoices.flatMap((invoice) => {
-    const project = projectByClient.get(invoice.client);
+    const resolvedProject = resolveProjectForInvoice(invoice, db);
+    const project = resolvedProject ? projectById.get(resolvedProject.id) : undefined;
+    const projectId = project?.id || resolvedProject?.id || "";
 
     return parsePaymentSchedule(invoice).map((payment, index) => {
       const amount = toMoney(Number(payment.amount || 0));
@@ -115,6 +120,7 @@ export function getAccountsReceivableData() {
       return {
         id: `${invoice.id}:${payment.id || index}`,
         invoiceId: invoice.id,
+        projectId,
         client: invoice.client,
         projectName: project?.name || invoice.label,
         projectType: project?.project_type || "",
@@ -140,24 +146,27 @@ export function getAccountsReceivableData() {
   );
   const clientSummaries = Array.from(
     rows.reduce<Map<string, AccountsReceivableRow[]>>((grouped, row) => {
-      const clientRows = grouped.get(row.client) || [];
+      const summaryKey = row.projectId || `legacy:${row.client}`;
+      const clientRows = grouped.get(summaryKey) || [];
       clientRows.push(row);
-      grouped.set(row.client, clientRows);
+      grouped.set(summaryKey, clientRows);
       return grouped;
     }, new Map())
   )
-    .map(([client, clientRows]) => {
+    .map(([summaryKey, clientRows]) => {
       const openClientRows = clientRows.filter((row) => row.status !== "Paid");
       const overdueClientRows = clientRows.filter((row) => row.status === "Overdue");
       const nextPayment = openClientRows
         .slice()
         .sort((a, b) => safeDate(a.dueDate).getTime() - safeDate(b.dueDate).getTime())[0];
+      const primaryRow = clientRows[0];
 
       return {
-        id: encodeURIComponent(client),
-        client,
-        projectName: clientRows[0]?.projectName || "",
-        projectType: clientRows[0]?.projectType || "",
+        id: encodeURIComponent(summaryKey),
+        client: primaryRow?.client || "",
+        projectId: primaryRow?.projectId || "",
+        projectName: primaryRow?.projectName || "",
+        projectType: primaryRow?.projectType || "",
         billed: toMoney(clientRows.reduce((sum, row) => sum + row.amount, 0)),
         paid: toMoney(clientRows.reduce((sum, row) => sum + row.paid, 0)),
         outstanding: toMoney(openClientRows.reduce((sum, row) => sum + row.outstanding, 0)),
