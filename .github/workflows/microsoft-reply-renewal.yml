@@ -1,0 +1,18 @@
+name: Renew Microsoft Reply Subscription
+
+on:
+  schedule:
+    - cron: "0 */12 * * *"
+  workflow_dispatch:
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping StudioFlow renewal endpoint
+        env:
+          MAINTENANCE_TOKEN: ${{ secrets.STUDIOFLOW_MAINTENANCE_TOKEN }}
+        run: |
+          test -n "$MAINTENANCE_TOKEN"
+          curl --fail --silent --show-error \
+            "https://www.samthao.com/api/microsoft/project-replies/maintain?token=$MAINTENANCE_TOKEN"
