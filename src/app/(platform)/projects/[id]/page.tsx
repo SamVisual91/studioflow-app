@@ -198,7 +198,9 @@ export default async function ProjectClientPage({
   const requestedTemplate = (query.template || "").toLowerCase() as TaskTemplateKey;
   const selectedTaskTemplate = requestedTemplate in taskTemplates ? taskTemplates[requestedTemplate] : null;
 
-  const { user, data } = await getDashboardPageData();
+  const dashboardPageData = await getDashboardPageData();
+  const { user } = dashboardPageData;
+  let data = dashboardPageData.data;
   const canSeeFinancials = canViewProjectFinancials(user.role);
   const canDeleteProjectFiles = canManageProjectFiles(user.role);
   const availableProjectTabs: ProjectTab[] = canSeeFinancials
@@ -214,6 +216,9 @@ export default async function ProjectClientPage({
   let syncResult: { imported: number; skipped: number; error: string } | null = null;
   if (activeTab === "activity") {
     syncResult = await syncInboxRepliesForProject(id);
+    if (syncResult.imported > 0) {
+      data = (await getDashboardPageData()).data;
+    }
   }
 
   const project = data.projects.find((item) => item.id === id);
