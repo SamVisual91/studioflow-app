@@ -245,6 +245,17 @@ export function recordInvoicePaymentToLedger(opts: {
   sourceType?: string;
 }) {
   const db = getDb();
+  const paymentSourceId = `${opts.invoiceId}:${opts.paymentId}`;
+  const existingPaymentRecord = db
+    .prepare(
+      "SELECT id FROM ledger_transactions WHERE invoice_id = ? AND source_id = ? AND direction = 'INCOME' LIMIT 1"
+    )
+    .get(opts.invoiceId, paymentSourceId) as { id?: string } | undefined;
+
+  if (existingPaymentRecord?.id) {
+    return existingPaymentRecord.id;
+  }
+
   const invoice = db
     .prepare("SELECT id, project_id, client, label, method, public_token FROM invoices WHERE id = ? LIMIT 1")
     .get(opts.invoiceId) as
@@ -274,7 +285,7 @@ export function recordInvoicePaymentToLedger(opts: {
     projectId: project?.id || "",
     invoiceId: invoice.id,
     sourceType: opts.sourceType || "INVOICE_PAYMENT",
-    sourceId: `${opts.invoiceId}:${opts.paymentId}`,
+    sourceId: paymentSourceId,
     taxCategory: "Gross receipts",
   });
 }
