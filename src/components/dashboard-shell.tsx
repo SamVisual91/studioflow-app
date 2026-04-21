@@ -164,7 +164,7 @@ function getUnreadClientNotifications() {
 
   return db
     .prepare(
-      "SELECT messages.id, messages.sender, messages.client_name, messages.project_id, messages.time, messages.subject, messages.preview, projects.name AS project_name FROM messages LEFT JOIN projects ON projects.id = messages.project_id WHERE messages.deleted_at IS NULL AND messages.unread = 1 AND messages.project_id IS NOT NULL AND LOWER(messages.direction) = 'inbound' AND LOWER(messages.channel) = 'email' ORDER BY messages.time DESC LIMIT 8"
+      "SELECT messages.id, messages.sender, messages.client_name, messages.project_id, messages.time, messages.subject, messages.preview, projects.name AS project_name FROM messages LEFT JOIN projects ON projects.id = messages.project_id WHERE messages.deleted_at IS NULL AND messages.unread = 1 AND messages.project_id IS NOT NULL AND projects.archived_at IS NULL AND LOWER(messages.direction) = 'inbound' AND LOWER(messages.channel) = 'email' ORDER BY messages.time DESC LIMIT 8"
     )
     .all() as Array<{
     id: string;
