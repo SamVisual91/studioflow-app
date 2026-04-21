@@ -5944,10 +5944,25 @@ export async function createProposalAction(formData: FormData) {
         .prepare("SELECT id FROM projects WHERE id = ? LIMIT 1")
         .get(projectId) as { id?: string } | undefined) ??
       undefined)
-    : ((db
-        .prepare("SELECT id FROM projects WHERE client = ? ORDER BY updated_at DESC LIMIT 1")
-        .get(client) as { id?: string } | undefined) ??
-      undefined);
+    : (() => {
+        const projectCount = Number(
+          (
+            (db.prepare("SELECT COUNT(*) AS count FROM projects WHERE client = ?").get(client) as
+              | { count?: number }
+              | undefined) ?? { count: 0 }
+          ).count ?? 0
+        );
+
+        if (projectCount !== 1) {
+          return undefined;
+        }
+
+        return (
+          (db
+            .prepare("SELECT id FROM projects WHERE client = ? ORDER BY updated_at DESC LIMIT 1")
+            .get(client) as { id?: string } | undefined) ?? undefined
+        );
+      })();
   const existingClient = db
     .prepare("SELECT id FROM clients WHERE name = ? LIMIT 1")
     .get(client) as { id?: string } | undefined;
@@ -6690,8 +6705,8 @@ export async function respondToProposalAction(formData: FormData) {
   }
 
   const db = getDb();
-  const proposal = db.prepare("SELECT id FROM proposals WHERE public_token = ?").get(token) as
-    | { id?: string }
+  const proposal = db.prepare("SELECT id, project_id, title, client FROM proposals WHERE public_token = ?").get(token) as
+    | { id?: string; project_id?: string | null; title?: string | null; client?: string | null }
     | undefined;
 
   if (!proposal?.id) {
@@ -6709,7 +6724,29 @@ export async function respondToProposalAction(formData: FormData) {
       "UPDATE proposals SET status = ?, client_comment = ?, signature_name = ?, signed_at = ?, updated_at = ? WHERE id = ?"
     ).run("SIGNED", clientComment, signatureName, timestamp, timestamp, proposal.id);
 
+    if (proposal.project_id) {
+      updateProjectRecentActivity(
+        db,
+        String(proposal.project_id),
+        createRecentActivity("Proposal accepted", timestamp),
+        timestamp
+      );
+      logProjectMessage(db, {
+        sender: String(proposal.client || "Client"),
+        clientName: String(proposal.client || ""),
+        projectId: String(proposal.project_id),
+        direction: "INBOUND",
+        channel: "Proposal",
+        time: timestamp,
+        subject: String(proposal.title || "Proposal response"),
+        preview: clientComment || "Client accepted the proposal.",
+        unread: 1,
+      });
+      revalidatePath(`/projects/${String(proposal.project_id)}`);
+    }
+
     revalidatePath("/proposals");
+    revalidatePath(`/p/${token}`);
     redirect(`/p/${token}?accepted=1`);
   }
 
@@ -6722,7 +6759,29 @@ export async function respondToProposalAction(formData: FormData) {
       "UPDATE proposals SET status = ?, client_comment = ?, rejected_at = ?, updated_at = ? WHERE id = ?"
     ).run("REJECTED", clientComment, timestamp, timestamp, proposal.id);
 
+    if (proposal.project_id) {
+      updateProjectRecentActivity(
+        db,
+        String(proposal.project_id),
+        createRecentActivity("Proposal declined", timestamp),
+        timestamp
+      );
+      logProjectMessage(db, {
+        sender: String(proposal.client || "Client"),
+        clientName: String(proposal.client || ""),
+        projectId: String(proposal.project_id),
+        direction: "INBOUND",
+        channel: "Proposal",
+        time: timestamp,
+        subject: String(proposal.title || "Proposal response"),
+        preview: clientComment,
+        unread: 1,
+      });
+      revalidatePath(`/projects/${String(proposal.project_id)}`);
+    }
+
     revalidatePath("/proposals");
+    revalidatePath(`/p/${token}`);
     redirect(`/p/${token}?declined=1`);
   }
 
@@ -6736,7 +6795,29 @@ export async function respondToProposalAction(formData: FormData) {
     proposal.id
   );
 
+  if (proposal.project_id) {
+    updateProjectRecentActivity(
+      db,
+      String(proposal.project_id),
+      createRecentActivity("Proposal feedback received", timestamp),
+      timestamp
+    );
+    logProjectMessage(db, {
+      sender: String(proposal.client || "Client"),
+      clientName: String(proposal.client || ""),
+      projectId: String(proposal.project_id),
+      direction: "INBOUND",
+      channel: "Proposal",
+      time: timestamp,
+      subject: String(proposal.title || "Proposal response"),
+      preview: clientComment,
+      unread: 1,
+    });
+    revalidatePath(`/projects/${String(proposal.project_id)}`);
+  }
+
   revalidatePath("/proposals");
+  revalidatePath(`/p/${token}`);
   redirect(`/p/${token}?commented=1`);
 }
 
