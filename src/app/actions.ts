@@ -3811,9 +3811,19 @@ export async function deleteProjectMessageAction(formData: FormData) {
     | undefined;
   const normalizedProjectClient = String(project?.client || "").trim().toLowerCase();
   const normalizedMessageClient = String(message?.client_name || "").trim().toLowerCase();
+  const siblingProjectCount = Number(
+    (
+      (db.prepare("SELECT COUNT(*) AS count FROM projects WHERE client = ?").get(project?.client || "") as
+        | { count?: number }
+        | undefined) ?? { count: 0 }
+    ).count ?? 0
+  );
+  const canUseLegacyClientScope = siblingProjectCount === 1;
   const belongsToThread =
     String(message?.project_id || "") === projectId ||
-    (!!normalizedProjectClient && normalizedMessageClient === normalizedProjectClient);
+    (canUseLegacyClientScope &&
+      !!normalizedProjectClient &&
+      normalizedMessageClient === normalizedProjectClient);
 
   if (message?.id && belongsToThread) {
     const timestamp = new Date().toISOString();
@@ -3843,7 +3853,16 @@ export async function openNotificationMessageAction(formData: FormData) {
 
   const db = getDb();
   const timestamp = new Date().toISOString();
-  db.prepare("UPDATE messages SET unread = 0, updated_at = ? WHERE id = ?").run(timestamp, messageId);
+
+  if (projectId) {
+    db.prepare("UPDATE messages SET unread = 0, updated_at = ? WHERE id = ? AND project_id = ?").run(
+      timestamp,
+      messageId,
+      projectId
+    );
+  } else {
+    db.prepare("UPDATE messages SET unread = 0, updated_at = ? WHERE id = ?").run(timestamp, messageId);
+  }
 
   if (projectId) {
     revalidatePath(`/projects/${projectId}`);
@@ -3884,9 +3903,19 @@ export async function markProjectMessageReadAction(formData: FormData) {
 
   const normalizedProjectClient = String(project?.client || "").trim().toLowerCase();
   const normalizedMessageClient = String(message?.client_name || "").trim().toLowerCase();
+  const siblingProjectCount = Number(
+    (
+      (db.prepare("SELECT COUNT(*) AS count FROM projects WHERE client = ?").get(project?.client || "") as
+        | { count?: number }
+        | undefined) ?? { count: 0 }
+    ).count ?? 0
+  );
+  const canUseLegacyClientScope = siblingProjectCount === 1;
   const belongsToThread =
     String(message?.project_id || "") === projectId ||
-    (!!normalizedProjectClient && normalizedMessageClient === normalizedProjectClient);
+    (canUseLegacyClientScope &&
+      !!normalizedProjectClient &&
+      normalizedMessageClient === normalizedProjectClient);
 
   if (
     message?.id &&
