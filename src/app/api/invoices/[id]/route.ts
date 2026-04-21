@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { canViewProjectFinancials } from "@/lib/roles";
 
 type LineItem = {
   title: string;
@@ -85,6 +86,10 @@ export async function PATCH(
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!canViewProjectFinancials(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await params;
