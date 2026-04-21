@@ -4281,6 +4281,8 @@ async function sendProjectInvoiceEmailById(projectId: string, invoiceId: string)
   const invoiceUrl = publicToken
     ? `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invoice/${publicToken}`
     : `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/projects/${projectId}/invoices/${invoiceId}`;
+  const replyToAddress =
+    (process.env.IMAP_USER || process.env.SMTP_USER || "").trim().toLowerCase() || undefined;
   const subject = `${label} from StudioFlow`;
   const plainText = [
     `Hi ${clientName},`,
@@ -4444,6 +4446,7 @@ async function sendProjectInvoiceEmailById(projectId: string, invoiceId: string)
   try {
     await sendProposalEmail({
       to: recipientEmail,
+      replyTo: replyToAddress,
       subject,
       text: plainText,
       html,
