@@ -43,6 +43,7 @@ export async function getDashboardData() {
   const projects = db.prepare("SELECT * FROM projects ORDER BY updated_at DESC").all() as Array<Record<string, unknown>>;
   const automations = db.prepare("SELECT * FROM automations ORDER BY created_at ASC").all() as Array<Record<string, unknown>>;
   const packagePresets = db.prepare("SELECT * FROM package_presets ORDER BY created_at ASC").all() as Array<Record<string, unknown>>;
+  const activeProjects = projects.filter((item) => !item.archived_at);
 
   const pipelineValue =
     leads.reduce((sum, item) => sum + Number(item.value), 0) +
@@ -51,7 +52,7 @@ export async function getDashboardData() {
   const outstandingRevenue = invoices
     .filter((item) => item.status !== "PAID")
     .reduce((sum, item) => sum + Number(item.amount), 0);
-  const tasksDue = projects.reduce((sum, item) => sum + parseJsonList(String(item.tasks)).length, 0);
+  const tasksDue = activeProjects.reduce((sum, item) => sum + parseJsonList(String(item.tasks)).length, 0);
   const unreadMessages = messages.filter((item) => Number(item.unread) === 1).length;
   const responseRate = messages.length === 0 ? 100 : Math.round(((messages.length - unreadMessages) / messages.length) * 100);
 
@@ -60,7 +61,7 @@ export async function getDashboardData() {
       pipelineValue,
       bookedRevenue,
       outstandingRevenue,
-      activeProjects: projects.length,
+      activeProjects: activeProjects.length,
       tasksDue,
       responseRate,
     },
