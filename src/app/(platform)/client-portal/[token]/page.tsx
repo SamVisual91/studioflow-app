@@ -142,6 +142,11 @@ export default async function ClientPortalPage({
         ORDER BY starts_at ASC`
     )
     .all(String(project.id), canUseLegacyClientScope ? 1 : 0, String(project.client)) as Array<Record<string, unknown>>;
+  const today = new Date();
+  const upcomingSchedule = schedule.filter((item) => {
+    const startsAt = new Date(String(item.starts_at || ""));
+    return !Number.isNaN(startsAt.getTime()) && startsAt.getTime() >= today.getTime();
+  });
   const uploads = db
     .prepare("SELECT * FROM client_uploads WHERE project_id = ? ORDER BY created_at DESC")
     .all(String(project.id)) as Array<Record<string, unknown>>;
@@ -998,10 +1003,10 @@ export default async function ClientPortalPage({
                 <article className="rounded-[1.6rem] border border-black/[0.08] bg-white p-6">
                   <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Upcoming schedule</p>
                   <div className="mt-5 grid gap-3">
-                    {schedule.length === 0 ? (
+                    {upcomingSchedule.length === 0 ? (
                       <p className="text-sm text-[var(--muted)]">No upcoming events are scheduled yet.</p>
                     ) : (
-                      schedule.map((item) => (
+                      upcomingSchedule.map((item) => (
                         <div
                           key={String(item.id)}
                           className="rounded-[1.2rem] bg-[rgba(247,241,232,0.54)] px-4 py-3"
