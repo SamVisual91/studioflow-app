@@ -5982,6 +5982,20 @@ export async function deleteProjectFileAction(formData: FormData) {
     }
   }
 
+  if (existingFile.type === "PACKAGES" && existingFile.linked_path) {
+    const brochureToken = existingFile.linked_path.split("/").filter(Boolean).at(-1) || "";
+    if (brochureToken) {
+      db.prepare(
+        "DELETE FROM package_brochure_responses WHERE project_id = ? AND brochure_token = ?"
+      ).run(projectId, brochureToken);
+      db.prepare("DELETE FROM package_brochures WHERE project_id = ? AND public_token = ?").run(
+        projectId,
+        brochureToken
+      );
+      revalidatePath(`/package-brochure/${brochureToken}`);
+    }
+  }
+
   db.prepare("DELETE FROM project_files WHERE id = ? AND project_id = ?").run(fileId, projectId);
   updateProjectRecentActivity(
     db,
