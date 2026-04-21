@@ -71,6 +71,27 @@ export function markVideoPaywallPaid(input: {
   const timestamp = input.paidAt || new Date().toISOString();
   const sessionId = input.sessionId || paywall.stripe_checkout_session_id || "";
   const buyerEmail = input.buyerEmail || paywall.buyer_email || "";
+  const alreadyPaid = String(paywall.status || "").toUpperCase() === "PAID";
+
+  if (alreadyPaid) {
+    const nextSessionId = String(paywall.stripe_checkout_session_id || "").trim() || sessionId;
+    const nextBuyerEmail = String(paywall.buyer_email || "").trim() || buyerEmail;
+
+    if (
+      nextSessionId !== String(paywall.stripe_checkout_session_id || "") ||
+      nextBuyerEmail !== String(paywall.buyer_email || "")
+    ) {
+      db.prepare(
+        "UPDATE video_paywalls SET stripe_checkout_session_id = ?, buyer_email = ?, updated_at = ? WHERE id = ?"
+      ).run(nextSessionId, nextBuyerEmail, timestamp, paywall.id);
+    }
+
+    return {
+      ...paywall,
+      stripe_checkout_session_id: nextSessionId || null,
+      buyer_email: nextBuyerEmail || null,
+    };
+  }
 
   db.prepare(
     "UPDATE video_paywalls SET status = ?, stripe_checkout_session_id = ?, purchased_at = ?, buyer_email = ?, updated_at = ? WHERE id = ?"
