@@ -5972,6 +5972,16 @@ export async function deleteProjectFileAction(formData: FormData) {
     }
   }
 
+  if (existingFile.type === "PROPOSAL" && existingFile.linked_path) {
+    const proposalToken = existingFile.linked_path.split("/").filter(Boolean).at(-1) || "";
+    if (proposalToken) {
+      db.prepare("DELETE FROM proposals WHERE public_token = ? AND project_id = ?").run(proposalToken, projectId);
+      revalidatePath(`/p/${proposalToken}`);
+      revalidatePath(`/p/${proposalToken}/print`);
+      revalidatePath("/proposals");
+    }
+  }
+
   db.prepare("DELETE FROM project_files WHERE id = ? AND project_id = ?").run(fileId, projectId);
   updateProjectRecentActivity(
     db,
