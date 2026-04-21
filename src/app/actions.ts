@@ -240,17 +240,34 @@ function deleteProjectRecords(
   db: ReturnType<typeof getDb>,
   project: { id: string; name: string; client: string; public_portal_token?: string | null }
 ) {
+  const siblingProjectCount =
+    Number(
+      (
+        db
+          .prepare("SELECT COUNT(*) AS count FROM projects WHERE client = ? AND id != ?")
+          .get(project.client, project.id) as { count?: number | null } | undefined
+      )?.count ?? 0
+    ) || 0;
+  const canDeleteLegacyClientScopedRecords = siblingProjectCount === 0;
+
   db.prepare("DELETE FROM project_contacts WHERE project_id = ?").run(project.id);
   db.prepare("DELETE FROM client_uploads WHERE project_id = ?").run(project.id);
   db.prepare("DELETE FROM video_paywalls WHERE project_id = ?").run(project.id);
   db.prepare("DELETE FROM package_brochures WHERE project_id = ?").run(project.id);
   db.prepare("DELETE FROM package_brochure_responses WHERE project_id = ?").run(project.id);
   db.prepare("DELETE FROM project_files WHERE project_id = ?").run(project.id);
-  db.prepare("DELETE FROM messages WHERE project_id = ? OR client_name = ?").run(project.id, project.client);
-  db.prepare("DELETE FROM schedule_items WHERE client = ?").run(project.client);
-  db.prepare("DELETE FROM proposals WHERE client = ?").run(project.client);
-  db.prepare("DELETE FROM invoices WHERE client = ?").run(project.client);
-  db.prepare("DELETE FROM clients WHERE name = ? OR project = ?").run(project.client, project.name);
+  if (canDeleteLegacyClientScopedRecords) {
+    db.prepare("DELETE FROM messages WHERE project_id = ? OR client_name = ?").run(project.id, project.client);
+    db.prepare("DELETE FROM schedule_items WHERE project_id = ? OR client = ?").run(project.id, project.client);
+    db.prepare("DELETE FROM proposals WHERE project_id = ? OR client = ?").run(project.id, project.client);
+    db.prepare("DELETE FROM invoices WHERE project_id = ? OR client = ?").run(project.id, project.client);
+    db.prepare("DELETE FROM clients WHERE name = ? OR project = ?").run(project.client, project.name);
+  } else {
+    db.prepare("DELETE FROM messages WHERE project_id = ?").run(project.id);
+    db.prepare("DELETE FROM schedule_items WHERE project_id = ?").run(project.id);
+    db.prepare("DELETE FROM proposals WHERE project_id = ?").run(project.id);
+    db.prepare("DELETE FROM invoices WHERE project_id = ?").run(project.id);
+  }
   db.prepare("DELETE FROM projects WHERE id = ?").run(project.id);
 }
 

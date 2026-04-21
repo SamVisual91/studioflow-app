@@ -257,9 +257,22 @@ export default async function ProjectClientPage({
   const deliverables = db
     .prepare("SELECT * FROM project_deliverables WHERE project_id = ? ORDER BY created_at DESC")
     .all(project.id) as ProjectDeliverable[];
+  const siblingProjectCount =
+    Number(
+      (
+        db
+          .prepare("SELECT COUNT(*) AS count FROM projects WHERE client = ?")
+          .get(project.client) as { count?: number | null } | undefined
+      )?.count ?? 0
+    ) || 0;
+  const canUseLegacyClientScope = siblingProjectCount <= 1;
   const videoDeliverables = deliverables.filter((item) => item.media_type === "VIDEO");
   const photoDeliverables = deliverables.filter((item) => item.media_type === "PHOTO");
-  const projectProposals = data.proposals.filter((item) => item.client === project.client);
+  const projectProposals = data.proposals.filter(
+    (item) =>
+      item.projectId === project.id ||
+      (canUseLegacyClientScope && !item.projectId && item.client === project.client)
+  );
   const proposalHrefByTitle = new Map(
     projectProposals
       .filter((item) => item.publicToken)
@@ -269,7 +282,11 @@ export default async function ProjectClientPage({
     projectProposals.find((item) => item.status === "SIGNED") ||
     projectProposals.find((item) => item.title.toLowerCase().includes("contract")) ||
     null;
-  const invoices = data.invoices.filter((item) => item.client === project.client);
+  const invoices = data.invoices.filter(
+    (item) =>
+      item.projectId === project.id ||
+      (canUseLegacyClientScope && !item.projectId && item.client === project.client)
+  );
   const paidInvoiceAmount = invoices.reduce((sum, invoice) => {
     if (invoice.paymentSchedule.length > 0) {
       return (
@@ -332,7 +349,11 @@ export default async function ProjectClientPage({
 
     return isEmail && (isExactProjectMessage || isLegacyClientMessage);
   });
-  const scheduleItems = data.schedule.filter((item) => item.client === project.client);
+  const scheduleItems = data.schedule.filter(
+    (item) =>
+      item.projectId === project.id ||
+      (canUseLegacyClientScope && !item.projectId && item.client === project.client)
+  );
   const packageBrochureCategory = normalizeProjectPackageCategory(project.type || "");
   const packageBrochureHref = `/projects/${project.id}/package-brochure?category=${encodeURIComponent(packageBrochureCategory)}`;
   const projectPortalPath = project.publicPortalToken ? `/client-portal/${project.publicPortalToken}` : "#";

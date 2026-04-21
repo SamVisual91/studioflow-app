@@ -90,6 +90,7 @@ export async function getDashboardData() {
     })),
     proposals: proposals.map((item) => ({
       id: String(item.id),
+      projectId: String(item.project_id ?? ""),
       title: String(item.title),
       client: String(item.client),
       status: String(item.status),
@@ -116,6 +117,7 @@ export async function getDashboardData() {
     })),
     invoices: invoices.map((item) => ({
       id: String(item.id),
+      projectId: String(item.project_id ?? ""),
       client: String(item.client),
       label: String(item.label),
       publicToken: String(item.public_token ?? ""),
@@ -142,6 +144,7 @@ export async function getDashboardData() {
     })),
     schedule: schedule.map((item) => ({
       id: String(item.id),
+      projectId: String(item.project_id ?? ""),
       title: String(item.title),
       client: String(item.client),
       startsAt: String(item.starts_at),

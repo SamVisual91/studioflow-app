@@ -29,7 +29,21 @@ export default async function ProjectInvoicePage({
   }
 
   const db = getDb();
-  const invoice = data.invoices.find((item) => item.id === invoiceId && item.client === project.client);
+  const siblingProjectCount =
+    Number(
+      (
+        db
+          .prepare("SELECT COUNT(*) AS count FROM projects WHERE client = ?")
+          .get(project.client) as { count?: number | null } | undefined
+      )?.count ?? 0
+    ) || 0;
+  const canUseLegacyClientScope = siblingProjectCount <= 1;
+  const invoice = data.invoices.find(
+    (item) =>
+      item.id === invoiceId &&
+      (item.projectId === project.id ||
+        (canUseLegacyClientScope && !item.projectId && item.client === project.client))
+  );
 
   if (!invoice) {
     notFound();

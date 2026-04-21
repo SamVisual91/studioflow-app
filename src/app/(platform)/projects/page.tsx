@@ -111,6 +111,7 @@ export default async function ProjectsPage({
     created?: string;
     deleted?: string;
     archived?: string;
+    pipeline?: string;
     description?: string;
     typeUpdated?: string;
     error?: string;
@@ -128,6 +129,7 @@ export default async function ProjectsPage({
   const showCreated = params.created === "1";
   const showDeleted = params.deleted === "1";
   const showArchived = params.archived === "1";
+  const showPipelineUpdated = params.pipeline === "1";
   const showDescriptionSaved = params.description === "1";
   const showTypeUpdated = params.typeUpdated === "1";
   const stageFilter = String(params.stage ?? "").trim();
@@ -257,6 +259,12 @@ export default async function ProjectsPage({
         {showArchived ? (
           <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
             Project archive updated.
+          </div>
+        ) : null}
+
+        {showPipelineUpdated ? (
+          <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+            Project stage updated.
           </div>
         ) : null}
 
