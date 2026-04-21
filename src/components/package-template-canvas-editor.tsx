@@ -17,9 +17,13 @@ type InitialTemplatePackage = {
   coverPreviewUrl: string;
   description: string;
   id: string;
+  lineItems: LineItem[];
   name: string;
+  proposalTitle: string;
   sections: string[];
   subtitle: string;
+  emailBody: string;
+  emailSubject: string;
 };
 
 type EditableTextProps = {
@@ -44,11 +48,14 @@ type PackageCard = {
   name: string;
   subtitle: string;
   description: string;
+  proposalTitle: string;
   amount: string;
   sections: string[];
   lineItems: LineItem[];
   coverPreviewUrl: string;
   coverPosition: string;
+  emailSubject: string;
+  emailBody: string;
 };
 
 function EditableText({
@@ -163,6 +170,7 @@ function createDefaultPackage(
     name,
     subtitle,
     description: "Click to edit this package description directly on the design.",
+    proposalTitle: `${name} Proposal`,
     amount,
     sections,
     lineItems: [
@@ -174,6 +182,8 @@ function createDefaultPackage(
     ],
     coverPreviewUrl: "",
     coverPosition: "50% 50%",
+    emailSubject: `${name} package preview`,
+    emailBody: `Hi,\n\nI put together ${name} for you. Let me know what you'd like to adjust.\n\nThanks,`,
   } satisfies PackageCard;
 }
 
@@ -248,6 +258,10 @@ export function PackageTemplateCanvasEditor({
           coverPosition: item.coverPosition || "50% 50%",
           coverPreviewUrl: item.coverPreviewUrl,
           description: item.description,
+          lineItems: item.lineItems,
+          proposalTitle: item.proposalTitle,
+          emailSubject: item.emailSubject,
+          emailBody: item.emailBody,
         }))
       : [
           createDefaultPackage("pkg-1", "Collection I", "Silver Edition", "2500", [
@@ -309,13 +323,13 @@ export function PackageTemplateCanvasEditor({
       name: item.name,
       subtitle: item.subtitle,
       description: item.description,
-      proposalTitle: `${item.name} Proposal`,
+      proposalTitle: item.proposalTitle,
       amount: Number(item.amount || 0),
       coverPosition: item.coverPosition,
       sections: item.sections,
       lineItems: item.lineItems,
-      emailSubject: `${item.name} package preview`,
-      emailBody: `Hi,\n\nI put together ${item.name} for you. Let me know what you'd like to adjust.\n\nThanks,`,
+      emailSubject: item.emailSubject,
+      emailBody: item.emailBody,
     }))
   );
 

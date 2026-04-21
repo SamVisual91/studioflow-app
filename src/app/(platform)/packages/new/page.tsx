@@ -74,9 +74,13 @@ export default async function NewPackageTemplatePage({
             coverPreviewUrl: item.coverImage || "",
             description: item.description,
             id: item.id,
+            lineItems: item.lineItems,
             name: item.name,
+            proposalTitle: item.proposalTitle,
             sections: item.sections,
             subtitle: item.subtitle || (index === 0 ? "Primary Collection" : `Collection ${index + 1}`),
+            emailBody: item.emailBody,
+            emailSubject: item.emailSubject,
           }))}
           initialTemplateSetName={editablePreset?.templateSetName || editablePreset?.name}
           packageCategories={packageCategories}
