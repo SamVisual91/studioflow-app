@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { getDb } from "@/lib/db";
+import { createLedgerTransaction } from "@/lib/ledger";
 
 export type ProjectDeliverable = {
   id: string;
@@ -99,4 +101,106 @@ export function ensureProjectDeliverablesTable() {
       // Column already exists.
     }
   }
+}
+
+export function markPhotoDeliverablePaid(input: {
+  projectId: string;
+  photoToken: string;
+  sessionId?: string;
+  buyerEmail?: string;
+  paidAt?: string;
+}) {
+  ensureProjectDeliverablesTable();
+  const db = getDb();
+  const deliverable = db
+    .prepare(
+      "SELECT * FROM project_deliverables WHERE project_id = ? AND public_token = ? AND media_type = 'PHOTO' LIMIT 1"
+    )
+    .get(input.projectId, input.photoToken) as ProjectDeliverable | undefined;
+
+  if (!deliverable) {
+    return null;
+  }
+
+  const project = db
+    .prepare("SELECT id, client FROM projects WHERE id = ? LIMIT 1")
+    .get(deliverable.project_id) as { id: string; client: string } | undefined;
+  const timestamp = input.paidAt || new Date().toISOString();
+  const sessionId = input.sessionId || deliverable.stripe_checkout_session_id || "";
+  const buyerEmail = input.buyerEmail || deliverable.buyer_email || "";
+  const alreadyPaid = Boolean(String(deliverable.purchased_at || "").trim());
+
+  if (alreadyPaid) {
+    const nextSessionId = String(deliverable.stripe_checkout_session_id || "").trim() || sessionId;
+    const nextBuyerEmail = String(deliverable.buyer_email || "").trim() || buyerEmail;
+
+    if (
+      nextSessionId !== String(deliverable.stripe_checkout_session_id || "") ||
+      nextBuyerEmail !== String(deliverable.buyer_email || "")
+    ) {
+      db.prepare(
+        "UPDATE project_deliverables SET stripe_checkout_session_id = ?, buyer_email = ?, updated_at = ? WHERE id = ?"
+      ).run(nextSessionId, nextBuyerEmail, timestamp, deliverable.id);
+    }
+
+    return {
+      ...deliverable,
+      stripe_checkout_session_id: nextSessionId || null,
+      buyer_email: nextBuyerEmail || null,
+    };
+  }
+
+  db.prepare(
+    "UPDATE project_deliverables SET purchased_at = ?, buyer_email = ?, stripe_checkout_session_id = ?, updated_at = ? WHERE id = ?"
+  ).run(timestamp, buyerEmail, sessionId, timestamp, deliverable.id);
+
+  if (project?.id) {
+    db.prepare("UPDATE projects SET recent_activity = ?, updated_at = ? WHERE id = ?").run(
+      `Photo purchase received on ${new Date(timestamp).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })}`,
+      timestamp,
+      project.id
+    );
+    db.prepare(
+      "INSERT INTO messages (id, sender, client_name, project_id, direction, channel, time, subject, preview, unread, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    ).run(
+      randomUUID(),
+      buyerEmail || project.client,
+      project.client,
+      project.id,
+      "INBOUND",
+      "Photo purchase",
+      timestamp,
+      deliverable.title,
+      `Client purchased ${deliverable.title} for $${Number(deliverable.price || 0).toFixed(2)}.`,
+      1,
+      timestamp,
+      timestamp
+    );
+  }
+
+  createLedgerTransaction({
+    transactionDate: timestamp,
+    direction: "INCOME",
+    category: "OTHER_INCOME",
+    amount: Number(deliverable.price || 0),
+    description: `Photo deliverable purchase: ${deliverable.title}`,
+    paymentMethod: "Stripe",
+    counterparty: buyerEmail || project?.client || "",
+    projectId: deliverable.project_id,
+    sourceType: "PHOTO_DELIVERABLE_PAYMENT",
+    sourceId: sessionId || deliverable.id,
+    taxCategory: "Gross receipts",
+  });
+
+  return {
+    ...deliverable,
+    purchased_at: timestamp,
+    buyer_email: buyerEmail || null,
+    stripe_checkout_session_id: sessionId || null,
+  };
 }

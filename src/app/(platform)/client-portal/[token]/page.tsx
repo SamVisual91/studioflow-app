@@ -9,7 +9,7 @@ import {
 import { ClientPhotoAlbum } from "@/components/client-photo-album";
 import { MediaCarousel } from "@/components/media-carousel";
 import { getDb, parseJsonList } from "@/lib/db";
-import { ensureProjectDeliverablesTable } from "@/lib/deliverables";
+import { ensureProjectDeliverablesTable, markPhotoDeliverablePaid } from "@/lib/deliverables";
 import { currencyFormatter, dateTime, shortDate } from "@/lib/formatters";
 import { getStripe } from "@/lib/stripe";
 import { ensureVideoPaywallsTable } from "@/lib/video-paywalls";
@@ -168,10 +168,13 @@ export default async function ClientPortalPage({
         session.payment_status === "paid" &&
         String(session.metadata?.photoToken || "") === String(query.photo_token)
       ) {
-        const timestamp = new Date().toISOString();
-        db.prepare(
-          "UPDATE project_deliverables SET purchased_at = COALESCE(NULLIF(purchased_at, ''), ?), buyer_email = CASE WHEN COALESCE(NULLIF(buyer_email, ''), '') = '' THEN ? ELSE buyer_email END, stripe_checkout_session_id = ?, updated_at = ? WHERE project_id = ? AND public_token = ? AND media_type = 'PHOTO'"
-        ).run(timestamp, customerEmail, session.id, timestamp, String(project.id), String(query.photo_token));
+        markPhotoDeliverablePaid({
+          projectId: String(project.id),
+          photoToken: String(query.photo_token),
+          sessionId: session.id,
+          buyerEmail: customerEmail,
+          paidAt: new Date().toISOString(),
+        });
       }
     } catch {
       // Keep the portal usable even if Stripe isn't configured or the session lookup fails.
