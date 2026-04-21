@@ -6729,7 +6729,7 @@ export async function respondToProposalAction(formData: FormData) {
     }
 
     db.prepare(
-      "UPDATE proposals SET status = ?, client_comment = ?, signature_name = ?, signed_at = ?, updated_at = ? WHERE id = ?"
+      "UPDATE proposals SET status = ?, client_comment = ?, signature_name = ?, signed_at = ?, rejected_at = NULL, updated_at = ? WHERE id = ?"
     ).run("SIGNED", clientComment, signatureName, timestamp, timestamp, proposal.id);
 
     if (proposal.project_id) {
@@ -6764,7 +6764,7 @@ export async function respondToProposalAction(formData: FormData) {
     }
 
     db.prepare(
-      "UPDATE proposals SET status = ?, client_comment = ?, rejected_at = ?, updated_at = ? WHERE id = ?"
+      "UPDATE proposals SET status = ?, client_comment = ?, signature_name = NULL, signed_at = NULL, rejected_at = ?, updated_at = ? WHERE id = ?"
     ).run("REJECTED", clientComment, timestamp, timestamp, proposal.id);
 
     if (proposal.project_id) {

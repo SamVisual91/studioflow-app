@@ -177,7 +177,7 @@ export default async function PublicProposalPage({
             </label>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              {!isSigned ? (
+              {!isSigned && !isDeclined ? (
                 <button
                   className="rounded-full bg-[var(--forest)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(47,125,92,0.22)] transition hover:brightness-110"
                   name="intent"
