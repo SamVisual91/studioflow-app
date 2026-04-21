@@ -106,6 +106,26 @@ function parsePaymentSchedule(value: unknown): PaymentScheduleItem[] {
   }
 }
 
+function getNextInvoiceStatus(schedule: PaymentScheduleItem[]) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (schedule.every((item) => item.status === "PAID")) {
+    return "PAID";
+  }
+
+  const hasOverdue = schedule.some((item) => {
+    if (item.status === "PAID") {
+      return false;
+    }
+
+    const due = new Date(`${item.dueDate}T00:00:00`);
+    return !Number.isNaN(due.getTime()) && due.getTime() < today.getTime();
+  });
+
+  return hasOverdue ? "OVERDUE" : "DUE_SOON";
+}
+
 function normalizeMethod(method: string) {
   const value = method.trim().toLowerCase();
 
@@ -229,7 +249,7 @@ export default async function PublicInvoicePage({
         );
 
         db.prepare("UPDATE invoices SET status = ?, payment_schedule = ?, updated_at = ? WHERE id = ?").run(
-          nextPaymentSchedule.every((item) => item.status === "PAID") ? "PAID" : "DUE_SOON",
+          getNextInvoiceStatus(nextPaymentSchedule),
           JSON.stringify(nextPaymentSchedule),
           new Date().toISOString(),
           String(invoice.id)

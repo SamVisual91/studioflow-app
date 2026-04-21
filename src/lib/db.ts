@@ -216,6 +216,7 @@ function createSchema(db: DatabaseSync) {
 
     CREATE TABLE IF NOT EXISTS proposals (
       id TEXT PRIMARY KEY,
+      project_id TEXT,
       title TEXT NOT NULL,
       client TEXT NOT NULL,
       status TEXT NOT NULL,
@@ -239,6 +240,7 @@ function createSchema(db: DatabaseSync) {
 
     CREATE TABLE IF NOT EXISTS invoices (
       id TEXT PRIMARY KEY,
+      project_id TEXT,
       client TEXT NOT NULL,
       label TEXT NOT NULL,
       status TEXT NOT NULL,
@@ -259,6 +261,7 @@ function createSchema(db: DatabaseSync) {
 
     CREATE TABLE IF NOT EXISTS schedule_items (
       id TEXT PRIMARY KEY,
+      project_id TEXT,
       title TEXT NOT NULL,
       client TEXT NOT NULL,
       starts_at TEXT NOT NULL,
@@ -541,6 +544,7 @@ function createSchema(db: DatabaseSync) {
   ensureColumn(db, "proposals", "email_body", "TEXT");
   ensureColumn(db, "proposals", "public_token", "TEXT");
   ensureColumn(db, "proposals", "line_items", "TEXT");
+  ensureColumn(db, "proposals", "project_id", "TEXT");
   ensureColumn(db, "proposals", "client_comment", "TEXT");
   ensureColumn(db, "proposals", "signature_name", "TEXT");
   ensureColumn(db, "proposals", "signed_at", "TEXT");
@@ -549,6 +553,7 @@ function createSchema(db: DatabaseSync) {
   ensureColumn(db, "clients", "contact_email", "TEXT");
   ensureColumn(db, "schedule_items", "recipient_email", "TEXT");
   ensureColumn(db, "schedule_items", "meeting_url", "TEXT");
+  ensureColumn(db, "schedule_items", "project_id", "TEXT");
   ensureColumn(db, "messages", "client_name", "TEXT");
   ensureColumn(db, "messages", "project_id", "TEXT");
   ensureColumn(db, "messages", "external_message_id", "TEXT");
@@ -595,6 +600,7 @@ function createSchema(db: DatabaseSync) {
   ensureColumn(db, "video_paywalls", "purchased_at", "TEXT");
   ensureColumn(db, "video_paywalls", "buyer_email", "TEXT");
   ensureColumn(db, "invoices", "public_token", "TEXT");
+  ensureColumn(db, "invoices", "project_id", "TEXT");
   ensureColumn(db, "invoices", "tax_rate", "REAL");
   ensureColumn(db, "invoices", "line_items", "TEXT");
   ensureColumn(db, "invoices", "payment_schedule", "TEXT");
@@ -658,6 +664,29 @@ function createSchema(db: DatabaseSync) {
   ensureColumn(db, "package_brochure_responses", "created_at", "TEXT");
   ensureColumn(db, "package_brochure_responses", "updated_at", "TEXT");
   ensureColumn(db, "users", "avatar_image", "TEXT");
+  db.prepare(
+    `UPDATE proposals
+      SET project_id = (
+        SELECT project_files.project_id
+        FROM project_files
+        WHERE project_files.type = 'PROPOSAL'
+          AND project_files.linked_path = '/p/' || proposals.public_token
+        LIMIT 1
+      )
+      WHERE COALESCE(NULLIF(project_id, ''), '') = ''
+        AND COALESCE(NULLIF(public_token, ''), '') != ''`
+  ).run();
+  db.prepare(
+    `UPDATE invoices
+      SET project_id = (
+        SELECT project_files.project_id
+        FROM project_files
+        WHERE project_files.type = 'INVOICE'
+          AND project_files.linked_path LIKE '%/' || invoices.id
+        LIMIT 1
+      )
+      WHERE COALESCE(NULLIF(project_id, ''), '') = ''`
+  ).run();
 }
 
 function seedIfNeeded(db: DatabaseSync) {

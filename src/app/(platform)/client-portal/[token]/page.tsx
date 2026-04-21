@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -80,12 +81,41 @@ export default async function ClientPortalPage({
   const client = db
     .prepare("SELECT * FROM clients WHERE name = ? LIMIT 1")
     .get(String(project.client)) as Record<string, unknown> | undefined;
+  const siblingProjectCount =
+    Number(
+      (
+        db
+          .prepare("SELECT COUNT(*) AS count FROM projects WHERE client = ?")
+          .get(String(project.client)) as { count?: number | null } | undefined
+      )?.count ?? 0
+    ) || 0;
+  const canUseLegacyClientScope = siblingProjectCount <= 1;
   const proposals = db
-    .prepare("SELECT * FROM proposals WHERE client = ? ORDER BY sent_date DESC")
-    .all(String(project.client)) as Array<Record<string, unknown>>;
+    .prepare(
+      `SELECT *
+        FROM proposals
+        WHERE project_id = ?
+           OR (
+             ? = 1
+             AND COALESCE(NULLIF(project_id, ''), '') = ''
+             AND client = ?
+           )
+        ORDER BY sent_date DESC`
+    )
+    .all(String(project.id), canUseLegacyClientScope ? 1 : 0, String(project.client)) as Array<Record<string, unknown>>;
   const invoices = db
-    .prepare("SELECT * FROM invoices WHERE client = ? ORDER BY due_date ASC")
-    .all(String(project.client)) as Array<Record<string, unknown>>;
+    .prepare(
+      `SELECT *
+        FROM invoices
+        WHERE project_id = ?
+           OR (
+             ? = 1
+             AND COALESCE(NULLIF(project_id, ''), '') = ''
+             AND client = ?
+           )
+        ORDER BY due_date ASC`
+    )
+    .all(String(project.id), canUseLegacyClientScope ? 1 : 0, String(project.client)) as Array<Record<string, unknown>>;
   const messages = (
     db
     .prepare("SELECT * FROM messages WHERE deleted_at IS NULL AND (project_id = ? OR client_name = ?) ORDER BY time DESC")
@@ -100,8 +130,18 @@ export default async function ClientPortalPage({
     return isEmail && (isExactProjectMessage || isLegacyClientMessage);
   });
   const schedule = db
-    .prepare("SELECT * FROM schedule_items WHERE client = ? ORDER BY starts_at ASC")
-    .all(String(project.client)) as Array<Record<string, unknown>>;
+    .prepare(
+      `SELECT *
+        FROM schedule_items
+        WHERE project_id = ?
+           OR (
+             ? = 1
+             AND COALESCE(NULLIF(project_id, ''), '') = ''
+             AND client = ?
+           )
+        ORDER BY starts_at ASC`
+    )
+    .all(String(project.id), canUseLegacyClientScope ? 1 : 0, String(project.client)) as Array<Record<string, unknown>>;
   const uploads = db
     .prepare("SELECT * FROM client_uploads WHERE project_id = ? ORDER BY created_at DESC")
     .all(String(project.id)) as Array<Record<string, unknown>>;
@@ -907,11 +947,15 @@ export default async function ClientPortalPage({
                             key={String(upload.id)}
                             className="overflow-hidden rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.54)]"
                           >
-                            <img
-                              alt={String(upload.caption || "Client upload")}
-                              className="h-56 w-full object-cover"
-                              src={String(upload.image_path)}
-                            />
+                            <div className="relative h-56 w-full">
+                              <Image
+                                alt={String(upload.caption || "Client upload")}
+                                className="object-cover"
+                                fill
+                                src={String(upload.image_path)}
+                                unoptimized
+                              />
+                            </div>
                             <div className="p-4">
                               <p className="text-sm font-semibold text-[var(--ink)]">
                                 {String(upload.caption || "Client upload")}

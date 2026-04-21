@@ -49,6 +49,35 @@ function parsePaymentSchedule(input: unknown) {
     .filter((item) => item.id && item.dueDate && !Number.isNaN(item.amount));
 }
 
+function getInvoiceStatusFromSchedule(schedule: PaymentScheduleItem[]) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (schedule.every((item) => item.status === "PAID")) {
+    return "PAID";
+  }
+
+  const hasOverdue = schedule.some((item) => {
+    if (item.status === "PAID") {
+      return false;
+    }
+
+    const due = new Date(`${item.dueDate}T00:00:00`);
+    return !Number.isNaN(due.getTime()) && due.getTime() < today.getTime();
+  });
+
+  return hasOverdue ? "OVERDUE" : "DUE_SOON";
+}
+
+function paymentScheduleMatchesAmount(amount: number, schedule: PaymentScheduleItem[]) {
+  const scheduledTotal = Math.round(
+    schedule.reduce((sum, item) => sum + Number(item.amount || 0), 0) * 100
+  );
+  const invoiceTotal = Math.round(Number(amount || 0) * 100);
+
+  return scheduledTotal === invoiceTotal;
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -64,13 +93,13 @@ export async function PATCH(
   const label = String(body.label || "").trim();
   const dueDate = String(body.dueDate || "").trim();
   const method = String(body.method || "").trim();
-  const status = String(body.status || "DUE_SOON").trim();
   const taxRate = Number(body.taxRate || 0);
   const lineItems = parseLineItems(body.lineItems);
   const paymentSchedule = parsePaymentSchedule(body.paymentSchedule);
   const subtotal = lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const taxAmount = Math.round(subtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
   const amount = subtotal + taxAmount;
+  const status = getInvoiceStatusFromSchedule(paymentSchedule);
 
   if (
     !id ||
@@ -82,7 +111,8 @@ export async function PATCH(
     Number.isNaN(taxRate) ||
     lineItems.length === 0 ||
     paymentSchedule.length === 0 ||
-    Number.isNaN(amount)
+    Number.isNaN(amount) ||
+    !paymentScheduleMatchesAmount(amount, paymentSchedule)
   ) {
     return NextResponse.json({ error: "Invalid invoice payload" }, { status: 400 });
   }

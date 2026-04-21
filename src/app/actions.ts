@@ -104,6 +104,40 @@ function parsePaymentSchedule(input: string) {
   }
 }
 
+function getInvoiceStatusFromSchedule(
+  schedule: Array<{ dueDate: string; status: string }>
+) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (schedule.every((item) => item.status === "PAID")) {
+    return "PAID";
+  }
+
+  const hasOverdue = schedule.some((item) => {
+    if (item.status === "PAID") {
+      return false;
+    }
+
+    const due = new Date(`${item.dueDate}T00:00:00`);
+    return !Number.isNaN(due.getTime()) && due.getTime() < today.getTime();
+  });
+
+  return hasOverdue ? "OVERDUE" : "DUE_SOON";
+}
+
+function paymentScheduleMatchesAmount(
+  amount: number,
+  schedule: Array<{ amount: number }>
+) {
+  const scheduledTotal = Math.round(
+    schedule.reduce((sum, item) => sum + Number(item.amount || 0), 0) * 100
+  );
+  const invoiceTotal = Math.round(Number(amount || 0) * 100);
+
+  return scheduledTotal === invoiceTotal;
+}
+
 function parseLineItems(input: string) {
   return input
     .split("\n")
@@ -2099,9 +2133,10 @@ export async function scheduleZoomMeetingAction(formData: FormData) {
   const db = getDb();
   const timestamp = new Date().toISOString();
   db.prepare(
-    "INSERT INTO schedule_items (id, title, client, starts_at, type, sync, recipient_email, meeting_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO schedule_items (id, project_id, title, client, starts_at, type, sync, recipient_email, meeting_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run(
     randomUUID(),
+    projectId,
     title,
     clientName,
     startsAt,
@@ -4145,9 +4180,10 @@ export async function createProjectInvoiceAction(formData: FormData) {
   const invoiceId = randomUUID();
   const publicToken = randomUUID();
   db.prepare(
-    "INSERT INTO invoices (id, client, label, status, due_date, amount, method, public_token, tax_rate, line_items, payment_schedule, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO invoices (id, project_id, client, label, status, due_date, amount, method, public_token, tax_rate, line_items, payment_schedule, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run(
     invoiceId,
+    projectId,
     clientName,
     label,
     "DUE_SOON",
@@ -4197,13 +4233,13 @@ function parseProjectInvoiceEditorInput(formData: FormData) {
   const label = getString(formData, "label");
   const dueDate = getString(formData, "dueDate");
   const method = getString(formData, "method");
-  const status = getString(formData, "status") || "DUE_SOON";
   const taxRate = Number(getString(formData, "taxRate") || "0");
   const lineItems = parseInvoiceLineItems(getString(formData, "lineItems"));
   const paymentSchedule = parsePaymentSchedule(getString(formData, "paymentSchedule"));
   const subtotal = lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const taxAmount = Math.round(subtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
   const amount = subtotal + taxAmount;
+  const status = getInvoiceStatusFromSchedule(paymentSchedule);
 
   return {
     amount,
@@ -4515,7 +4551,8 @@ export async function updateProjectInvoiceAction(formData: FormData) {
     Number.isNaN(input.taxRate) ||
     input.lineItems.length === 0 ||
     input.paymentSchedule.length === 0 ||
-    Number.isNaN(input.amount)
+    Number.isNaN(input.amount) ||
+    !paymentScheduleMatchesAmount(input.amount, input.paymentSchedule)
   ) {
     redirect(`/projects/${input.projectId || ""}/invoices/${input.invoiceId || ""}?error=invoice-invalid`);
   }
@@ -4553,7 +4590,8 @@ export async function sendProjectInvoiceWithCurrentDataAction(formData: FormData
     Number.isNaN(input.taxRate) ||
     input.lineItems.length === 0 ||
     input.paymentSchedule.length === 0 ||
-    Number.isNaN(input.amount)
+    Number.isNaN(input.amount) ||
+    !paymentScheduleMatchesAmount(input.amount, input.paymentSchedule)
   ) {
     redirect(`/projects/${input.projectId || ""}/invoices/${input.invoiceId || ""}?error=invoice-invalid`);
   }
@@ -5924,9 +5962,10 @@ export async function createProposalAction(formData: FormData) {
   }
 
   db.prepare(
-    "INSERT INTO proposals (id, title, client, status, amount, sent_date, expires_date, sections, line_items, recipient_email, email_subject, email_body, public_token, client_comment, signature_name, signed_at, rejected_at, sent_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO proposals (id, project_id, title, client, status, amount, sent_date, expires_date, sections, line_items, recipient_email, email_subject, email_body, public_token, client_comment, signature_name, signed_at, rejected_at, sent_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run(
     proposalId,
+    existingProject?.id ?? null,
     title,
     client,
     "SENT",
