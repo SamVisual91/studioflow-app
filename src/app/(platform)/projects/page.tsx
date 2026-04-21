@@ -381,6 +381,11 @@ export default async function ProjectsPage({
                 </details>
               </div>
               <form className="max-w-xl" method="get">
+                <input name="stage" type="hidden" value={stageFilter} />
+                <input name="type" type="hidden" value={typeFilter} />
+                <input name="source" type="hidden" value={sourceFilter} />
+                <input name="view" type="hidden" value={viewFilter} />
+                <input name="sort" type="hidden" value={sortFilter} />
                 <label className="flex items-center gap-3 border border-[#d8dfeb] bg-white px-4 py-3 text-sm text-[var(--muted)] shadow-[0_10px_30px_rgba(31,27,24,0.03)]">
                   <span aria-hidden="true">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">

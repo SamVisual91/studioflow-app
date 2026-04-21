@@ -87,7 +87,7 @@ export function NewProjectModal({
                 onClick={() => setOpen(false)}
                 type="button"
               >
-                ×
+                x
               </button>
             </div>
 
@@ -185,7 +185,7 @@ export function NewProjectModal({
 
               <details className="group">
                 <summary className="cursor-pointer list-none text-sm font-semibold text-[var(--ink)]">
-                  More details <span className="ml-1 inline-block transition group-open:rotate-180">⌄</span>
+                  More details <span className="ml-1 inline-block transition group-open:rotate-180">v</span>
                 </summary>
                 <div className="mt-4 grid gap-4">
                   <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -233,3 +233,4 @@ export function NewProjectModal({
     </>
   );
 }
+

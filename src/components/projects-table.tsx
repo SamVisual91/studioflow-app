@@ -147,6 +147,10 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
     setIsEditModalOpen(Boolean(openProjectId));
   }, [openProjectId]);
 
+  useEffect(() => {
+    setSelectedIds((current) => current.filter((id) => projects.some((project) => project.id === id)));
+  }, [projects]);
+
   function toggleProject(projectId: string) {
     setSelectedIds((current) =>
       current.includes(projectId)
@@ -240,7 +244,7 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
                     aria-hidden="true"
                     className="inline-flex items-center justify-end text-base tracking-[0.2em] text-[var(--muted)]"
                   >
-                    ⋮
+                    ...
                   </span>
                   <span className="sr-only">Actions</span>
                 </th>
@@ -329,7 +333,7 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
                           onClick={() => setOpenProjectId(project.id)}
                           type="button"
                         >
-                          ⋮
+                          ...
                         </button>
                       </div>
                     </td>
@@ -408,3 +412,4 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
     </>
   );
 }
+
