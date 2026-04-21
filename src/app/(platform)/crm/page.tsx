@@ -122,6 +122,8 @@ export default async function ProductionPage({
   const errorMessage =
     params?.error === "gear-invalid"
       ? "Fill out the required gear details before saving."
+      : params?.error === "gear-barcode-duplicate"
+        ? "That barcode is already assigned to another gear item."
       : params?.error === "gear-checkout-invalid"
         ? "Choose the gear, dates, and a project or renter before checking it out."
         : params?.error === "gear-unavailable"

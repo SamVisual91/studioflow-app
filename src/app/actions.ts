@@ -1119,6 +1119,14 @@ export async function createGearItemAction(formData: FormData) {
   const db = getDb();
   const timestamp = new Date().toISOString();
   const normalizedBarcode = barcode || `SFG-${randomUUID().slice(0, 8).toUpperCase()}`;
+  const existingBarcode = db
+    .prepare("SELECT id FROM gear_inventory WHERE barcode = ? LIMIT 1")
+    .get(normalizedBarcode) as { id?: string } | undefined;
+
+  if (existingBarcode?.id) {
+    redirect("/crm?error=gear-barcode-duplicate");
+  }
+
   db.prepare(
     `INSERT INTO gear_inventory (
       id, name, category, barcode, serial_number, status, condition, daily_rate, replacement_value,
@@ -1248,7 +1256,7 @@ export async function checkInGearAction(formData: FormData) {
 
   const db = getDb();
   const checkout = db
-    .prepare("SELECT project_id FROM gear_checkouts WHERE id = ? AND gear_id = ? LIMIT 1")
+    .prepare("SELECT project_id FROM gear_checkouts WHERE id = ? AND gear_id = ? AND status = 'ACTIVE' LIMIT 1")
     .get(checkoutId, gearId) as { project_id?: string } | undefined;
   const gear = db
     .prepare("SELECT name FROM gear_inventory WHERE id = ? LIMIT 1")
