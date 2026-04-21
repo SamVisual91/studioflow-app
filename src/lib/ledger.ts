@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "@/lib/db";
+import { resolveProjectForInvoice } from "@/lib/invoice-project";
 
 type LedgerDirection = "INCOME" | "EXPENSE";
 
@@ -245,16 +246,22 @@ export function recordInvoicePaymentToLedger(opts: {
 }) {
   const db = getDb();
   const invoice = db
-    .prepare("SELECT id, client, label, method FROM invoices WHERE id = ? LIMIT 1")
-    .get(opts.invoiceId) as { id: string; client: string; label: string; method: string } | undefined;
+    .prepare("SELECT id, project_id, client, label, method, public_token FROM invoices WHERE id = ? LIMIT 1")
+    .get(opts.invoiceId) as
+    | { id: string; project_id?: string | null; client: string; label: string; method: string; public_token?: string | null }
+    | undefined;
 
   if (!invoice) {
     return null;
   }
 
-  const project = db
-    .prepare("SELECT id, project_type FROM projects WHERE client = ? ORDER BY updated_at DESC LIMIT 1")
-    .get(invoice.client) as { id?: string; project_type?: string } | undefined;
+  const resolvedProject = resolveProjectForInvoice(invoice, db);
+  const project = resolvedProject?.id
+    ? ((db
+        .prepare("SELECT id, project_type FROM projects WHERE id = ? LIMIT 1")
+        .get(resolvedProject.id) as { id?: string; project_type?: string } | undefined) ??
+      undefined)
+    : undefined;
 
   return createLedgerTransaction({
     transactionDate: opts.paymentDate || new Date().toISOString(),
