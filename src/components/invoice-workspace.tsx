@@ -19,6 +19,8 @@ type PaymentScheduleItem = {
 
 type Props = {
   action: (formData: FormData) => void | Promise<void>;
+  secondaryAction?: (formData: FormData) => void | Promise<void>;
+  secondarySubmitLabel?: string;
   projectId: string;
   clientName: string;
   projectName: string;
@@ -79,6 +81,8 @@ function splitAmounts(total: number, percentages: number[]) {
 
 export function InvoiceWorkspace({
   action,
+  secondaryAction,
+  secondarySubmitLabel = "",
   projectId,
   clientName,
   projectName,
@@ -620,6 +624,13 @@ export function InvoiceWorkspace({
         {!invoiceId ? (
           <button className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
             {submitLabel}
+          </button>
+        ) : secondaryAction ? (
+          <button
+            className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110"
+            formAction={secondaryAction}
+          >
+            {secondarySubmitLabel || "Send invoice"}
           </button>
         ) : null}
       </div>

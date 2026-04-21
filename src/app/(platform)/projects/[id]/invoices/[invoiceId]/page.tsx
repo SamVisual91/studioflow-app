@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { sendProjectInvoiceEmailAction, updateProjectInvoiceAction } from "@/app/actions";
+import { sendProjectInvoiceWithCurrentDataAction, updateProjectInvoiceAction } from "@/app/actions";
 import { InvoiceWorkspace } from "@/components/invoice-workspace";
 import { processInvoiceAutopay } from "@/lib/autopay";
 import { getDashboardPageData } from "@/lib/dashboard-page";
@@ -109,13 +109,6 @@ export default async function ProjectInvoicePage({
             >
               Edit
             </Link>
-            <form action={sendProjectInvoiceEmailAction}>
-              <input name="projectId" type="hidden" value={project.id} />
-              <input name="invoiceId" type="hidden" value={invoice.id} />
-              <button className="rounded-full bg-[var(--sidebar)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110">
-                Resend invoice
-              </button>
-            </form>
             {invoice.publicToken ? (
               <Link
                 className="rounded-full border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
@@ -186,25 +179,10 @@ export default async function ProjectInvoicePage({
               previousLabel={invoice.label}
               projectName={project.name}
               projectId={project.id}
+              secondaryAction={sendProjectInvoiceWithCurrentDataAction}
+              secondarySubmitLabel="Send invoice"
               submitLabel="Save invoice changes"
             />
-
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-[1.6rem] border border-black/[0.08] bg-white px-6 py-5 shadow-[0_18px_40px_rgba(58,34,17,0.08)]">
-              <div>
-                <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Send invoice</p>
-                <h2 className="mt-2 text-2xl font-semibold">Email the payment-ready client copy</h2>
-                <p className="mt-2 text-sm text-[var(--muted)]">
-                  Your client will receive a view-only invoice with the full breakdown and live payment options.
-                </p>
-              </div>
-              <form action={sendProjectInvoiceEmailAction}>
-                <input name="projectId" type="hidden" value={project.id} />
-                <input name="invoiceId" type="hidden" value={invoice.id} />
-                <button className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-                  Send invoice
-                </button>
-              </form>
-            </div>
           </section>
         </div>
       </div>
