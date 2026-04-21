@@ -16,6 +16,7 @@ import { hashPassword } from "@/lib/crypto";
 import { ensureDefaultPackagePresets, getDb } from "@/lib/db";
 import { ensureProjectDeliverablesTable } from "@/lib/deliverables";
 import { currencyFormatter } from "@/lib/formatters";
+import { resolveProjectForInvoice } from "@/lib/invoice-project";
 import {
   createLedgerTransaction,
   ledgerCategories,
@@ -3290,15 +3291,13 @@ export async function payClientInvoiceAction(formData: FormData) {
     redirect(`/invoice/${token}?error=payment-invalid`);
   }
 
-  const nextStatus = nextPaymentSchedule.every((item) => item.status === "PAID") ? "PAID" : "DUE_SOON";
+  const nextStatus = getInvoiceStatusFromSchedule(nextPaymentSchedule);
   const timestamp = new Date().toISOString();
   db.prepare(
     "UPDATE invoices SET status = ?, payment_schedule = ?, updated_at = ? WHERE id = ?"
   ).run(nextStatus, JSON.stringify(nextPaymentSchedule), timestamp, String(invoice.id));
 
-  const project = db
-    .prepare("SELECT id, client FROM projects WHERE client = ? ORDER BY updated_at DESC LIMIT 1")
-    .get(String(invoice.client)) as { id: string; client: string } | undefined;
+  const project = resolveProjectForInvoice(invoice, db);
 
   if (project) {
     logProjectMessage(db, {
@@ -3359,7 +3358,7 @@ export async function submitClientExternalPaymentAction(formData: FormData) {
   }
 
   const timestamp = new Date().toISOString();
-  const nextStatus = nextPaymentSchedule.every((item) => item.status === "PAID") ? "PAID" : "DUE_SOON";
+  const nextStatus = getInvoiceStatusFromSchedule(nextPaymentSchedule);
   db.prepare("UPDATE invoices SET status = ?, payment_schedule = ?, updated_at = ? WHERE id = ?").run(
     nextStatus,
     JSON.stringify(nextPaymentSchedule),
@@ -3382,9 +3381,7 @@ export async function submitClientExternalPaymentAction(formData: FormData) {
     });
   }
 
-  const project = db
-    .prepare("SELECT id, client FROM projects WHERE client = ? ORDER BY updated_at DESC LIMIT 1")
-    .get(String(invoice.client)) as { id: string; client: string } | undefined;
+  const project = resolveProjectForInvoice(invoice, db);
 
   if (project) {
     logProjectMessage(db, {

@@ -9,6 +9,7 @@ import {
 import { processInvoiceAutopay } from "@/lib/autopay";
 import { getDb } from "@/lib/db";
 import { currencyFormatter, shortDate } from "@/lib/formatters";
+import { resolveProjectForInvoice } from "@/lib/invoice-project";
 import { getPaymentOptions } from "@/lib/payment-options";
 import { getStripe, hasStripeConfig } from "@/lib/stripe";
 
@@ -269,9 +270,7 @@ export default async function PublicInvoicePage({
   }
 
   const clientName = String(invoice.client || "");
-  const project = db
-    .prepare("SELECT * FROM projects WHERE client = ? ORDER BY updated_at DESC LIMIT 1")
-    .get(clientName) as Record<string, unknown> | undefined;
+  const project = resolveProjectForInvoice(invoice, db);
   const client = db
     .prepare("SELECT * FROM clients WHERE name = ? LIMIT 1")
     .get(clientName) as Record<string, unknown> | undefined;

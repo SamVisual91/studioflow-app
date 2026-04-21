@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "@/lib/db";
+import { resolveProjectForInvoice } from "@/lib/invoice-project";
 import { recordInvoicePaymentToLedger } from "@/lib/ledger";
 import { getStripe, hasStripeConfig } from "@/lib/stripe";
 
@@ -144,9 +145,7 @@ export function markInvoicePaymentPaid(
     });
   }
 
-  const project = db
-    .prepare("SELECT id, client FROM projects WHERE client = ? ORDER BY updated_at DESC LIMIT 1")
-    .get(String(invoice.client)) as { id: string; client: string } | undefined;
+  const project = resolveProjectForInvoice(invoice, db);
 
   if (project) {
     logProjectMessage({
@@ -185,9 +184,7 @@ export function markInvoiceAutopayFailure(invoiceId: string, paymentId: string) 
     invoiceId
   );
 
-  const project = db
-    .prepare("SELECT id, client FROM projects WHERE client = ? ORDER BY updated_at DESC LIMIT 1")
-    .get(String(invoice.client)) as { id: string; client: string } | undefined;
+  const project = resolveProjectForInvoice(invoice, db);
 
   if (project) {
     const failedPayment = paymentSchedule.find((item) => item.id === paymentId);
