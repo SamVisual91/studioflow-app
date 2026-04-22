@@ -2965,19 +2965,45 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
       ? Number(packageOverrides[resolvedSelectedPackage.id]?.amount || 0)
       : Number(resolvedSelectedPackage.amount || 0);
 
-  const owner = db
-    .prepare("SELECT email, name FROM users ORDER BY created_at ASC LIMIT 1")
-    .get() as { email?: string | null; name?: string | null } | undefined;
-  const ownerEmail = String(owner?.email || process.env.EMAIL_FROM || process.env.SMTP_USER || "").trim();
+  const notificationRecipient = String(getProjectReplyAddress(resolvedBrochure.project_id) || "").trim();
 
-  if (!ownerEmail) {
+  if (!notificationRecipient) {
     redirectWithStatus("error", "package-selection-send-failed");
+  }
+
+  const existingMatchingResponse = db
+    .prepare(
+      `SELECT id, created_at
+       FROM package_brochure_responses
+       WHERE brochure_id = ?
+         AND package_id = ?
+         AND lower(coalesce(client_email, '')) = lower(?)
+         AND lower(coalesce(client_name, '')) = lower(?)
+         AND coalesce(note, '') = ?
+       ORDER BY created_at DESC
+       LIMIT 1`
+    )
+    .get(
+      resolvedBrochure.id,
+      resolvedSelectedPackage.id,
+      clientEmail,
+      clientName,
+      clientNote
+    ) as { id?: string; created_at?: string | null } | undefined;
+
+  if (existingMatchingResponse?.created_at) {
+    const submittedAt = new Date(existingMatchingResponse.created_at).getTime();
+    const now = Date.now();
+
+    if (Number.isFinite(submittedAt) && now - submittedAt < 5 * 60 * 1000) {
+      redirectWithStatus("selected", "1");
+    }
   }
 
   const brochureUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/package-brochure/${token}`;
   const subject = `${clientName} selected ${selectedPackageName}`;
   const plainText = [
-    `Hi ${String(owner?.name || "there").trim() || "there"},`,
+    "Hi there,",
     "",
     `${clientName} selected a package from the brochure for ${resolvedBrochure.project_name}.`,
     "",
@@ -2993,7 +3019,7 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
 
   try {
     await sendProposalEmail({
-      to: ownerEmail,
+      to: notificationRecipient,
       subject,
       text: plainText,
       html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f1b18;">${plainText.replace(/\n/g, "<br />")}</div>`,

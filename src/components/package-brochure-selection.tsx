@@ -39,9 +39,15 @@ export function PackageBrochureSelection({
   title: string;
 }) {
   const [selectedPackageId, setSelectedPackageId] = useState(packages[0]?.id || "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   return (
-    <form className="grid gap-8">
+    <form
+      className="grid gap-8"
+      onSubmit={() => {
+        setIsSubmitting(true);
+      }}
+    >
       <input name="token" type="hidden" value={brochureToken} />
       <input name="packageId" type="hidden" value={selectedPackageId} />
       <input name="clientEmail" type="hidden" value={initialEmail} />
@@ -68,15 +74,15 @@ export function PackageBrochureSelection({
             <div className="grid gap-3 text-sm leading-7 text-[var(--muted)]">
               <p>1. Select the collection that fits best.</p>
               <p>2. Click submit and your selection will be emailed back right away.</p>
-              <p>3. We will the contact you to set up a Virtual or in-person meeting.</p>
+              <p>3. We will contact you to set up a virtual or in-person meeting.</p>
             </div>
             <button
               className="mt-2 bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!selectedPackageId}
+              disabled={!selectedPackageId || isSubmitting}
               formAction={submitPackageBrochureSelectionAction}
               type="submit"
             >
-              Submit selection
+              {isSubmitting ? "Submitting..." : "Submit selection"}
             </button>
         </div>
       </section>
