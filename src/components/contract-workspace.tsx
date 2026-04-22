@@ -247,6 +247,30 @@ function SignatureBlock({
   );
 }
 
+function SectionActionButton({
+  children,
+  onClick,
+  tone = "default",
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  tone?: "default" | "danger";
+}) {
+  return (
+    <button
+      className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition ${
+        tone === "danger"
+          ? "border-[rgba(207,114,79,0.24)] text-[var(--accent)] hover:bg-[rgba(207,114,79,0.08)]"
+          : "border-black/[0.10] text-[var(--ink)] hover:bg-[rgba(31,27,24,0.05)]"
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      {children}
+    </button>
+  );
+}
+
 export function ContractWorkspace({
   action,
   formId,
@@ -310,6 +334,38 @@ export function ContractWorkspace({
           : section
       ),
     }));
+  }
+
+  function addSection(afterIndex?: number) {
+    setDocument((current) => {
+      const nextSection = {
+        heading: "New Section Title",
+        body: "",
+      };
+      const sections = [...current.sections];
+      if (typeof afterIndex === "number" && afterIndex >= 0) {
+        sections.splice(afterIndex + 1, 0, nextSection);
+      } else {
+        sections.push(nextSection);
+      }
+      return {
+        ...current,
+        sections,
+      };
+    });
+  }
+
+  function removeSection(index: number) {
+    setDocument((current) => {
+      if (current.sections.length <= 1) {
+        return current;
+      }
+
+      return {
+        ...current,
+        sections: current.sections.filter((_, sectionIndex) => sectionIndex !== index),
+      };
+    });
   }
 
   function signVendor() {
@@ -389,9 +445,12 @@ export function ContractWorkspace({
           <h1 className="mt-3 text-3xl font-semibold text-[var(--ink)]">{document.contractTitle}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--muted)]">{helperText}</p>
         </div>
-        <button className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-          {saveLabel}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <SectionActionButton onClick={() => addSection()}>Add section</SectionActionButton>
+          <button className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+            {saveLabel}
+          </button>
+        </div>
       </div>
 
       <RichTextToolbar
@@ -521,6 +580,12 @@ export function ContractWorkspace({
 
               return (
                 <div className="space-y-4" key={`${section.heading}-${index}`}>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <SectionActionButton onClick={() => addSection(index)}>Add below</SectionActionButton>
+                    <SectionActionButton onClick={() => removeSection(index)} tone="danger">
+                      Remove
+                    </SectionActionButton>
+                  </div>
                   {isPleaseRead ? (
                     <p className="pt-5 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--ink)]">
                       Please read
