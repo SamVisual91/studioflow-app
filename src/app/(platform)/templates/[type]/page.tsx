@@ -332,6 +332,7 @@ export default async function TemplateTypePage({
             }}
             initialDocument={initialDocument}
             saveLabel={selectedTemplate ? "Save changes" : "Save contract template"}
+            templateAutosaveClientType={selectedTemplate?.clientType || "Wedding"}
             titleLabel="Contract template"
           />
 

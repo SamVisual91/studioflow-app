@@ -11,6 +11,7 @@ type Props = {
   saveLabel: string;
   titleLabel: string;
   helperText: string;
+  templateAutosaveClientType?: string;
 };
 
 const signatureFont = '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive';
@@ -254,19 +255,23 @@ export function ContractWorkspace({
   hiddenFields,
   initialDocument,
   saveLabel,
+  templateAutosaveClientType,
   titleLabel,
 }: Props) {
   const [document, setDocument] = useState<ContractDocument>(() => createDefaultContractDocument(initialDocument));
   const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
   const [autosaveState, setAutosaveState] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
   const [lastSavedAt, setLastSavedAt] = useState("");
+  const [autosaveTemplateId, setAutosaveTemplateId] = useState(hiddenFields?.templateId || "");
   const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const savedRangeRef = useRef<Range | null>(null);
   const autosaveResetTimeoutRef = useRef<number | null>(null);
   const hasMountedRef = useRef(false);
   const autosaveProjectId = hiddenFields?.projectId || "";
   const autosaveFileId = hiddenFields?.fileId || "";
-  const canAutosave = Boolean(autosaveProjectId && autosaveFileId);
+  const canAutosaveProjectFile = Boolean(autosaveProjectId && autosaveFileId);
+  const canAutosaveTemplate = Boolean(templateAutosaveClientType);
+  const canAutosave = canAutosaveProjectFile || canAutosaveTemplate;
 
   useEffect(() => {
     setDocument(createDefaultContractDocument(initialDocument));
@@ -314,24 +319,47 @@ export function ContractWorkspace({
       setAutosaveState("saving");
 
       try {
-        const response = await fetch(`/api/projects/${autosaveProjectId}/files/${autosaveFileId}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fileType: hiddenFields?.fileType || "CONTRACT",
-            title: document.contractTitle,
-            summary,
-            status: document.clientSignature.signedAt ? "Signed" : "Draft",
-            visibility: "Shared",
-            body: serializedDocument,
-          }),
-        });
+        const response = canAutosaveProjectFile
+          ? await fetch(`/api/projects/${autosaveProjectId}/files/${autosaveFileId}`, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                fileType: hiddenFields?.fileType || "CONTRACT",
+                title: document.contractTitle,
+                summary,
+                status: document.clientSignature.signedAt ? "Signed" : "Draft",
+                visibility: "Shared",
+                body: serializedDocument,
+              }),
+            })
+          : await fetch("/api/templates/contracts", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                templateId: autosaveTemplateId,
+                clientType: templateAutosaveClientType,
+                title: document.contractTitle,
+                body: serializedDocument,
+              }),
+            });
 
         if (!response.ok) {
           setAutosaveState("error");
           return;
+        }
+
+        if (canAutosaveTemplate) {
+          const payload = (await response.json()) as { templateId?: string };
+          if (payload.templateId) {
+            setAutosaveTemplateId(payload.templateId);
+            const url = new URL(window.location.href);
+            url.searchParams.set("template", payload.templateId);
+            window.history.replaceState({}, "", url.toString());
+          }
         }
 
         setAutosaveState("saved");
@@ -355,7 +383,19 @@ export function ContractWorkspace({
     }, 700);
 
     return () => window.clearTimeout(timeout);
-  }, [canAutosave, autosaveProjectId, autosaveFileId, hiddenFields?.fileType, document, serializedDocument, summary]);
+  }, [
+    autosaveFileId,
+    autosaveProjectId,
+    autosaveTemplateId,
+    canAutosave,
+    canAutosaveProjectFile,
+    canAutosaveTemplate,
+    document,
+    hiddenFields?.fileType,
+    serializedDocument,
+    summary,
+    templateAutosaveClientType,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -464,7 +504,12 @@ export function ContractWorkspace({
   return (
     <form action={action} className="grid gap-6" id={formId}>
       {Object.entries(hiddenFields || {}).map(([key, value]) => (
-        <input key={key} name={key} type="hidden" value={value} />
+        <input
+          key={key}
+          name={key}
+          type="hidden"
+          value={key === "templateId" ? autosaveTemplateId || value : value}
+        />
       ))}
       <input name="title" type="hidden" value={document.contractTitle} />
       <input name="summary" type="hidden" value={summary} />

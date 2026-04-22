@@ -6630,10 +6630,14 @@ export async function createDocumentTemplateAction(formData: FormData) {
   await requireUser();
 
   const templateId = getString(formData, "templateId");
-  const name = getString(formData, "name");
+  const name = getString(formData, "name") || getString(formData, "title");
   const clientType = getString(formData, "clientType");
   const templateType = getString(formData, "templateType");
-  const summary = getString(formData, "summary");
+  const summary =
+    getString(formData, "summary") ||
+    (templateType === "Contract"
+      ? getContractDocumentSummary(parseContractDocument(getString(formData, "body")))
+      : "");
   const body = getString(formData, "body");
   const returnTo = getString(formData, "returnTo");
 
