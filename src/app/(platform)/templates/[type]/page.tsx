@@ -40,7 +40,9 @@ export default async function TemplateTypePage({
   const starterBody = getTemplatePresetBody(templateType);
   const starterSummary = `Starter ${templateType.toLowerCase()} template for your client workflow.`;
   const pagePath = `/templates/${type}`;
-  const selectedTemplate = templates.find((template) => template.id === query.template);
+  const selectedTemplate =
+    templates.find((template) => template.id === query.template) ??
+    (templateType === "Contract" ? templates[0] : undefined);
   const errorMessage =
     query.error === "template-invalid"
       ? "Fill out every template field before saving."
