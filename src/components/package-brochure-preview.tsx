@@ -148,12 +148,7 @@ export function PackageBrochurePreview({
               </p>
 
               <div className="grid gap-3">
-                <div className="flex items-center justify-between gap-4">
-                  <p className="text-sm font-semibold text-[var(--ink)]">Here&apos;s what you&apos;ll get:</p>
-                  <span className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--forest)]">
-                    Add
-                  </span>
-                </div>
+                <p className="text-sm font-semibold text-[var(--ink)]">Here&apos;s what you&apos;ll get:</p>
                 <div className="grid gap-4">
                   {preset.sections.length > 0 ? (
                     preset.sections.map((section) => (
