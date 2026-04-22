@@ -17,6 +17,7 @@ import { MediaCarousel } from "@/components/media-carousel";
 import { ClientPhotoAlbum } from "@/components/client-photo-album";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { MediaGalleryBannerEditor } from "@/components/media-gallery-banner-editor";
+import { ProjectPhotoDeliverableUploader } from "@/components/project-photo-deliverable-uploader";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getDb } from "@/lib/db";
 import { ensureProjectDeliverablesTable, type ProjectDeliverable } from "@/lib/deliverables";
@@ -385,129 +386,11 @@ export default async function ProjectDeliverablesPage({
               </details>
             </form>
 
-            <form
-              action={uploadProjectDeliverableAction}
-              className="grid self-start gap-4 rounded-[1.5rem] border border-black/[0.08] bg-[rgba(247,241,232,0.62)] p-5"
-              encType="multipart/form-data"
-            >
-              <input name="projectId" type="hidden" value={project.id} />
-              <input name="mediaType" type="hidden" value="PHOTO" />
-              <input name="returnPath" type="hidden" value={returnPath} />
-              <details className="group">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-black/[0.08] bg-white/85 text-[var(--forest)]">
-                      <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
-                        <rect width="18" height="14" x="3" y="5" rx="2.5" />
-                        <circle cx="8.5" cy="10" r="1.75" />
-                        <path d="m21 15-4.5-4.5L9 18" />
-                      </svg>
-                    </span>
-                    <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Upload photo</p>
-                    <h3 className="mt-2 text-xl font-semibold">Client photo</h3>
-                    </div>
-                  </div>
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-black/[0.08] bg-white/80 text-[var(--muted)] transition group-open:rotate-180">
-                    <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </span>
-                </summary>
-                <div className="mt-4 grid gap-4">
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Title
-                    <input
-                      className="rounded-xl border border-black/[0.08] bg-white px-4 py-3"
-                      defaultValue={`${project.client} Photo`}
-                      name="title"
-                    />
-                  </label>
-                  <div className="grid gap-3 rounded-[1.2rem] border border-black/[0.08] bg-white/70 p-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Album delivery</p>
-                      <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-                        Use albums for larger galleries so clients can open one collection, select photos, or download the full Synology folder.
-                      </p>
-                    </div>
-                    <label className="grid gap-2 text-sm font-semibold">
-                      Album name
-                      <input
-                        className="rounded-xl border border-black/[0.08] bg-white px-4 py-3"
-                        defaultValue="Final Gallery"
-                        name="albumTitle"
-                      />
-                    </label>
-                    <label className="grid gap-2 text-sm font-semibold">
-                      Section
-                      <input
-                        className="rounded-xl border border-black/[0.08] bg-white px-4 py-3"
-                        name="albumSection"
-                        placeholder="Example: Ceremony, Reception, Portraits"
-                      />
-                    </label>
-                    <label className="grid gap-2 text-sm font-semibold">
-                      Synology download-all link
-                      <input
-                        className="rounded-xl border border-black/[0.08] bg-white px-4 py-3"
-                        name="albumDownloadUrl"
-                        placeholder="https://your-synology-folder-share-link"
-                        type="url"
-                      />
-                    </label>
-                  </div>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Caption
-                    <input
-                      className="rounded-xl border border-black/[0.08] bg-white px-4 py-3"
-                      name="caption"
-                      placeholder="Example: Preview image, final portrait, gallery cover"
-                    />
-                  </label>
-                  <div className="grid gap-4 rounded-[1.2rem] border border-black/[0.08] bg-white/70 p-4 sm:grid-cols-2">
-                    <label className="grid gap-2 text-sm font-semibold">
-                      Photo access
-                      <select
-                        className="rounded-xl border border-black/[0.08] bg-white px-4 py-3"
-                        defaultValue="FREE"
-                        name="accessType"
-                      >
-                        <option value="FREE">Free / already paid</option>
-                        <option value="PAID">Client must purchase</option>
-                      </select>
-                    </label>
-                    <label className="grid gap-2 text-sm font-semibold">
-                      Price per photo
-                      <input
-                        className="rounded-xl border border-black/[0.08] bg-white px-4 py-3"
-                        defaultValue="0"
-                        min="0"
-                        name="price"
-                        placeholder="0.00"
-                        step="0.01"
-                        type="number"
-                      />
-                    </label>
-                    <p className="text-xs leading-5 text-[var(--muted)] sm:col-span-2">
-                      Keep the photo free if it is already included in the package. Switch it to paid when clients should purchase each image individually.
-                    </p>
-                  </div>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Photo file
-                    <input
-                      accept="image/*"
-                      className="rounded-xl border border-black/[0.08] bg-white px-4 py-3 text-sm"
-                      name="file"
-                      multiple
-                      type="file"
-                    />
-                  </label>
-                  <button className="rounded-full bg-[var(--forest)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-                    Upload photo
-                  </button>
-                </div>
-              </details>
-            </form>
+            <ProjectPhotoDeliverableUploader
+              clientName={project.client}
+              projectId={project.id}
+              returnPath={returnPath}
+            />
 
             <form
               action={saveVideoPaywallAction}
