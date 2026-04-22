@@ -80,21 +80,28 @@ function AutoGrowTextarea({
 
 function RichTextToolbar({
   activeEditor,
+  onKeepSelection,
   onFormatBlock,
   onRun,
 }: {
   activeEditor: boolean;
+  onKeepSelection: () => void;
   onRun: (command: string, value?: string) => void;
   onFormatBlock: (value: string) => void;
 }) {
   const buttonClass =
     "inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-black/[0.08] bg-white px-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-[rgba(31,27,24,0.06)] disabled:cursor-not-allowed disabled:opacity-45";
+  const keepSelection = (event: React.MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    onKeepSelection();
+  };
 
   return (
     <div className="sticky top-3 z-20 flex flex-wrap items-center gap-2 rounded-[0.9rem] border border-black/[0.08] bg-[#f4efe7] px-3 py-2 shadow-[0_10px_24px_rgba(59,36,17,0.08)]">
       <select
         className="h-9 rounded-md border border-black/[0.08] bg-white px-3 text-sm text-[var(--ink)] outline-none disabled:cursor-not-allowed disabled:opacity-45"
         disabled={!activeEditor}
+        onMouseDown={keepSelection}
         onChange={(event) => {
           onFormatBlock(event.target.value);
           event.currentTarget.value = "";
@@ -109,13 +116,13 @@ function RichTextToolbar({
         <option value="H4">Subheading</option>
         <option value="BLOCKQUOTE">Quote</option>
       </select>
-      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("bold")} type="button">
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("bold")} onMouseDown={keepSelection} type="button">
         B
       </button>
-      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("italic")} type="button">
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("italic")} onMouseDown={keepSelection} type="button">
         <span className="italic">I</span>
       </button>
-      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("underline")} type="button">
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("underline")} onMouseDown={keepSelection} type="button">
         <span className="underline">U</span>
       </button>
       <input
@@ -123,31 +130,33 @@ function RichTextToolbar({
         className="h-9 w-11 rounded-md border border-black/[0.08] bg-white p-1 disabled:cursor-not-allowed disabled:opacity-45"
         defaultValue="#1f1b18"
         disabled={!activeEditor}
+        onClick={onKeepSelection}
+        onMouseDown={keepSelection}
         onChange={(event) => onRun("foreColor", event.target.value)}
         type="color"
       />
-      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("justifyLeft")} type="button">
-        ≡
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("justifyLeft")} onMouseDown={keepSelection} type="button">
+        L
       </button>
-      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("justifyCenter")} type="button">
-        ≣
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("justifyCenter")} onMouseDown={keepSelection} type="button">
+        C
       </button>
-      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("justifyRight")} type="button">
-        ☰
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("justifyRight")} onMouseDown={keepSelection} type="button">
+        R
       </button>
-      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("insertUnorderedList")} type="button">
-        ••
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("insertUnorderedList")} onMouseDown={keepSelection} type="button">
+        •
       </button>
-      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("insertOrderedList")} type="button">
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("insertOrderedList")} onMouseDown={keepSelection} type="button">
         1.
       </button>
-      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("outdent")} type="button">
-        ←
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("outdent")} onMouseDown={keepSelection} type="button">
+        &lt;
       </button>
-      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("indent")} type="button">
-        →
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("indent")} onMouseDown={keepSelection} type="button">
+        &gt;
       </button>
-      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("removeFormat")} type="button">
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("removeFormat")} onMouseDown={keepSelection} type="button">
         Tx
       </button>
     </div>
@@ -250,10 +259,34 @@ export function ContractWorkspace({
   const [document, setDocument] = useState<ContractDocument>(() => createDefaultContractDocument(initialDocument));
   const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
   const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const savedRangeRef = useRef<Range | null>(null);
 
   useEffect(() => {
     setDocument(createDefaultContractDocument(initialDocument));
   }, [initialDocument]);
+
+  useEffect(() => {
+    function handleSelectionChange() {
+      const selection = globalThis.document.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const editorId = activeEditorId;
+      const editor = editorId ? editorRefs.current[editorId] : null;
+      if (!editor) {
+        return;
+      }
+
+      if (editor.contains(range.commonAncestorContainer)) {
+        savedRangeRef.current = range.cloneRange();
+      }
+    }
+
+    globalThis.document.addEventListener("selectionchange", handleSelectionChange);
+    return () => globalThis.document.removeEventListener("selectionchange", handleSelectionChange);
+  }, [activeEditorId]);
 
   const serializedDocument = useMemo(() => serializeContractDocument(document), [document]);
   const summary = useMemo(() => getContractDocumentSummary(document), [document]);
@@ -307,6 +340,17 @@ export function ContractWorkspace({
     editorRefs.current[id] = node;
   }
 
+  function restoreSelection() {
+    const selection = globalThis.document.getSelection();
+    const savedRange = savedRangeRef.current;
+    if (!selection || !savedRange) {
+      return;
+    }
+
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+  }
+
   function runEditorCommand(command: string, value?: string) {
     const editorId = activeEditorId;
     const editor = editorId ? editorRefs.current[editorId] : null;
@@ -315,6 +359,7 @@ export function ContractWorkspace({
     }
 
     editor.focus();
+    restoreSelection();
     globalThis.document.execCommand(command, false, value);
     const sectionIndex = Number(editorId.replace("section-body-", ""));
     if (!Number.isNaN(sectionIndex)) {
@@ -351,6 +396,7 @@ export function ContractWorkspace({
 
       <RichTextToolbar
         activeEditor={Boolean(activeEditorId)}
+        onKeepSelection={restoreSelection}
         onFormatBlock={formatBlock}
         onRun={runEditorCommand}
       />
