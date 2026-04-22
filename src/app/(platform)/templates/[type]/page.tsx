@@ -9,7 +9,7 @@ import { ContractWorkspace } from "@/components/contract-workspace";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { SectionHeader } from "@/components/dashboard-ui";
 import { InvoiceWorkspace } from "@/components/invoice-workspace";
-import { parseContractDocument } from "@/lib/contracts";
+import { createDefaultContractDocument, parseContractDocument } from "@/lib/contracts";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import {
   getTemplateLibraryData,
@@ -253,9 +253,13 @@ export default async function TemplateTypePage({
   }
 
   if (templateType === "Contract") {
-    const initialDocument = parseContractDocument(selectedTemplate?.body || starterBody, {
-      contractTitle: selectedTemplate?.name || "Wedding Contract",
-    });
+    const initialDocument = selectedTemplate
+      ? parseContractDocument(selectedTemplate.body, {
+          contractTitle: selectedTemplate.name || "Wedding Contract",
+        })
+      : createDefaultContractDocument({
+          contractTitle: "Wedding Contract",
+        });
 
     return (
       <main className="min-h-screen bg-[var(--canvas)] px-4 py-8 text-[var(--ink)]">
