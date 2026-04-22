@@ -1,6 +1,6 @@
 "use client";
 
-const heroVideoSrc = "/work-videos/website-hero.mov";
+const heroVideoSrc = "/work-videos/website-hero.mp4";
 
 export function PublicHeroReel() {
   return (
