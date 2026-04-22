@@ -273,15 +273,13 @@ export default async function ProjectClientPage({
       item.projectId === project.id ||
       (canUseLegacyClientScope && !item.projectId && item.client === project.client)
   );
+  const contractFile =
+    projectFiles.find((file) => file.type === "CONTRACT" && file.linked_path) || null;
   const proposalHrefByTitle = new Map(
     projectProposals
       .filter((item) => item.publicToken)
       .map((item) => [item.title, `/p/${item.publicToken}`])
   );
-  const contract =
-    projectProposals.find((item) => item.status === "SIGNED") ||
-    projectProposals.find((item) => item.title.toLowerCase().includes("contract")) ||
-    null;
   const invoices = data.invoices.filter(
     (item) =>
       item.projectId === project.id ||
@@ -529,10 +527,10 @@ export default async function ProjectClientPage({
             >
               Client portal
             </Link>
-            {contract?.publicToken ? (
+            {contractFile?.linked_path ? (
               <Link
                 className="rounded-full border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
-                href={`/p/${contract.publicToken}/print`}
+                href={contractFile.linked_path}
                 target="_blank"
               >
                 Contract view

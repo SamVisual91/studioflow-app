@@ -1,6 +1,12 @@
 import { notFound } from "next/navigation";
 import { saveProjectFileAction } from "@/app/actions";
+import { ContractWorkspace } from "@/components/contract-workspace";
+import {
+  getContractTemplateClientType,
+  parseContractDocument,
+} from "@/lib/contracts";
 import { getDashboardPageData } from "@/lib/dashboard-page";
+import { getDb } from "@/lib/db";
 import { getProjectFileTemplate } from "@/lib/project-files";
 
 export default async function NewProjectFilePage({
@@ -20,6 +26,45 @@ export default async function NewProjectFilePage({
 
   const fileType = String(query.type || "CONTRACT").toUpperCase();
   const template = getProjectFileTemplate(fileType);
+  const db = getDb();
+  const client = db
+    .prepare("SELECT contact_email FROM clients WHERE name = ? LIMIT 1")
+    .get(project.client) as { contact_email?: string | null } | undefined;
+  const contractTemplate = db
+    .prepare(
+      "SELECT body FROM document_templates WHERE template_type = 'Contract' AND client_type = ? ORDER BY updated_at DESC LIMIT 1"
+    )
+    .get(getContractTemplateClientType(project.type || "")) as { body?: string | null } | undefined;
+  const contractDocument = parseContractDocument(String(contractTemplate?.body || ""), {
+    clientEmail: String(client?.contact_email || ""),
+    clientName: project.client,
+    contractTitle: `${project.type || "Project"} Contract`,
+    enteredOn: new Date().toISOString().slice(0, 10),
+    eventDate: project.projectDate || "",
+    serviceType: project.type || "",
+    venue: project.location || "",
+  });
+
+  if (fileType === "CONTRACT") {
+    return (
+      <main className="min-h-screen bg-[var(--canvas)] px-4 py-8 text-[var(--ink)]">
+        <div className="mx-auto max-w-7xl">
+          <ContractWorkspace
+            action={saveProjectFileAction}
+            formId="project-contract-form"
+            helperText={`This contract is linked directly to ${project.name}. It starts from your saved contract template, but you can click any section to personalize it before saving.`}
+            hiddenFields={{
+              projectId: project.id,
+              fileType,
+            }}
+            initialDocument={contractDocument}
+            saveLabel="Save contract"
+            titleLabel="Project contract"
+          />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[var(--canvas)] px-4 py-8 text-[var(--ink)]">

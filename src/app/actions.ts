@@ -15,6 +15,12 @@ import {
   requireUser,
   validateUserCredentials,
 } from "@/lib/auth";
+import {
+  getContractDocumentSummary,
+  getContractTemplateClientType,
+  parseContractDocument,
+  serializeContractDocument,
+} from "@/lib/contracts";
 import { hashPassword } from "@/lib/crypto";
 import { ensureDefaultPackagePresets, getDb } from "@/lib/db";
 import { ensureProjectDeliverablesTable } from "@/lib/deliverables";
@@ -4887,7 +4893,7 @@ export async function addProjectContactAction(formData: FormData) {
   await requireUser();
 
   const projectId = getString(formData, "projectId");
-  const name = getString(formData, "name");
+  const name = getString(formData, "name") || getString(formData, "title");
   const email = getString(formData, "email").toLowerCase();
   const returnTab = getString(formData, "returnTab") || "activity";
   const returnFile = getString(formData, "returnFile");
@@ -5674,9 +5680,48 @@ export async function createProjectFileAction(formData: FormData) {
   const timestamp = new Date().toISOString();
   const db = getDb();
   const newFileId = randomUUID();
+  let linkedPath = "";
+  let body = template.body;
+
+  if (fileType === "CONTRACT") {
+    const project = db
+      .prepare("SELECT id, name, client, project_type, project_date, location FROM projects WHERE id = ? LIMIT 1")
+      .get(projectId) as
+      | {
+          id?: string;
+          name?: string;
+          client?: string;
+          project_type?: string | null;
+          project_date?: string | null;
+          location?: string | null;
+        }
+      | undefined;
+    const client = db
+      .prepare("SELECT contact_email FROM clients WHERE name = ? LIMIT 1")
+      .get(String(project?.client || "")) as { contact_email?: string | null } | undefined;
+    const templateClientType = getContractTemplateClientType(String(project?.project_type || ""));
+    const latestTemplate = db
+      .prepare(
+        "SELECT body FROM document_templates WHERE template_type = 'Contract' AND client_type = ? ORDER BY updated_at DESC LIMIT 1"
+      )
+      .get(templateClientType) as { body?: string | null } | undefined;
+    const contractDocument = parseContractDocument(String(latestTemplate?.body || ""), {
+      clientEmail: String(client?.contact_email || ""),
+      clientName: String(project?.client || ""),
+      contractTitle: `${String(project?.project_type || "Project")} Contract`,
+      enteredOn: timestamp.slice(0, 10),
+      eventDate: String(project?.project_date || ""),
+      serviceType: String(project?.project_type || ""),
+      venue: String(project?.location || ""),
+    });
+    const contractToken = randomUUID();
+
+    linkedPath = `/contract/${contractToken}`;
+    body = serializeContractDocument(contractDocument);
+  }
 
   db.prepare(
-    "INSERT INTO project_files (id, project_id, type, title, summary, status, visibility, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO project_files (id, project_id, type, title, summary, status, visibility, linked_path, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run(
     newFileId,
     projectId,
@@ -5685,7 +5730,8 @@ export async function createProjectFileAction(formData: FormData) {
     summary,
     template.status,
     template.visibility,
-    template.body,
+    linkedPath,
+    body,
     timestamp,
     timestamp
   );
@@ -5719,11 +5765,23 @@ export async function saveProjectFileAction(formData: FormData) {
 
   const db = getDb();
   const timestamp = new Date().toISOString();
+  const nextSummary =
+    fileType === "CONTRACT"
+      ? getContractDocumentSummary(parseContractDocument(body))
+      : summary;
 
   if (fileId) {
+    const existingFile = db
+      .prepare("SELECT linked_path FROM project_files WHERE id = ? AND project_id = ? LIMIT 1")
+      .get(fileId, projectId) as { linked_path?: string | null } | undefined;
+    const nextLinkedPath =
+      fileType === "CONTRACT"
+        ? String(existingFile?.linked_path || "").trim() || `/contract/${randomUUID()}`
+        : String(existingFile?.linked_path || "").trim();
+
     db.prepare(
-      "UPDATE project_files SET title = ?, summary = ?, status = ?, visibility = ?, body = ?, updated_at = ? WHERE id = ? AND project_id = ?"
-    ).run(title, summary, status, visibility, body, timestamp, fileId, projectId);
+      "UPDATE project_files SET title = ?, summary = ?, status = ?, visibility = ?, linked_path = ?, body = ?, updated_at = ? WHERE id = ? AND project_id = ?"
+    ).run(title, nextSummary, status, visibility, nextLinkedPath, body, timestamp, fileId, projectId);
     updateProjectRecentActivity(
       db,
       projectId,
@@ -5736,16 +5794,18 @@ export async function saveProjectFileAction(formData: FormData) {
 
   const template = getProjectFileTemplate(fileType);
   const newFileId = randomUUID();
+  const linkedPath = fileType === "CONTRACT" ? `/contract/${randomUUID()}` : "";
   db.prepare(
-    "INSERT INTO project_files (id, project_id, type, title, summary, status, visibility, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO project_files (id, project_id, type, title, summary, status, visibility, linked_path, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run(
     newFileId,
     projectId,
     fileType,
     title,
-    summary,
+    nextSummary,
     status || template.status,
     visibility || template.visibility,
+    linkedPath,
     body,
     timestamp,
     timestamp
@@ -6027,6 +6087,13 @@ export async function deleteProjectFileAction(formData: FormData) {
         brochureToken
       );
       revalidatePath(`/package-brochure/${brochureToken}`);
+    }
+  }
+
+  if (existingFile.type === "CONTRACT" && existingFile.linked_path) {
+    const contractToken = existingFile.linked_path.split("/").filter(Boolean).at(-1) || "";
+    if (contractToken) {
+      revalidatePath(`/contract/${contractToken}`);
     }
   }
 
@@ -6562,6 +6629,7 @@ export async function createPackageTemplateBundleAction(formData: FormData) {
 export async function createDocumentTemplateAction(formData: FormData) {
   await requireUser();
 
+  const templateId = getString(formData, "templateId");
   const name = getString(formData, "name");
   const clientType = getString(formData, "clientType");
   const templateType = getString(formData, "templateType");
@@ -6575,11 +6643,17 @@ export async function createDocumentTemplateAction(formData: FormData) {
 
   ensureDocumentTemplatesTable();
   const timestamp = new Date().toISOString();
-  getDb()
-    .prepare(
+  const db = getDb();
+
+  if (templateId) {
+    db.prepare(
+      "UPDATE document_templates SET name = ?, client_type = ?, template_type = ?, summary = ?, body = ?, updated_at = ? WHERE id = ?"
+    ).run(name, clientType, templateType, summary, body, timestamp, templateId);
+  } else {
+    db.prepare(
       "INSERT INTO document_templates (id, name, client_type, template_type, summary, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-    )
-    .run(randomUUID(), name, clientType, templateType, summary, body, timestamp, timestamp);
+    ).run(randomUUID(), name, clientType, templateType, summary, body, timestamp, timestamp);
+  }
 
   revalidatePath("/templates");
   redirect(returnTo.startsWith("/templates/") ? `${returnTo}?saved=1` : "/templates?saved=1");
@@ -6969,6 +7043,113 @@ export async function respondToProposalAction(formData: FormData) {
   revalidatePath("/proposals");
   revalidatePath(`/p/${token}`);
   redirect(`/p/${token}?commented=1`);
+}
+
+export async function signProjectContractAction(formData: FormData) {
+  const token = getString(formData, "token");
+  const signer = getString(formData, "signer");
+  const signatureName = getString(formData, "signatureName");
+
+  if (!token || !signer) {
+    redirect("/overview");
+  }
+
+  const db = getDb();
+  const file = db
+    .prepare(
+      "SELECT id, project_id, title, linked_path, body FROM project_files WHERE type = 'CONTRACT' AND linked_path = ? LIMIT 1"
+    )
+    .get(`/contract/${token}`) as
+    | {
+        id?: string;
+        project_id?: string | null;
+        title?: string | null;
+        linked_path?: string | null;
+        body?: string | null;
+      }
+    | undefined;
+
+  if (!file?.id || !file.project_id) {
+    redirect("/overview");
+  }
+
+  const project = db
+    .prepare("SELECT client FROM projects WHERE id = ? LIMIT 1")
+    .get(String(file.project_id)) as { client?: string | null } | undefined;
+  const client = db
+    .prepare("SELECT contact_email FROM clients WHERE name = ? LIMIT 1")
+    .get(String(project?.client || "")) as { contact_email?: string | null } | undefined;
+
+  const contract = parseContractDocument(String(file.body || ""), {
+    clientEmail: String(client?.contact_email || ""),
+    clientName: String(project?.client || ""),
+  });
+  const timestamp = new Date().toISOString();
+  const signedDate = timestamp.slice(0, 10);
+
+  if (signer === "client") {
+    const nextSignatureName = signatureName || contract.clientSignature.name || contract.clientName;
+
+    if (!nextSignatureName) {
+      redirect(`/contract/${token}?error=signature`);
+    }
+
+    contract.clientSignature = {
+      name: nextSignatureName,
+      signedAt: signedDate,
+      email: contract.clientSignature.email || contract.clientEmail,
+    };
+  } else {
+    const nextSignatureName = signatureName || contract.vendorSignature.name || contract.businessOwner;
+
+    if (!nextSignatureName) {
+      redirect(`/contract/${token}?error=signature`);
+    }
+
+    contract.vendorSignature = {
+      name: nextSignatureName,
+      signedAt: signedDate,
+      email: contract.vendorSignature.email || contract.businessEmail,
+    };
+  }
+
+  const nextStatus = contract.clientSignature.signedAt ? "Signed" : "Draft";
+
+  db.prepare("UPDATE project_files SET status = ?, body = ?, updated_at = ? WHERE id = ?").run(
+    nextStatus,
+    serializeContractDocument(contract),
+    timestamp,
+    file.id
+  );
+
+  updateProjectRecentActivity(
+    db,
+    String(file.project_id),
+    createRecentActivity(
+      signer === "client" ? "Contract signed by client" : "Contract signed by vendor",
+      timestamp
+    ),
+    timestamp
+  );
+  logProjectMessage(db, {
+    sender: signer === "client" ? contract.clientName : contract.businessName,
+    clientName: contract.clientName,
+    projectId: String(file.project_id),
+    direction: signer === "client" ? "INBOUND" : "OUTBOUND",
+    channel: "Contract",
+    time: timestamp,
+    subject: String(file.title || "Contract"),
+    preview:
+      signer === "client"
+        ? `${contract.clientSignature.name} signed the contract.`
+        : `${contract.vendorSignature.name} signed the contract.`,
+    unread: signer === "client" ? 1 : 0,
+  });
+
+  revalidatePath(`/projects/${String(file.project_id)}`);
+  revalidatePath(`/projects/${String(file.project_id)}/files/${String(file.id)}`);
+  revalidatePath(`/contract/${token}`);
+  redirect(`/contract/${token}?signed=${signer}`);
 }
 
 export async function sendTestEmailAction(formData: FormData) {

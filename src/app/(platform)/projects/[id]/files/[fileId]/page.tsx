@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { saveProjectFileAction } from "@/app/actions";
+import { ContractWorkspace } from "@/components/contract-workspace";
+import { parseContractDocument } from "@/lib/contracts";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getDb } from "@/lib/db";
 
@@ -25,6 +27,39 @@ export default async function ProjectFileEditorPage({
 
   if (!file) {
     notFound();
+  }
+
+  if (String(file.type) === "CONTRACT") {
+    return (
+      <main className="min-h-screen bg-[var(--canvas)] px-4 py-8 text-[var(--ink)]">
+        <div className="mx-auto max-w-7xl">
+          {query.created === "1" ? (
+            <div className="mb-6 rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+              Contract created. Keep editing here and your updates will stay linked to this project.
+            </div>
+          ) : null}
+          {query.saved === "1" ? (
+            <div className="mb-6 rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+              Contract saved successfully.
+            </div>
+          ) : null}
+
+          <ContractWorkspace
+            action={saveProjectFileAction}
+            formId="project-contract-edit-form"
+            helperText={`Editing the shared contract for ${project.name}. Click into any section, line item, or signature block to update it.`}
+            hiddenFields={{
+              projectId: project.id,
+              fileId: String(file.id),
+              fileType: String(file.type),
+            }}
+            initialDocument={parseContractDocument(String(file.body || ""))}
+            saveLabel="Save contract changes"
+            titleLabel="Project contract"
+          />
+        </div>
+      </main>
+    );
   }
 
   return (
