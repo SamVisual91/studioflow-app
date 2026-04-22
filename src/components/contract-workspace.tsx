@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   createDefaultContractDocument,
   getContractDocumentSummary,
@@ -18,8 +18,7 @@ type Props = {
   helperText: string;
 };
 
-const pricingFields: Array<{ label: string; key: keyof Pick<
-  ContractDocument,
+type PricingKey =
   | "packagePrice"
   | "creditAmount"
   | "addOnAmount"
@@ -27,34 +26,39 @@ const pricingFields: Array<{ label: string; key: keyof Pick<
   | "retainerPercent"
   | "retainerDueToday"
   | "remainingBalance"
-  | "finalPaymentDue"
-> }> = [
-  { label: "Package", key: "packagePrice" },
+  | "finalPaymentDue";
+
+const pricingFields: Array<{ label: string; key: PricingKey }> = [
+  { label: "Wedding Package", key: "packagePrice" },
   { label: "Credit / Discount", key: "creditAmount" },
-  { label: "Add-ons", key: "addOnAmount" },
-  { label: "Travel", key: "travelAmount" },
+  { label: "Add-ons Total", key: "addOnAmount" },
+  { label: "Travel fees", key: "travelAmount" },
   { label: "Retainer %", key: "retainerPercent" },
   { label: "Retainer due today", key: "retainerDueToday" },
-  { label: "Remaining balance", key: "remainingBalance" },
-  { label: "Final payment due", key: "finalPaymentDue" },
+  { label: "Total Amt Due after retainer", key: "remainingBalance" },
+  { label: "Due in full by", key: "finalPaymentDue" },
 ];
 
 const signatureFont = '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive';
 
-function EditableField({
-  value,
-  onChange,
+function InlineField({
+  align = "center",
   className = "",
+  onChange,
   placeholder,
+  value,
 }: {
   value: string;
   onChange: (value: string) => void;
-  className?: string;
   placeholder?: string;
+  className?: string;
+  align?: "left" | "center";
 }) {
   return (
     <input
-      className={`min-w-0 border-0 border-b border-dashed border-[#a9a29a] bg-[rgba(31,27,24,0.04)] px-2 py-1 text-center text-[inherit] text-[var(--ink)] outline-none transition focus:border-[var(--forest)] focus:bg-[rgba(47,125,92,0.08)] ${className}`}
+      className={`inline-flex min-w-[7rem] border-0 border-b border-dotted border-[#8f877c] bg-[rgba(31,27,24,0.06)] px-2 py-0.5 text-[inherit] text-[var(--ink)] outline-none transition focus:border-[var(--forest)] focus:bg-[rgba(47,125,92,0.10)] ${
+        align === "left" ? "text-left" : "text-center"
+      } ${className}`}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       value={value}
@@ -62,45 +66,81 @@ function EditableField({
   );
 }
 
+function AutoGrowTextarea({
+  className = "",
+  onChange,
+  value,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!ref.current) {
+      return;
+    }
+
+    ref.current.style.height = "0px";
+    ref.current.style.height = `${ref.current.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      className={`w-full overflow-hidden resize-none border-0 bg-transparent p-0 text-[inherit] text-[var(--ink)] outline-none transition focus:bg-[rgba(47,125,92,0.05)] ${className}`}
+      onChange={(event) => onChange(event.target.value)}
+      rows={1}
+      value={value}
+    />
+  );
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="pt-8 text-center">
+      <div className="mx-auto h-px w-full bg-black/[0.16]" />
+      <h3 className="mt-5 text-[1.9rem] font-semibold text-[var(--ink)]">{children}</h3>
+    </div>
+  );
+}
+
 function SignatureBlock({
+  dateLabel,
   email,
-  label,
   name,
   onClickSign,
-  signedAt,
+  personLabel,
 }: {
-  email: string;
-  label: string;
   name: string;
+  email: string;
+  dateLabel: string;
+  personLabel: string;
   onClickSign: () => void;
-  signedAt: string;
 }) {
   return (
-    <button
-      className="grid gap-2 rounded-[1.2rem] border border-black/[0.08] bg-white px-4 py-4 text-left transition hover:border-[var(--forest)] hover:bg-[rgba(47,125,92,0.04)]"
-      onClick={onClickSign}
-      type="button"
-    >
-      <div className="border-b border-dashed border-[#7e776d] pb-2">
+    <button className="w-full text-left" onClick={onClickSign} type="button">
+      <div className="min-h-16 border-b-2 border-dashed border-[#7f776b] pb-1">
         <p
-          className={`min-h-10 text-[2.1rem] leading-none text-[var(--ink)] ${name ? "" : "opacity-45"}`}
+          className={`text-[3rem] leading-none text-[var(--ink)] transition ${name ? "" : "opacity-40"}`}
           style={{ fontFamily: signatureFont }}
         >
           {name || "Click to sign"}
         </p>
       </div>
-      <div className="flex items-start justify-between gap-4 text-sm text-[var(--muted)]">
-        <div>
-          <p className="font-semibold text-[var(--ink)]">{label}</p>
-          <p className="mt-1">{email || "No email added"}</p>
-        </div>
-        <div className="text-right">
-          <p className="font-semibold text-[var(--ink)]">Signed</p>
-          <p className="mt-1">{signedAt || "Pending"}</p>
-        </div>
+      <div className="mt-2 grid gap-1 text-sm text-[var(--muted)]">
+        <p className="font-semibold text-[var(--ink)]">{personLabel}</p>
+        <p>{email || "No email added"}</p>
+        <p>Signed: {dateLabel || "Pending"}</p>
       </div>
     </button>
   );
+}
+
+function getServiceHeading(serviceType: string) {
+  const label = serviceType.trim() || "Services";
+  return `SERVICES TO BE PROVIDED BY ${label.toUpperCase()}`;
 }
 
 export function ContractWorkspace({
@@ -197,175 +237,267 @@ export function ContractWorkspace({
         </button>
       </div>
 
-      <section className="overflow-hidden rounded-[1.6rem] border border-black/[0.08] bg-white shadow-[0_24px_70px_rgba(59,36,17,0.10)]">
+      <section className="overflow-hidden rounded-[0.6rem] border border-black/[0.08] bg-white shadow-[0_24px_70px_rgba(59,36,17,0.10)]">
         <div
-          className="relative overflow-hidden px-8 py-10 text-white"
+          className="relative overflow-hidden px-8 py-9 text-white sm:px-10"
           style={{
-            backgroundImage: `linear-gradient(135deg, rgba(17,16,15,0.72), rgba(17,16,15,0.18)), url(${document.heroImage})`,
+            backgroundImage: `linear-gradient(135deg, rgba(17,16,15,0.64), rgba(17,16,15,0.16)), url(${document.heroImage})`,
             backgroundPosition: "center",
             backgroundSize: "cover",
           }}
         >
-          <div className="max-w-3xl">
-            <p className="text-xs uppercase tracking-[0.32em] text-white/70">{document.contractLabel}</p>
-            <div className="mt-6 grid gap-3">
-              <EditableField
-                className="max-w-xl text-left text-4xl font-semibold leading-none text-white placeholder:text-white/55"
+          <div className="max-w-xl">
+            <div className="grid gap-2">
+              <InlineField
+                align="left"
+                className="max-w-xl bg-transparent px-0 text-4xl font-semibold leading-none text-white placeholder:text-white/60 focus:bg-transparent"
                 onChange={(value) => updateField("businessName", value)}
-                placeholder="Business name"
                 value={document.businessName}
               />
-              <EditableField
-                className="max-w-sm text-left text-xl font-semibold text-white placeholder:text-white/55"
+              <InlineField
+                align="left"
+                className="max-w-md bg-transparent px-0 text-2xl font-semibold text-white placeholder:text-white/60 focus:bg-transparent"
                 onChange={(value) => updateField("businessOwner", value)}
-                placeholder="Business owner"
                 value={document.businessOwner}
               />
             </div>
           </div>
         </div>
 
-        <div className="grid gap-8 px-7 py-8 text-[var(--ink)] sm:px-8">
-          <div className="grid gap-4 text-center">
-            <EditableField
-              className="mx-auto max-w-sm text-center text-3xl font-semibold"
-              onChange={(value) => updateField("contractTitle", value)}
-              placeholder="Contract title"
-              value={document.contractTitle}
-            />
-            <div className="border-t border-black/[0.14] pt-5">
-              <EditableField
-                className="mx-auto max-w-md text-center text-4xl font-semibold"
-                onChange={(value) => updateField("agreementTitle", value)}
-                placeholder="Agreement title"
-                value={document.agreementTitle}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 text-center text-lg leading-8 text-[var(--muted)]">
-            <p>
-              Entered into on{" "}
-              <EditableField
-                className="w-40 text-base"
-                onChange={(value) => updateField("enteredOn", value)}
-                value={document.enteredOn}
-              />{" "}
-              .
-            </p>
-            <p>
-              Event is on{" "}
-              <EditableField
-                className="w-40 text-base"
-                onChange={(value) => updateField("eventDate", value)}
-                value={document.eventDate}
-              />{" "}
-              at{" "}
-              <EditableField
-                className="w-56 text-base"
-                onChange={(value) => updateField("venue", value)}
-                value={document.venue}
-              />{" "}
-              .
-            </p>
-          </div>
-
-          <div className="grid gap-8 lg:grid-cols-2">
-            <div className="grid gap-3">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">Vendor</p>
-              <EditableField className="text-left text-lg font-semibold" onChange={(value) => updateField("businessName", value)} value={document.businessName} />
-              <EditableField className="text-left" onChange={(value) => updateField("businessEmail", value)} value={document.businessEmail} />
-              <EditableField className="text-left" onChange={(value) => updateField("businessAddress", value)} value={document.businessAddress} />
-              <EditableField className="text-left" onChange={(value) => updateField("businessPhone", value)} value={document.businessPhone} />
-            </div>
-            <div className="grid gap-3">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">Client</p>
-              <EditableField className="text-left text-lg font-semibold" onChange={(value) => updateField("clientName", value)} value={document.clientName} />
-              <EditableField className="text-left" onChange={(value) => updateField("clientEmail", value)} value={document.clientEmail} />
-              <EditableField className="text-left" onChange={(value) => updateField("clientAddress", value)} value={document.clientAddress} />
-              <EditableField className="text-left" onChange={(value) => updateField("clientPhone", value)} value={document.clientPhone} />
-            </div>
-          </div>
-
-          <div className="grid gap-3 rounded-[1.3rem] bg-[rgba(247,241,232,0.58)] p-5">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="grid gap-2">
-                <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Service type</p>
-                <EditableField className="text-left font-semibold" onChange={(value) => updateField("serviceType", value)} value={document.serviceType} />
-              </div>
-              <div className="grid gap-2">
-                <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Collection</p>
-                <EditableField className="text-left font-semibold" onChange={(value) => updateField("packageName", value)} value={document.packageName} />
-              </div>
-            </div>
-            <label className="grid gap-2">
-              <span className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Overview</span>
-              <textarea
-                className="min-h-20 rounded-[1rem] border border-black/[0.08] bg-white px-4 py-3 text-sm leading-7 text-[var(--ink)] outline-none transition focus:border-[var(--forest)]"
-                onChange={(event) => updateField("packageOverview", event.target.value)}
-                value={document.packageOverview}
-              />
-            </label>
-            <div className="grid gap-2">
-              <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Deliverables</p>
-              <div className="grid gap-2">
-                {document.deliverables.map((deliverable, index) => (
-                  <EditableField
-                    key={`deliverable-${index}`}
-                    className="text-left"
-                    onChange={(value) => updateDeliverable(index, value)}
-                    value={deliverable}
+        <div className="mx-auto max-w-[8.5in] px-6 py-8 sm:px-8">
+          <div className="grid gap-8 text-[1.02rem] leading-8 text-[var(--muted)]">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--ink)]">
+                {document.contractLabel}
+              </p>
+              <div className="mt-5 text-center">
+                <InlineField
+                  className="mx-auto max-w-md text-center text-[2rem] font-semibold text-[var(--ink)]"
+                  onChange={(value) => updateField("contractTitle", value)}
+                  value={document.contractTitle}
+                />
+                <div className="mt-5 border-t border-black/[0.16] pt-5">
+                  <InlineField
+                    className="mx-auto max-w-xl text-center text-[2.35rem] font-semibold text-[var(--ink)]"
+                    onChange={(value) => updateField("agreementTitle", value)}
+                    value={document.agreementTitle}
                   />
-                ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="grid gap-4 rounded-[1.3rem] bg-[rgba(247,241,232,0.58)] p-5 md:grid-cols-2 xl:grid-cols-4">
-            {pricingFields.map(({ label, key }) => (
-              <label className="grid gap-2" key={key}>
-                <span className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">{label}</span>
-                <EditableField
-                  className="text-left font-semibold"
-                  onChange={(value) => updateField(key, value)}
-                  value={String(document[key] || "")}
+            <div className="space-y-2 text-center">
+              <p>
+                Entered into on{" "}
+                <InlineField
+                  className="w-40 text-base"
+                  onChange={(value) => updateField("enteredOn", value)}
+                  value={document.enteredOn}
                 />
-              </label>
-            ))}
-          </div>
+                .
+              </p>
+              <p>
+                Event is on{" "}
+                <InlineField
+                  className="w-40 text-base"
+                  onChange={(value) => updateField("eventDate", value)}
+                  value={document.eventDate}
+                />{" "}
+                at{" "}
+                <InlineField
+                  className="w-56 text-base"
+                  onChange={(value) => updateField("venue", value)}
+                  value={document.venue}
+                />
+                .
+              </p>
+            </div>
 
-          <div className="grid gap-6">
-            {document.sections.map((section, index) => (
-              <div className="grid gap-3 border-t border-black/[0.12] pt-6" key={`${section.heading}-${index}`}>
-                <EditableField
-                  className="max-w-xl text-left text-2xl font-semibold"
-                  onChange={(value) => updateSection(index, "heading", value)}
-                  value={section.heading}
+            <div className="space-y-5">
+              <p>Parties:</p>
+              <div className="space-y-2">
+                <p>Known as &quot;Vendors&quot;</p>
+                <InlineField align="left" className="w-44 text-left" onChange={(value) => updateField("businessName", value)} value={document.businessName} />
+                <InlineField align="left" className="w-60 text-left" onChange={(value) => updateField("businessEmail", value)} value={document.businessEmail} />
+                <InlineField align="left" className="w-full max-w-xl text-left" onChange={(value) => updateField("businessAddress", value)} value={document.businessAddress} />
+                <InlineField align="left" className="w-48 text-left" onChange={(value) => updateField("businessPhone", value)} value={document.businessPhone} />
+              </div>
+              <p>and</p>
+              <div className="space-y-2">
+                <p>Known as &quot;Client&quot;</p>
+                <InlineField align="left" className="w-48 text-left" onChange={(value) => updateField("clientName", value)} value={document.clientName} />
+                <InlineField align="left" className="w-60 text-left" onChange={(value) => updateField("clientEmail", value)} value={document.clientEmail} />
+                <InlineField align="left" className="w-full max-w-xl text-left" onChange={(value) => updateField("clientAddress", value)} value={document.clientAddress} />
+                <InlineField align="left" className="w-full max-w-md text-left" onChange={(value) => updateField("clientPhone", value)} value={document.clientPhone} />
+              </div>
+              <p>
+                Collectively, all of the above people or businesses entering this Agreement will be referred to as the &quot;Parties.&quot;
+              </p>
+            </div>
+
+            <SectionHeading>Purpose of the Agreement</SectionHeading>
+
+            <div className="space-y-3">
+              <p>
+                Client wishes to hire Vendors to provide services relating to Client&apos;s{" "}
+                <InlineField
+                  className="w-36 text-base"
+                  onChange={(value) => updateField("serviceType", value)}
+                  value={document.serviceType}
+                />{" "}
+                as detailed in this Agreement. Vendor has agreed to provide such services according to the terms of this Agreement.
+              </p>
+            </div>
+
+            {document.sections.map((section, index) => {
+              const isServices = section.heading.toLowerCase().includes("services");
+              const isPleaseRead =
+                section.heading.toLowerCase().includes("cancellation") ||
+                section.heading.toLowerCase().includes("illness") ||
+                section.heading.toLowerCase().includes("reschedule");
+
+              return (
+                <div className="space-y-4" key={`${section.heading}-${index}`}>
+                  {isPleaseRead ? (
+                    <p className="pt-5 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--ink)]">
+                      Please read
+                    </p>
+                  ) : null}
+
+                  {section.heading === "Terms" ? (
+                    <SectionHeading>
+                      <span className="underline decoration-black/[0.45] underline-offset-4">Terms</span>
+                    </SectionHeading>
+                  ) : null}
+
+                  {isServices ? (
+                    <div className="pt-2 text-center">
+                      <h4 className="text-[1.65rem] font-semibold text-[var(--ink)]">{section.heading}</h4>
+                      <p className="mt-8 text-[1.45rem] font-semibold uppercase text-[var(--ink)]">
+                        {getServiceHeading(document.businessName)}
+                      </p>
+                    </div>
+                  ) : section.heading !== "Terms" ? (
+                    <AutoGrowTextarea
+                      className="text-[1.85rem] font-semibold leading-[1.25] text-[var(--ink)]"
+                      onChange={(value) => updateSection(index, "heading", value)}
+                      value={section.heading}
+                    />
+                  ) : null}
+
+                  {isServices ? (
+                    <div className="space-y-6">
+                      <div className="italic text-[var(--muted)]">
+                        <InlineField
+                          align="left"
+                          className="w-72 text-left italic"
+                          onChange={(value) => updateField("packageName", value)}
+                          value={document.packageName}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        {document.deliverables.map((deliverable, deliverableIndex) => (
+                          <InlineField
+                            key={`deliverable-${deliverableIndex}`}
+                            align="left"
+                            className="w-full text-left"
+                            onChange={(value) => updateDeliverable(deliverableIndex, value)}
+                            value={deliverable}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="space-y-3 pt-4">
+                        <p className="font-semibold uppercase tracking-[0.06em] text-[var(--ink)]">
+                          Breakdown
+                        </p>
+                        <div className="space-y-2">
+                          {pricingFields.map(({ label, key }) => (
+                            <p key={key}>
+                              <span className="font-medium text-[var(--ink)]">{label}:</span>{" "}
+                              <InlineField
+                                align="left"
+                                className="w-48 text-left text-base"
+                                onChange={(value) => updateField(key, value)}
+                                value={String(document[key] || "")}
+                              />
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+
+                      <label className="grid gap-2 pt-2">
+                        <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--ink)]">
+                          Package notes
+                        </span>
+                        <AutoGrowTextarea
+                          className="leading-8"
+                          onChange={(value) => updateField("packageOverview", value)}
+                          value={document.packageOverview}
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <AutoGrowTextarea
+                      className="whitespace-pre-wrap leading-8"
+                      onChange={(value) => updateSection(index, "body", value)}
+                      value={section.body}
+                    />
+                  )}
+                </div>
+              );
+            })}
+
+            <SectionHeading>General Provisions</SectionHeading>
+
+            <div className="space-y-4">
+              <p>
+                The undersigned have read this contract, understand its terms, and agree to be bound thereby. Any additions, deletions, or revisions must be made in writing and approved by all responsible parties. The parties agree that this contract is the complete and exclusive statement of the mutual understanding of the parties.
+              </p>
+              <p>
+                <span className="font-semibold text-[var(--ink)]">Notice.</span> Parties shall provide effective notice to each other via approved written delivery methods including email.
+              </p>
+              <div className="space-y-2 pl-4">
+                <p>
+                  1. Vendor&apos;s Email:{" "}
+                  <InlineField
+                    align="left"
+                    className="w-72 text-left text-base"
+                    onChange={(value) => updateField("businessEmail", value)}
+                    value={document.businessEmail}
+                  />
+                </p>
+                <p>
+                  2. Client Email:{" "}
+                  <InlineField
+                    align="left"
+                    className="w-72 text-left text-base"
+                    onChange={(value) => updateField("clientEmail", value)}
+                    value={document.clientEmail}
+                  />
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 border-t border-black/[0.16] pt-12">
+              <div className="grid gap-12 lg:grid-cols-2">
+                <SignatureBlock
+                  dateLabel={document.vendorSignature.signedAt}
+                  email={document.businessEmail}
+                  name={document.vendorSignature.name}
+                  onClickSign={signVendor}
+                  personLabel={document.businessOwner || "Vendor"}
                 />
-                <textarea
-                  className="min-h-32 rounded-[1rem] border border-black/[0.08] bg-white px-4 py-3 text-base leading-8 text-[var(--ink)] outline-none transition focus:border-[var(--forest)]"
-                  onChange={(event) => updateSection(index, "body", event.target.value)}
-                  value={section.body}
+                <SignatureBlock
+                  dateLabel={document.clientSignature.signedAt}
+                  email={document.clientEmail}
+                  name={document.clientSignature.name}
+                  onClickSign={signClient}
+                  personLabel={document.clientName || "Client"}
                 />
               </div>
-            ))}
-          </div>
-
-          <div className="grid gap-4 border-t border-black/[0.12] pt-8 lg:grid-cols-2">
-            <SignatureBlock
-              email={document.vendorSignature.email || document.businessEmail}
-              label={document.businessOwner || "Vendor"}
-              name={document.vendorSignature.name}
-              onClickSign={signVendor}
-              signedAt={document.vendorSignature.signedAt}
-            />
-            <SignatureBlock
-              email={document.clientSignature.email || document.clientEmail}
-              label={document.clientName || "Client"}
-              name={document.clientSignature.name}
-              onClickSign={signClient}
-              signedAt={document.clientSignature.signedAt}
-            />
+            </div>
           </div>
         </div>
       </section>

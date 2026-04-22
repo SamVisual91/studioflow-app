@@ -5,6 +5,26 @@ import { getDb } from "@/lib/db";
 
 const signatureFont = '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive';
 
+const pricingLabels: Array<{ label: string; key: keyof Pick<
+  ReturnType<typeof parseContractDocument>,
+  | "packagePrice"
+  | "creditAmount"
+  | "addOnAmount"
+  | "travelAmount"
+  | "retainerPercent"
+  | "retainerDueToday"
+  | "remainingBalance"
+  | "finalPaymentDue"
+> }> = [
+  { label: "Wedding Package", key: "packagePrice" },
+  { label: "Credit / Discount", key: "creditAmount" },
+  { label: "Add-ons Total", key: "addOnAmount" },
+  { label: "Travel fees", key: "travelAmount" },
+  { label: "Retainer due today", key: "retainerDueToday" },
+  { label: "Total Amt Due after retainer", key: "remainingBalance" },
+  { label: "Due in full by", key: "finalPaymentDue" },
+];
+
 export default async function PublicContractPage({
   params,
   searchParams,
@@ -30,7 +50,7 @@ export default async function PublicContractPage({
 
   return (
     <main className="min-h-screen bg-[var(--canvas)] px-3 py-8 text-[var(--ink)]">
-      <div className="mx-auto max-w-5xl overflow-hidden rounded-[1.6rem] border border-black/[0.08] bg-white shadow-[0_24px_80px_rgba(58,34,17,0.12)]">
+      <div className="mx-auto max-w-5xl overflow-hidden rounded-[0.6rem] border border-black/[0.08] bg-white shadow-[0_24px_80px_rgba(58,34,17,0.12)]">
         {query.signed === "client" ? (
           <Banner message="Contract signed successfully." tone="success" />
         ) : null}
@@ -39,129 +59,196 @@ export default async function PublicContractPage({
         ) : null}
 
         <div
-          className="relative overflow-hidden px-8 py-10 text-white"
+          className="relative overflow-hidden px-8 py-9 text-white sm:px-10"
           style={{
-            backgroundImage: `linear-gradient(135deg, rgba(17,16,15,0.72), rgba(17,16,15,0.18)), url(${contract.heroImage})`,
+            backgroundImage: `linear-gradient(135deg, rgba(17,16,15,0.64), rgba(17,16,15,0.16)), url(${contract.heroImage})`,
             backgroundPosition: "center",
             backgroundSize: "cover",
           }}
         >
-          <p className="text-xs uppercase tracking-[0.32em] text-white/70">{contract.contractLabel}</p>
-          <div className="mt-6">
+          <div className="max-w-xl">
             <h1 className="text-4xl font-semibold leading-none">{contract.businessName}</h1>
-            <p className="mt-3 text-xl font-semibold text-white/86">{contract.businessOwner}</p>
+            <p className="mt-3 text-2xl font-semibold text-white/88">{contract.businessOwner}</p>
           </div>
         </div>
 
-        <div className="grid gap-8 px-7 py-8 sm:px-8">
-          <div className="grid gap-4 text-center">
-            <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">{contract.contractLabel}</p>
-            <h2 className="text-3xl font-semibold">{contract.contractTitle}</h2>
-            <div className="border-t border-black/[0.14] pt-5">
-              <h3 className="text-4xl font-semibold">{contract.agreementTitle}</h3>
-            </div>
-          </div>
-
-          <div className="grid gap-4 text-center text-lg leading-8 text-[var(--muted)]">
-            <p>
-              Entered into on <InlineValue>{contract.enteredOn}</InlineValue>.
-            </p>
-            <p>
-              Event is on <InlineValue>{contract.eventDate}</InlineValue> at{" "}
-              <InlineValue>{contract.venue}</InlineValue>.
-            </p>
-          </div>
-
-          <div className="grid gap-8 lg:grid-cols-2">
-            <PartyCard
-              email={contract.businessEmail}
-              heading="Vendor"
-              lines={[contract.businessName, contract.businessAddress, contract.businessPhone]}
-            />
-            <PartyCard
-              email={contract.clientEmail}
-              heading="Client"
-              lines={[contract.clientName, contract.clientAddress, contract.clientPhone]}
-            />
-          </div>
-
-          <div className="grid gap-3 rounded-[1.3rem] bg-[rgba(247,241,232,0.58)] p-5">
-            <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Service overview</p>
-            <p className="text-lg font-semibold">{contract.serviceType} | {contract.packageName}</p>
-            <p className="text-sm leading-7 text-[var(--muted)]">{contract.packageOverview}</p>
-            <div className="grid gap-2 pt-2">
-              {contract.deliverables.map((deliverable) => (
-                <p key={deliverable} className="text-sm leading-7 text-[var(--ink)]">
-                  - {deliverable}
-                </p>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-4 rounded-[1.3rem] bg-[rgba(247,241,232,0.58)] p-5 md:grid-cols-2 xl:grid-cols-4">
-            <Metric label="Package" value={contract.packagePrice} />
-            <Metric label="Credit / Discount" value={contract.creditAmount} />
-            <Metric label="Add-ons" value={contract.addOnAmount} />
-            <Metric label="Travel" value={contract.travelAmount} />
-            <Metric label="Retainer %" value={contract.retainerPercent} />
-            <Metric label="Retainer due today" value={contract.retainerDueToday} />
-            <Metric label="Remaining balance" value={contract.remainingBalance} />
-            <Metric label="Final payment due" value={contract.finalPaymentDue} />
-          </div>
-
-          <div className="grid gap-6">
-            {contract.sections.map((section) => (
-              <section className="grid gap-3 border-t border-black/[0.12] pt-6" key={section.heading}>
-                <h4 className="text-2xl font-semibold">{section.heading}</h4>
-                <p className="whitespace-pre-line text-base leading-8 text-[var(--ink)]">{section.body}</p>
-              </section>
-            ))}
-          </div>
-
-          <div className="grid gap-4 border-t border-black/[0.12] pt-8 lg:grid-cols-2">
-            <SignatureCard
-              email={contract.businessEmail}
-              label={contract.businessOwner}
-              name={contract.vendorSignature.name}
-              signedAt={contract.vendorSignature.signedAt}
-            />
-
-            <form action={signProjectContractAction} className="grid gap-3 rounded-[1.2rem] border border-black/[0.08] bg-white px-4 py-4">
-              <input name="token" type="hidden" value={token} />
-              <input name="signer" type="hidden" value="client" />
-              <div className="border-b border-dashed border-[#7e776d] pb-2">
-                <p
-                  className={`min-h-10 text-[2.1rem] leading-none text-[var(--ink)] ${
-                    contract.clientSignature.name ? "" : "opacity-45"
-                  }`}
-                  style={{ fontFamily: signatureFont }}
-                >
-                  {contract.clientSignature.name || "Click to sign"}
-                </p>
+        <div className="mx-auto max-w-[8.5in] px-6 py-8 sm:px-8">
+          <div className="space-y-8 text-[1.02rem] leading-8 text-[var(--muted)]">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--ink)]">
+                {contract.contractLabel}
+              </p>
+              <div className="mt-5 text-center">
+                <h2 className="text-[2rem] font-semibold text-[var(--ink)]">{contract.contractTitle}</h2>
+                <div className="mt-5 border-t border-black/[0.16] pt-5">
+                  <h3 className="text-[2.35rem] font-semibold text-[var(--ink)]">{contract.agreementTitle}</h3>
+                </div>
               </div>
-              <label className="grid gap-2 text-sm">
-                <span className="font-semibold text-[var(--ink)]">Signature name</span>
-                <input
-                  className="rounded-[0.9rem] border border-black/[0.08] px-3 py-2 outline-none transition focus:border-[var(--forest)]"
-                  defaultValue={contract.clientSignature.name || contract.clientName}
-                  name="signatureName"
-                  placeholder="Type your full name"
+            </div>
+
+            <div className="space-y-2 text-center">
+              <p>
+                Entered into on <InlineValue>{contract.enteredOn}</InlineValue>.
+              </p>
+              <p>
+                Event is on <InlineValue>{contract.eventDate}</InlineValue> at{" "}
+                <InlineValue>{contract.venue}</InlineValue>.
+              </p>
+            </div>
+
+            <div className="space-y-5">
+              <p>Parties:</p>
+              <div className="space-y-2">
+                <p>Known as &quot;Vendors&quot;</p>
+                <InlineValue>{contract.businessName}</InlineValue>
+                <InlineValue>{contract.businessEmail}</InlineValue>
+                <InlineValue>{contract.businessAddress}</InlineValue>
+                <InlineValue>{contract.businessPhone}</InlineValue>
+              </div>
+              <p>and</p>
+              <div className="space-y-2">
+                <p>Known as &quot;Client&quot;</p>
+                <InlineValue>{contract.clientName}</InlineValue>
+                <InlineValue>{contract.clientEmail}</InlineValue>
+                <InlineValue>{contract.clientAddress}</InlineValue>
+                <InlineValue>{contract.clientPhone}</InlineValue>
+              </div>
+              <p>
+                Collectively, all of the above people or businesses entering this Agreement will be referred to as the &quot;Parties.&quot;
+              </p>
+            </div>
+
+            <SectionHeading>Purpose of the Agreement</SectionHeading>
+
+            <p>
+              Client wishes to hire Vendors to provide services relating to Client&apos;s{" "}
+              <InlineValue>{contract.serviceType}</InlineValue> as detailed in this Agreement. Vendor has
+              agreed to provide such services according to the terms of this Agreement.
+            </p>
+
+            {contract.sections.map((section) => {
+              const isServices = section.heading.toLowerCase().includes("services");
+              const isPleaseRead =
+                section.heading.toLowerCase().includes("cancellation") ||
+                section.heading.toLowerCase().includes("illness") ||
+                section.heading.toLowerCase().includes("reschedule");
+
+              return (
+                <div className="space-y-4" key={section.heading}>
+                  {isPleaseRead ? (
+                    <p className="pt-5 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--ink)]">
+                      Please read
+                    </p>
+                  ) : null}
+
+                  {section.heading === "Terms" ? (
+                    <SectionHeading>
+                      <span className="underline decoration-black/[0.45] underline-offset-4">Terms</span>
+                    </SectionHeading>
+                  ) : null}
+
+                  {isServices ? (
+                    <div className="pt-2 text-center">
+                      <h4 className="text-[1.65rem] font-semibold text-[var(--ink)]">{section.heading}</h4>
+                      <p className="mt-8 text-[1.45rem] font-semibold uppercase text-[var(--ink)]">
+                        Services to be provided by {contract.businessName}
+                      </p>
+                    </div>
+                  ) : section.heading !== "Terms" ? (
+                    <h4 className="text-[1.85rem] font-semibold leading-[1.25] text-[var(--ink)]">
+                      {section.heading}
+                    </h4>
+                  ) : null}
+
+                  {isServices ? (
+                    <div className="space-y-6">
+                      <p className="italic text-[var(--muted)]">{contract.packageName}</p>
+                      <div className="space-y-2">
+                        {contract.deliverables.map((deliverable) => (
+                          <p key={deliverable}>{deliverable}</p>
+                        ))}
+                      </div>
+
+                      <div className="space-y-3 pt-4">
+                        <p className="font-semibold uppercase tracking-[0.06em] text-[var(--ink)]">Breakdown</p>
+                        <div className="space-y-2">
+                          {pricingLabels.map(({ label, key }) => (
+                            <p key={key}>
+                              <span className="font-medium text-[var(--ink)]">{label}:</span>{" "}
+                              <InlineValue>{String(contract[key] || "")}</InlineValue>
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+
+                      <p>{contract.packageOverview}</p>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-line">{section.body}</p>
+                  )}
+                </div>
+              );
+            })}
+
+            <SectionHeading>General Provisions</SectionHeading>
+
+            <div className="space-y-4">
+              <p>
+                The undersigned have read this contract, understand its terms, and agree to be bound thereby. Any additions, deletions, or revisions must be made in writing and approved by all responsible parties. The parties agree that this contract is the complete and exclusive statement of the mutual understanding of the parties.
+              </p>
+              <p>
+                <span className="font-semibold text-[var(--ink)]">Notice.</span> Parties shall provide effective notice to each other via approved written delivery methods including email.
+              </p>
+              <div className="space-y-2 pl-4">
+                <p>1. Vendor&apos;s Email: <InlineValue>{contract.businessEmail}</InlineValue></p>
+                <p>2. Client Email: <InlineValue>{contract.clientEmail}</InlineValue></p>
+              </div>
+            </div>
+
+            <div className="space-y-4 border-t border-black/[0.16] pt-12">
+              <div className="grid gap-12 lg:grid-cols-2">
+                <StaticSignature
+                  dateLabel={contract.vendorSignature.signedAt}
+                  email={contract.businessEmail}
+                  name={contract.vendorSignature.name}
+                  personLabel={contract.businessOwner || "Vendor"}
                 />
-              </label>
-              <div className="flex items-center justify-between gap-4 text-sm text-[var(--muted)]">
-                <div>
-                  <p className="font-semibold text-[var(--ink)]">{contract.clientName || "Client"}</p>
-                  <p className="mt-1">{contract.clientEmail || "No email added"}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-[var(--ink)]">Signed</p>
-                  <p className="mt-1">{contract.clientSignature.signedAt || "Pending"}</p>
-                </div>
+
+                <form action={signProjectContractAction} className="space-y-4">
+                  <input name="token" type="hidden" value={token} />
+                  <input name="signer" type="hidden" value="client" />
+                  <button className="block w-full text-left" type="submit">
+                    <div className="min-h-16 border-b-2 border-dashed border-[#7f776b] pb-1">
+                      <p
+                        className={`text-[3rem] leading-none text-[var(--ink)] transition ${
+                          contract.clientSignature.name ? "" : "opacity-40"
+                        }`}
+                        style={{ fontFamily: signatureFont }}
+                      >
+                        {contract.clientSignature.name || contract.clientName || "Click to sign"}
+                      </p>
+                    </div>
+                  </button>
+                  <label className="block text-sm">
+                    <span className="font-semibold text-[var(--ink)]">Signature name</span>
+                    <input
+                      className="mt-2 w-full rounded-[0.85rem] border border-black/[0.10] px-3 py-2 outline-none transition focus:border-[var(--forest)]"
+                      defaultValue={contract.clientSignature.name || contract.clientName}
+                      name="signatureName"
+                      placeholder="Type your full name"
+                    />
+                  </label>
+                  <div className="grid gap-1 text-sm text-[var(--muted)]">
+                    <p className="font-semibold text-[var(--ink)]">{contract.clientName || "Client"}</p>
+                    <p>{contract.clientEmail || "No email added"}</p>
+                    <p>Signed: {contract.clientSignature.signedAt || "Pending"}</p>
+                  </div>
+                  <button className="rounded-full bg-[var(--forest)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+                    Sign contract
+                  </button>
+                </form>
               </div>
-              <button className="rounded-full bg-[var(--forest)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-                Sign contract
-              </button>
-            </form>
+            </div>
           </div>
         </div>
       </div>
@@ -179,68 +266,47 @@ function Banner({ message, tone }: { message: string; tone: "success" | "warning
 }
 
 function InlineValue({ children }: { children: React.ReactNode }) {
-  return <span className="border-b border-dashed border-[#a9a29a] bg-[rgba(31,27,24,0.04)] px-2 py-1 text-[var(--ink)]">{children || "Not added"}</span>;
+  return (
+    <span className="inline-flex min-w-[7rem] border-b border-dotted border-[#8f877c] bg-[rgba(31,27,24,0.06)] px-2 py-0.5 text-[var(--ink)]">
+      {children || "Not added"}
+    </span>
+  );
 }
 
-function PartyCard({
-  email,
-  heading,
-  lines,
-}: {
-  email: string;
-  heading: string;
-  lines: string[];
-}) {
+function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid gap-3">
-      <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">{heading}</p>
-      {lines.filter(Boolean).map((line) => (
-        <InlineValue key={line}>{line}</InlineValue>
-      ))}
-      <InlineValue>{email}</InlineValue>
+    <div className="pt-8 text-center">
+      <div className="mx-auto h-px w-full bg-black/[0.16]" />
+      <h3 className="mt-5 text-[1.9rem] font-semibold text-[var(--ink)]">{children}</h3>
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-2">
-      <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">{label}</p>
-      <p className="text-lg font-semibold text-[var(--ink)]">{value || "0"}</p>
-    </div>
-  );
-}
-
-function SignatureCard({
+function StaticSignature({
+  dateLabel,
   email,
-  label,
   name,
-  signedAt,
+  personLabel,
 }: {
-  email: string;
-  label: string;
   name: string;
-  signedAt: string;
+  email: string;
+  dateLabel: string;
+  personLabel: string;
 }) {
   return (
-    <div className="grid gap-2 rounded-[1.2rem] border border-black/[0.08] bg-white px-4 py-4">
-      <div className="border-b border-dashed border-[#7e776d] pb-2">
+    <div>
+      <div className="min-h-16 border-b-2 border-dashed border-[#7f776b] pb-1">
         <p
-          className={`min-h-10 text-[2.1rem] leading-none text-[var(--ink)] ${name ? "" : "opacity-45"}`}
+          className={`text-[3rem] leading-none text-[var(--ink)] transition ${name ? "" : "opacity-40"}`}
           style={{ fontFamily: signatureFont }}
         >
           {name || "Pending signature"}
         </p>
       </div>
-      <div className="flex items-start justify-between gap-4 text-sm text-[var(--muted)]">
-        <div>
-          <p className="font-semibold text-[var(--ink)]">{label}</p>
-          <p className="mt-1">{email || "No email added"}</p>
-        </div>
-        <div className="text-right">
-          <p className="font-semibold text-[var(--ink)]">Signed</p>
-          <p className="mt-1">{signedAt || "Pending"}</p>
-        </div>
+      <div className="mt-2 grid gap-1 text-sm text-[var(--muted)]">
+        <p className="font-semibold text-[var(--ink)]">{personLabel}</p>
+        <p>{email || "No email added"}</p>
+        <p>Signed: {dateLabel || "Pending"}</p>
       </div>
     </div>
   );
