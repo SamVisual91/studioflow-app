@@ -263,11 +263,47 @@ type GraphMessage = {
       name?: string;
     };
   };
+  toRecipients?: Array<{
+    emailAddress?: {
+      address?: string;
+      name?: string;
+    };
+  }>;
+  ccRecipients?: Array<{
+    emailAddress?: {
+      address?: string;
+      name?: string;
+    };
+  }>;
+  replyTo?: Array<{
+    emailAddress?: {
+      address?: string;
+      name?: string;
+    };
+  }>;
   body?: {
     contentType?: string;
     content?: string;
   };
 };
+
+function normalizeGraphRecipientAddresses(
+  recipients:
+    | Array<{
+        emailAddress?: {
+          address?: string;
+        };
+      }>
+    | undefined
+) {
+  if (!Array.isArray(recipients)) {
+    return [];
+  }
+
+  return recipients
+    .map((recipient) => String(recipient?.emailAddress?.address || "").trim().toLowerCase())
+    .filter(Boolean);
+}
 
 export async function fetchMicrosoftGraphMessage(messageId: string) {
   const mailboxUserId = getMicrosoftGraphMailboxUserId();
@@ -278,7 +314,8 @@ export async function fetchMicrosoftGraphMessage(messageId: string) {
 
   const accessToken = await getMicrosoftGraphAccessToken();
   const searchParams = new URLSearchParams({
-    $select: "id,internetMessageId,subject,bodyPreview,receivedDateTime,from,body",
+    $select:
+      "id,internetMessageId,subject,bodyPreview,receivedDateTime,from,toRecipients,ccRecipients,replyTo,body",
   });
 
   const response = await fetch(
@@ -299,6 +336,7 @@ export async function fetchMicrosoftGraphMessage(messageId: string) {
 
   return {
     externalMessageId: String(message.internetMessageId || message.id || "").trim(),
+    ccAddresses: normalizeGraphRecipientAddresses(message.ccRecipients),
     fromAddress: String(message.from?.emailAddress?.address || "").trim().toLowerCase(),
     fromName: String(message.from?.emailAddress?.name || "").trim(),
     html:
@@ -306,7 +344,9 @@ export async function fetchMicrosoftGraphMessage(messageId: string) {
         ? String(message.body?.content || "")
         : "",
     previewText: String(message.bodyPreview || "").trim(),
+    replyToAddresses: normalizeGraphRecipientAddresses(message.replyTo),
     subject: String(message.subject || "").trim(),
     timestamp: String(message.receivedDateTime || "").trim() || new Date().toISOString(),
+    toAddresses: normalizeGraphRecipientAddresses(message.toRecipients),
   };
 }

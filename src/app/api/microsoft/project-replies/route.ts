@@ -6,7 +6,11 @@ import {
   getMicrosoftGraphWebhookClientState,
 } from "@/lib/microsoft-graph-mail";
 import { upsertInboundProjectReply } from "@/lib/project-inbox";
-import { extractProjectIdFromSubject, stripProjectReplyToken } from "@/lib/reply-routing";
+import {
+  extractProjectIdFromReplyAddress,
+  extractProjectIdFromSubject,
+  stripProjectReplyToken,
+} from "@/lib/reply-routing";
 
 type GraphNotification = {
   changeType?: string;
@@ -73,7 +77,14 @@ async function processNotification(notification: GraphNotification) {
     return;
   }
 
-  const projectId = extractProjectIdFromSubject(message.subject) || findProjectIdByReplyAddress(message.fromAddress);
+  const projectId =
+    extractProjectIdFromReplyAddress([
+      ...message.replyToAddresses,
+      ...message.toAddresses,
+      ...message.ccAddresses,
+    ]) ||
+    extractProjectIdFromSubject(message.subject) ||
+    findProjectIdByReplyAddress(message.fromAddress);
 
   if (!projectId) {
     return;
