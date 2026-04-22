@@ -247,30 +247,6 @@ function SignatureBlock({
   );
 }
 
-function SectionActionButton({
-  children,
-  onClick,
-  tone = "default",
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  tone?: "default" | "danger";
-}) {
-  return (
-    <button
-      className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition ${
-        tone === "danger"
-          ? "border-[rgba(207,114,79,0.24)] text-[var(--accent)] hover:bg-[rgba(207,114,79,0.08)]"
-          : "border-black/[0.10] text-[var(--ink)] hover:bg-[rgba(31,27,24,0.05)]"
-      }`}
-      onClick={onClick}
-      type="button"
-    >
-      {children}
-    </button>
-  );
-}
-
 export function ContractWorkspace({
   action,
   formId,
@@ -282,8 +258,15 @@ export function ContractWorkspace({
 }: Props) {
   const [document, setDocument] = useState<ContractDocument>(() => createDefaultContractDocument(initialDocument));
   const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
+  const [autosaveState, setAutosaveState] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState("");
   const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const savedRangeRef = useRef<Range | null>(null);
+  const autosaveResetTimeoutRef = useRef<number | null>(null);
+  const hasMountedRef = useRef(false);
+  const autosaveProjectId = hiddenFields?.projectId || "";
+  const autosaveFileId = hiddenFields?.fileId || "";
+  const canAutosave = Boolean(autosaveProjectId && autosaveFileId);
 
   useEffect(() => {
     setDocument(createDefaultContractDocument(initialDocument));
@@ -315,6 +298,88 @@ export function ContractWorkspace({
   const serializedDocument = useMemo(() => serializeContractDocument(document), [document]);
   const summary = useMemo(() => getContractDocumentSummary(document), [document]);
 
+  useEffect(() => {
+    if (!canAutosave) {
+      return;
+    }
+
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    setAutosaveState("dirty");
+
+    const timeout = window.setTimeout(async () => {
+      setAutosaveState("saving");
+
+      try {
+        const response = await fetch(`/api/projects/${autosaveProjectId}/files/${autosaveFileId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fileType: hiddenFields?.fileType || "CONTRACT",
+            title: document.contractTitle,
+            summary,
+            status: document.clientSignature.signedAt ? "Signed" : "Draft",
+            visibility: "Shared",
+            body: serializedDocument,
+          }),
+        });
+
+        if (!response.ok) {
+          setAutosaveState("error");
+          return;
+        }
+
+        setAutosaveState("saved");
+        setLastSavedAt(
+          new Intl.DateTimeFormat("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+          }).format(new Date())
+        );
+
+        if (autosaveResetTimeoutRef.current) {
+          window.clearTimeout(autosaveResetTimeoutRef.current);
+        }
+
+        autosaveResetTimeoutRef.current = window.setTimeout(() => {
+          setAutosaveState((current) => (current === "saved" ? "idle" : current));
+        }, 2400);
+      } catch {
+        setAutosaveState("error");
+      }
+    }, 700);
+
+    return () => window.clearTimeout(timeout);
+  }, [canAutosave, autosaveProjectId, autosaveFileId, hiddenFields?.fileType, document, serializedDocument, summary]);
+
+  useEffect(() => {
+    return () => {
+      if (autosaveResetTimeoutRef.current) {
+        window.clearTimeout(autosaveResetTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const autosaveLabel =
+    autosaveState === "saving"
+      ? "Saving"
+      : autosaveState === "saved"
+        ? lastSavedAt
+          ? `Saved at ${lastSavedAt}`
+          : "Saved"
+        : autosaveState === "error"
+          ? "Autosave issue"
+          : autosaveState === "dirty"
+            ? "Unsaved"
+            : canAutosave
+              ? "Autosave on"
+              : "Save once to enable autosave";
+
   function updateField<Key extends keyof ContractDocument>(key: Key, value: ContractDocument[Key]) {
     setDocument((current) => ({
       ...current,
@@ -334,38 +399,6 @@ export function ContractWorkspace({
           : section
       ),
     }));
-  }
-
-  function addSection(afterIndex?: number) {
-    setDocument((current) => {
-      const nextSection = {
-        heading: "New Section Title",
-        body: "",
-      };
-      const sections = [...current.sections];
-      if (typeof afterIndex === "number" && afterIndex >= 0) {
-        sections.splice(afterIndex + 1, 0, nextSection);
-      } else {
-        sections.push(nextSection);
-      }
-      return {
-        ...current,
-        sections,
-      };
-    });
-  }
-
-  function removeSection(index: number) {
-    setDocument((current) => {
-      if (current.sections.length <= 1) {
-        return current;
-      }
-
-      return {
-        ...current,
-        sections: current.sections.filter((_, sectionIndex) => sectionIndex !== index),
-      };
-    });
   }
 
   function signVendor() {
@@ -444,13 +477,13 @@ export function ContractWorkspace({
           <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">{titleLabel}</p>
           <h1 className="mt-3 text-3xl font-semibold text-[var(--ink)]">{document.contractTitle}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--muted)]">{helperText}</p>
+          <p className="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+            {autosaveLabel}
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <SectionActionButton onClick={() => addSection()}>Add section</SectionActionButton>
-          <button className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-            {saveLabel}
-          </button>
-        </div>
+        <button className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+          {saveLabel}
+        </button>
       </div>
 
       <RichTextToolbar
@@ -580,12 +613,6 @@ export function ContractWorkspace({
 
               return (
                 <div className="space-y-4" key={`${section.heading}-${index}`}>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <SectionActionButton onClick={() => addSection(index)}>Add below</SectionActionButton>
-                    <SectionActionButton onClick={() => removeSection(index)} tone="danger">
-                      Remove
-                    </SectionActionButton>
-                  </div>
                   {isPleaseRead ? (
                     <p className="pt-5 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--ink)]">
                       Please read
