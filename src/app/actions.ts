@@ -29,7 +29,7 @@ import {
 import { sendProposalEmail } from "@/lib/mailer";
 import { type MileageTripType } from "@/lib/mileage";
 import { getProjectFileTemplate } from "@/lib/project-files";
-import { getProjectReplyAddress, withProjectReplyToken } from "@/lib/reply-routing";
+import { getProjectReplyAddress, stripProjectReplyToken, withProjectReplyToken } from "@/lib/reply-routing";
 import { canCreateProjects, getDefaultAppPath, normalizeUserRole, type UserRole } from "@/lib/roles";
 import { getStripe } from "@/lib/stripe";
 import { ensureDocumentTemplatesTable } from "@/lib/templates";
@@ -537,7 +537,7 @@ function logProjectMessage(db: ReturnType<typeof getDb>, input: {
     input.direction,
     input.channel,
     input.time,
-    input.subject,
+    stripProjectReplyToken(input.subject),
     input.preview,
     input.unread,
     input.time,

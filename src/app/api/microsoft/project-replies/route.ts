@@ -6,7 +6,7 @@ import {
   getMicrosoftGraphWebhookClientState,
 } from "@/lib/microsoft-graph-mail";
 import { upsertInboundProjectReply } from "@/lib/project-inbox";
-import { extractProjectIdFromSubject } from "@/lib/reply-routing";
+import { extractProjectIdFromSubject, stripProjectReplyToken } from "@/lib/reply-routing";
 
 type GraphNotification = {
   changeType?: string;
@@ -86,7 +86,7 @@ async function processNotification(notification: GraphNotification) {
     html: message.html,
     previewText: message.previewText,
     projectId,
-    subject: message.subject,
+    subject: stripProjectReplyToken(message.subject),
     timestamp: message.timestamp,
   });
 }

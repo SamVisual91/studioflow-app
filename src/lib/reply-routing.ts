@@ -38,6 +38,13 @@ export function withProjectReplyToken(subject: string, projectId: string) {
   return `${normalizedSubject} [SF:${projectId}]`;
 }
 
+export function stripProjectReplyToken(subject: string) {
+  return String(subject || "")
+    .replace(/\s*\[sf:[a-z0-9-]+\]\s*/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function extractProjectIdFromSubject(subject: string) {
   const match = String(subject || "").trim().match(PROJECT_REPLY_TOKEN_PATTERN);
   return String(match?.[1] || "").trim();
