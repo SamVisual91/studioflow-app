@@ -149,6 +149,25 @@ export function PackageBrochureBuilder({
         </div>
       </div>
 
+      <div className="grid gap-3 rounded-[1.35rem] border border-black/[0.08] bg-white/84 p-5 shadow-[0_14px_36px_rgba(59,36,17,0.06)]">
+        <div>
+          <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Delivery email</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            This is the inbox the package brochure will be sent to. Double-check it before you click send.
+          </p>
+        </div>
+        <label className="grid gap-2 text-sm font-semibold text-[var(--ink)]">
+          Client email
+          <input
+            className="rounded-xl border border-black/[0.08] bg-white px-4 py-3 text-sm"
+            onChange={(event) => setRecipientEmail(event.target.value)}
+            placeholder="client@email.com"
+            type="email"
+            value={recipientEmail}
+          />
+        </label>
+      </div>
+
       <div
         className="overflow-hidden border border-black/[0.08] bg-cover bg-center text-white shadow-[0_30px_80px_rgba(36,24,14,0.16)]"
         style={heroStyle}
