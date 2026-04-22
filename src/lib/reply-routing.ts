@@ -3,6 +3,10 @@ function getRequiredEnv(name: string) {
 }
 
 const PROJECT_REPLY_TOKEN_PATTERN = /\[sf:([a-z0-9-]+)\]/i;
+const PROJECT_REPLY_ALIAS_PATTERNS = [
+  /^project-([a-z0-9-]+)@/i,
+  /^[^@]+\+sf-([a-z0-9-]+)@/i,
+];
 
 export function hasProjectReplyRoutingConfig() {
   return Boolean(getRequiredEnv("REPLY_INBOX_DOMAIN"));
@@ -10,6 +14,14 @@ export function hasProjectReplyRoutingConfig() {
 
 export function getProjectReplyAddress(projectId: string) {
   const directReplyAddress = (getRequiredEnv("CLIENT_REPLY_TO") || "contactme@samthao.com").toLowerCase();
+
+  if (directReplyAddress && projectId) {
+    const [localPart, domain] = directReplyAddress.split("@");
+
+    if (localPart && domain) {
+      return `${localPart}+sf-${projectId}@${domain}`;
+    }
+  }
 
   if (directReplyAddress) {
     return directReplyAddress;
@@ -35,7 +47,7 @@ export function withProjectReplyToken(subject: string, projectId: string) {
     return normalizedSubject;
   }
 
-  return `${normalizedSubject} [SF:${projectId}]`;
+  return normalizedSubject;
 }
 
 export function stripProjectReplyToken(subject: string) {
@@ -53,10 +65,13 @@ export function extractProjectIdFromSubject(subject: string) {
 export function extractProjectIdFromReplyAddress(addresses: string[]) {
   for (const address of addresses) {
     const normalized = String(address || "").trim().toLowerCase();
-    const match = normalized.match(/^project-([a-z0-9-]+)@/i);
 
-    if (match?.[1]) {
-      return match[1];
+    for (const pattern of PROJECT_REPLY_ALIAS_PATTERNS) {
+      const match = normalized.match(pattern);
+
+      if (match?.[1]) {
+        return match[1];
+      }
     }
   }
 
