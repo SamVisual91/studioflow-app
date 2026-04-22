@@ -2,7 +2,11 @@
 
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { createPhotoDeliverableCheckoutAction, updatePhotoAlbumCategoriesAction } from "@/app/actions";
+import {
+  createPhotoDeliverableCheckoutAction,
+  deleteProjectDeliverableAction,
+  updatePhotoAlbumCategoriesAction,
+} from "@/app/actions";
 
 type ClientPhoto = {
   id: string;
@@ -125,6 +129,8 @@ export function ClientPhotoAlbum({
       window.setTimeout(() => downloadUrl(photo.filePath), index * 150);
     });
   };
+
+  const albumReturnPath = `${returnPath}${returnPath.includes("?") ? "&" : "?"}openAlbum=${encodeURIComponent(albumTitle)}`;
 
   return (
     <>
@@ -301,6 +307,41 @@ export function ClientPhotoAlbum({
                             : "border-[rgba(207,114,79,0.22)]"
                       }`}
                     >
+                      {canEdit ? (
+                        <form
+                          action={deleteProjectDeliverableAction}
+                          className="absolute left-3 top-3 z-10"
+                          onClick={(event) => event.stopPropagation()}
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
+                          <input name="projectId" type="hidden" value={projectId} />
+                          <input name="deliverableId" type="hidden" value={photo.id} />
+                          <input name="returnPath" type="hidden" value={albumReturnPath} />
+                          <button
+                            aria-label={`Delete ${photo.title}`}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(207,114,79,0.32)] bg-[rgba(17,16,15,0.76)] text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:bg-[rgba(207,114,79,0.18)]"
+                            title="Delete photo"
+                            type="submit"
+                          >
+                            <svg
+                              aria-hidden="true"
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M3 6h18" />
+                              <path d="M8 6V4h8v2" />
+                              <path d="M19 6l-1 14H6L5 6" />
+                              <path d="M10 11v6" />
+                              <path d="M14 11v6" />
+                            </svg>
+                          </button>
+                        </form>
+                      ) : null}
                       <button
                         className="relative block w-full text-left"
                         onClick={() => togglePhoto(photo.id)}
