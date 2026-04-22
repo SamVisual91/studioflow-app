@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import {
-  createDefaultContractDocument,
-  getContractDocumentSummary,
-  serializeContractDocument,
-  type ContractDocument,
-} from "@/lib/contracts";
+import { createDefaultContractDocument, getContractDocumentSummary, serializeContractDocument, type ContractDocument } from "@/lib/contracts";
 
 type Props = {
   action: (formData: FormData) => Promise<void>;
@@ -17,27 +12,6 @@ type Props = {
   titleLabel: string;
   helperText: string;
 };
-
-type PricingKey =
-  | "packagePrice"
-  | "creditAmount"
-  | "addOnAmount"
-  | "travelAmount"
-  | "retainerPercent"
-  | "retainerDueToday"
-  | "remainingBalance"
-  | "finalPaymentDue";
-
-const pricingFields: Array<{ label: string; key: PricingKey }> = [
-  { label: "Wedding Package", key: "packagePrice" },
-  { label: "Credit / Discount", key: "creditAmount" },
-  { label: "Add-ons Total", key: "addOnAmount" },
-  { label: "Travel fees", key: "travelAmount" },
-  { label: "Retainer %", key: "retainerPercent" },
-  { label: "Retainer due today", key: "retainerDueToday" },
-  { label: "Total Amt Due after retainer", key: "remainingBalance" },
-  { label: "Due in full by", key: "finalPaymentDue" },
-];
 
 const signatureFont = '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive';
 
@@ -101,7 +75,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <div className="pt-8 text-center">
       <div className="mx-auto h-px w-full bg-black/[0.16]" />
-      <h3 className="mt-5 text-[1.9rem] font-semibold text-[var(--ink)]">{children}</h3>
+      <h3 className="mt-5 text-[1.45rem] font-bold text-[var(--ink)]">{children}</h3>
     </div>
   );
 }
@@ -136,11 +110,6 @@ function SignatureBlock({
       </div>
     </button>
   );
-}
-
-function getServiceHeading(serviceType: string) {
-  const label = serviceType.trim() || "Services";
-  return `SERVICES TO BE PROVIDED BY ${label.toUpperCase()}`;
 }
 
 export function ContractWorkspace({
@@ -178,15 +147,6 @@ export function ContractWorkspace({
               [key]: value,
             }
           : section
-      ),
-    }));
-  }
-
-  function updateDeliverable(index: number, value: string) {
-    setDocument((current) => ({
-      ...current,
-      deliverables: current.deliverables.map((deliverable, deliverableIndex) =>
-        deliverableIndex === index ? value : deliverable
       ),
     }));
   }
@@ -265,20 +225,20 @@ export function ContractWorkspace({
         </div>
 
         <div className="mx-auto max-w-[8.5in] px-6 py-8 sm:px-8">
-          <div className="grid gap-8 text-[1.02rem] leading-8 text-[var(--muted)]">
+          <div className="grid gap-8 text-[0.94rem] leading-7 text-[var(--muted)]">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--ink)]">
                 {document.contractLabel}
               </p>
               <div className="mt-5 text-center">
                 <InlineField
-                  className="mx-auto max-w-md text-center text-[2rem] font-semibold text-[var(--ink)]"
+                  className="mx-auto max-w-md text-center text-[1.6rem] font-semibold text-[var(--ink)]"
                   onChange={(value) => updateField("contractTitle", value)}
                   value={document.contractTitle}
                 />
                 <div className="mt-5 border-t border-black/[0.16] pt-5">
                   <InlineField
-                    className="mx-auto max-w-xl text-center text-[2.35rem] font-semibold text-[var(--ink)]"
+                    className="mx-auto max-w-xl text-center text-[2rem] font-bold text-[var(--ink)]"
                     onChange={(value) => updateField("agreementTitle", value)}
                     value={document.agreementTitle}
                   />
@@ -313,23 +273,23 @@ export function ContractWorkspace({
               </p>
             </div>
 
-            <div className="space-y-5">
-              <p>Parties:</p>
+            <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-2">
-                <p>Known as &quot;Vendors&quot;</p>
-                <InlineField align="left" className="w-44 text-left" onChange={(value) => updateField("businessName", value)} value={document.businessName} />
-                <InlineField align="left" className="w-60 text-left" onChange={(value) => updateField("businessEmail", value)} value={document.businessEmail} />
-                <InlineField align="left" className="w-full max-w-xl text-left" onChange={(value) => updateField("businessAddress", value)} value={document.businessAddress} />
-                <InlineField align="left" className="w-48 text-left" onChange={(value) => updateField("businessPhone", value)} value={document.businessPhone} />
+                <p className="text-base font-bold text-[var(--ink)]">Vendor</p>
+                <InlineField align="left" className="w-full text-left" onChange={(value) => updateField("businessName", value)} value={document.businessName} />
+                <InlineField align="left" className="w-full text-left" onChange={(value) => updateField("businessEmail", value)} value={document.businessEmail} />
+                <InlineField align="left" className="w-full text-left" onChange={(value) => updateField("businessAddress", value)} value={document.businessAddress} />
+                <InlineField align="left" className="w-full text-left" onChange={(value) => updateField("businessPhone", value)} value={document.businessPhone} />
               </div>
-              <p>and</p>
               <div className="space-y-2">
-                <p>Known as &quot;Client&quot;</p>
-                <InlineField align="left" className="w-48 text-left" onChange={(value) => updateField("clientName", value)} value={document.clientName} />
-                <InlineField align="left" className="w-60 text-left" onChange={(value) => updateField("clientEmail", value)} value={document.clientEmail} />
-                <InlineField align="left" className="w-full max-w-xl text-left" onChange={(value) => updateField("clientAddress", value)} value={document.clientAddress} />
-                <InlineField align="left" className="w-full max-w-md text-left" onChange={(value) => updateField("clientPhone", value)} value={document.clientPhone} />
+                <p className="text-base font-bold text-[var(--ink)]">Client</p>
+                <InlineField align="left" className="w-full text-left" onChange={(value) => updateField("clientName", value)} value={document.clientName} />
+                <InlineField align="left" className="w-full text-left" onChange={(value) => updateField("clientEmail", value)} value={document.clientEmail} />
+                <InlineField align="left" className="w-full text-left" onChange={(value) => updateField("clientAddress", value)} value={document.clientAddress} />
+                <InlineField align="left" className="w-full text-left" onChange={(value) => updateField("clientPhone", value)} value={document.clientPhone} />
               </div>
+            </div>
+            <div className="space-y-3">
               <p>
                 Collectively, all of the above people or businesses entering this Agreement will be referred to as the &quot;Parties.&quot;
               </p>
@@ -350,7 +310,6 @@ export function ContractWorkspace({
             </div>
 
             {document.sections.map((section, index) => {
-              const isServices = section.heading.toLowerCase().includes("services");
               const isPleaseRead =
                 section.heading.toLowerCase().includes("cancellation") ||
                 section.heading.toLowerCase().includes("illness") ||
@@ -370,81 +329,19 @@ export function ContractWorkspace({
                     </SectionHeading>
                   ) : null}
 
-                  {isServices ? (
-                    <div className="pt-2 text-center">
-                      <h4 className="text-[1.65rem] font-semibold text-[var(--ink)]">{section.heading}</h4>
-                      <p className="mt-8 text-[1.45rem] font-semibold uppercase text-[var(--ink)]">
-                        {getServiceHeading(document.businessName)}
-                      </p>
-                    </div>
-                  ) : section.heading !== "Terms" ? (
+                  {section.heading !== "Terms" ? (
                     <AutoGrowTextarea
-                      className="text-[1.85rem] font-semibold leading-[1.25] text-[var(--ink)]"
+                      className="text-[1.2rem] font-bold leading-[1.25] text-[var(--ink)]"
                       onChange={(value) => updateSection(index, "heading", value)}
                       value={section.heading}
                     />
                   ) : null}
 
-                  {isServices ? (
-                    <div className="space-y-6">
-                      <div className="italic text-[var(--muted)]">
-                        <InlineField
-                          align="left"
-                          className="w-72 text-left italic"
-                          onChange={(value) => updateField("packageName", value)}
-                          value={document.packageName}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        {document.deliverables.map((deliverable, deliverableIndex) => (
-                          <InlineField
-                            key={`deliverable-${deliverableIndex}`}
-                            align="left"
-                            className="w-full text-left"
-                            onChange={(value) => updateDeliverable(deliverableIndex, value)}
-                            value={deliverable}
-                          />
-                        ))}
-                      </div>
-
-                      <div className="space-y-3 pt-4">
-                        <p className="font-semibold uppercase tracking-[0.06em] text-[var(--ink)]">
-                          Breakdown
-                        </p>
-                        <div className="space-y-2">
-                          {pricingFields.map(({ label, key }) => (
-                            <p key={key}>
-                              <span className="font-medium text-[var(--ink)]">{label}:</span>{" "}
-                              <InlineField
-                                align="left"
-                                className="w-48 text-left text-base"
-                                onChange={(value) => updateField(key, value)}
-                                value={String(document[key] || "")}
-                              />
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-
-                      <label className="grid gap-2 pt-2">
-                        <span className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--ink)]">
-                          Package notes
-                        </span>
-                        <AutoGrowTextarea
-                          className="leading-8"
-                          onChange={(value) => updateField("packageOverview", value)}
-                          value={document.packageOverview}
-                        />
-                      </label>
-                    </div>
-                  ) : (
-                    <AutoGrowTextarea
-                      className="whitespace-pre-wrap leading-8"
-                      onChange={(value) => updateSection(index, "body", value)}
-                      value={section.body}
-                    />
-                  )}
+                  <AutoGrowTextarea
+                    className="whitespace-pre-wrap leading-7"
+                    onChange={(value) => updateSection(index, "body", value)}
+                    value={section.body}
+                  />
                 </div>
               );
             })}

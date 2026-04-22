@@ -57,8 +57,7 @@ const defaultContractSections: ContractSection[] = [
   },
   {
     heading: "Services / Breakdown",
-    body:
-      "Services to be provided by Sam Visual should be listed in the editable fields above, including coverage hours, films, speeches, drone coverage, gallery delivery, and turnaround promises. The breakdown should include the package amount, credit or discount, add-ons total, travel fees, retainer due today, and the remaining total after retainer.\n\nIf a USB or physical delivery item is promised, the vendor will notify the client if any expected delay arises. A digital download link may be provided first, with physical delivery following afterward.",
+    body: "",
   },
   {
     heading: "Cost, Fees and Payment",
@@ -179,8 +178,8 @@ export function createDefaultContractDocument(input?: Partial<ContractDocument>)
   const businessName = cleanText(input?.businessName || "Sam Visual");
   const businessOwner = cleanText(input?.businessOwner || "Samuel Thao");
   const businessEmail = cleanText(input?.businessEmail || "contactme@samthao.com");
-  const clientName = cleanText(input?.clientName || "Client Name");
-  const clientEmail = cleanText(input?.clientEmail || "");
+  const clientName = cleanText(input?.clientName || "Client name");
+  const clientEmail = cleanText(input?.clientEmail || "Client Email");
 
   return {
     layoutVersion: 1,
@@ -191,33 +190,19 @@ export function createDefaultContractDocument(input?: Partial<ContractDocument>)
     businessName,
     businessOwner,
     businessEmail,
-    businessAddress: cleanText(input?.businessAddress || "800 Wilson Ave SW, Valdese, NC 28690"),
-    businessPhone: cleanText(input?.businessPhone || "828-502-9251"),
+    businessAddress: cleanText(input?.businessAddress || "800 Wilson Ave SW Valdese NC 28690"),
+    businessPhone: cleanText(input?.businessPhone || "8285029251"),
     clientName,
     clientEmail,
-    clientAddress: cleanText(input?.clientAddress || ""),
-    clientPhone: cleanText(input?.clientPhone || ""),
+    clientAddress: cleanText(input?.clientAddress || "Client Address"),
+    clientPhone: cleanText(input?.clientPhone || "Client Phone number"),
     enteredOn: cleanDate(input?.enteredOn || new Date().toISOString().slice(0, 10)),
     eventDate: cleanDate(input?.eventDate || ""),
     venue: cleanText(input?.venue || ""),
     serviceType: cleanText(input?.serviceType || "Wedding"),
-    packageName: cleanText(input?.packageName || "Signature Collection"),
-    packageOverview: cleanText(
-      input?.packageOverview ||
-        "Coverage, deliverables, payment schedule, and usage rights are all outlined in this agreement."
-    ),
-    deliverables: (() => {
-      const deliverables = cleanList(input?.deliverables);
-      return deliverables.length > 0
-        ? deliverables
-        : [
-            "10 hours of coverage",
-            "7 to 9 minute wedding highlight film",
-            "60 second wedding trailer",
-            "Vows and speeches interwoven in highlight film",
-            "Online gallery delivery",
-          ];
-    })(),
+    packageName: cleanText(input?.packageName || ""),
+    packageOverview: cleanText(input?.packageOverview || ""),
+    deliverables: cleanList(input?.deliverables),
     packagePrice: cleanText(input?.packagePrice || "0"),
     creditAmount: cleanText(input?.creditAmount || "0"),
     addOnAmount: cleanText(input?.addOnAmount || "0"),

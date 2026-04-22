@@ -5,26 +5,6 @@ import { getDb } from "@/lib/db";
 
 const signatureFont = '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive';
 
-const pricingLabels: Array<{ label: string; key: keyof Pick<
-  ReturnType<typeof parseContractDocument>,
-  | "packagePrice"
-  | "creditAmount"
-  | "addOnAmount"
-  | "travelAmount"
-  | "retainerPercent"
-  | "retainerDueToday"
-  | "remainingBalance"
-  | "finalPaymentDue"
-> }> = [
-  { label: "Wedding Package", key: "packagePrice" },
-  { label: "Credit / Discount", key: "creditAmount" },
-  { label: "Add-ons Total", key: "addOnAmount" },
-  { label: "Travel fees", key: "travelAmount" },
-  { label: "Retainer due today", key: "retainerDueToday" },
-  { label: "Total Amt Due after retainer", key: "remainingBalance" },
-  { label: "Due in full by", key: "finalPaymentDue" },
-];
-
 export default async function PublicContractPage({
   params,
   searchParams,
@@ -73,15 +53,15 @@ export default async function PublicContractPage({
         </div>
 
         <div className="mx-auto max-w-[8.5in] px-6 py-8 sm:px-8">
-          <div className="space-y-8 text-[1.02rem] leading-8 text-[var(--muted)]">
+          <div className="space-y-8 text-[0.94rem] leading-7 text-[var(--muted)]">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--ink)]">
                 {contract.contractLabel}
               </p>
               <div className="mt-5 text-center">
-                <h2 className="text-[2rem] font-semibold text-[var(--ink)]">{contract.contractTitle}</h2>
+                <h2 className="text-[1.6rem] font-semibold text-[var(--ink)]">{contract.contractTitle}</h2>
                 <div className="mt-5 border-t border-black/[0.16] pt-5">
-                  <h3 className="text-[2.35rem] font-semibold text-[var(--ink)]">{contract.agreementTitle}</h3>
+                  <h3 className="text-[2rem] font-bold text-[var(--ink)]">{contract.agreementTitle}</h3>
                 </div>
               </div>
             </div>
@@ -96,23 +76,23 @@ export default async function PublicContractPage({
               </p>
             </div>
 
-            <div className="space-y-5">
-              <p>Parties:</p>
+            <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-2">
-                <p>Known as &quot;Vendors&quot;</p>
+                <p className="text-base font-bold text-[var(--ink)]">Vendor</p>
                 <InlineValue>{contract.businessName}</InlineValue>
                 <InlineValue>{contract.businessEmail}</InlineValue>
                 <InlineValue>{contract.businessAddress}</InlineValue>
                 <InlineValue>{contract.businessPhone}</InlineValue>
               </div>
-              <p>and</p>
               <div className="space-y-2">
-                <p>Known as &quot;Client&quot;</p>
+                <p className="text-base font-bold text-[var(--ink)]">Client</p>
                 <InlineValue>{contract.clientName}</InlineValue>
                 <InlineValue>{contract.clientEmail}</InlineValue>
                 <InlineValue>{contract.clientAddress}</InlineValue>
                 <InlineValue>{contract.clientPhone}</InlineValue>
               </div>
+            </div>
+            <div className="space-y-3">
               <p>
                 Collectively, all of the above people or businesses entering this Agreement will be referred to as the &quot;Parties.&quot;
               </p>
@@ -127,7 +107,6 @@ export default async function PublicContractPage({
             </p>
 
             {contract.sections.map((section) => {
-              const isServices = section.heading.toLowerCase().includes("services");
               const isPleaseRead =
                 section.heading.toLowerCase().includes("cancellation") ||
                 section.heading.toLowerCase().includes("illness") ||
@@ -147,45 +126,13 @@ export default async function PublicContractPage({
                     </SectionHeading>
                   ) : null}
 
-                  {isServices ? (
-                    <div className="pt-2 text-center">
-                      <h4 className="text-[1.65rem] font-semibold text-[var(--ink)]">{section.heading}</h4>
-                      <p className="mt-8 text-[1.45rem] font-semibold uppercase text-[var(--ink)]">
-                        Services to be provided by {contract.businessName}
-                      </p>
-                    </div>
-                  ) : section.heading !== "Terms" ? (
-                    <h4 className="text-[1.85rem] font-semibold leading-[1.25] text-[var(--ink)]">
+                  {section.heading !== "Terms" ? (
+                    <h4 className="text-[1.2rem] font-bold leading-[1.25] text-[var(--ink)]">
                       {section.heading}
                     </h4>
                   ) : null}
 
-                  {isServices ? (
-                    <div className="space-y-6">
-                      <p className="italic text-[var(--muted)]">{contract.packageName}</p>
-                      <div className="space-y-2">
-                        {contract.deliverables.map((deliverable) => (
-                          <p key={deliverable}>{deliverable}</p>
-                        ))}
-                      </div>
-
-                      <div className="space-y-3 pt-4">
-                        <p className="font-semibold uppercase tracking-[0.06em] text-[var(--ink)]">Breakdown</p>
-                        <div className="space-y-2">
-                          {pricingLabels.map(({ label, key }) => (
-                            <p key={key}>
-                              <span className="font-medium text-[var(--ink)]">{label}:</span>{" "}
-                              <InlineValue>{String(contract[key] || "")}</InlineValue>
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-
-                      <p>{contract.packageOverview}</p>
-                    </div>
-                  ) : (
-                    <p className="whitespace-pre-line">{section.body}</p>
-                  )}
+                  <p className="whitespace-pre-line">{section.body}</p>
                 </div>
               );
             })}
@@ -277,7 +224,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <div className="pt-8 text-center">
       <div className="mx-auto h-px w-full bg-black/[0.16]" />
-      <h3 className="mt-5 text-[1.9rem] font-semibold text-[var(--ink)]">{children}</h3>
+      <h3 className="mt-5 text-[1.45rem] font-bold text-[var(--ink)]">{children}</h3>
     </div>
   );
 }
