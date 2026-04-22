@@ -4,21 +4,32 @@ import { useState } from "react";
 
 type ProjectReplyLoggerProps = {
   action: (formData: FormData) => void | Promise<void>;
+  buttonClassName?: string;
+  buttonLabel?: string;
   clientName: string;
   projectId: string;
 };
 
-export function ProjectReplyLogger({ action, clientName, projectId }: ProjectReplyLoggerProps) {
+export function ProjectReplyLogger({
+  action,
+  buttonClassName,
+  buttonLabel = "Log reply",
+  clientName,
+  projectId,
+}: ProjectReplyLoggerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <>
       <button
-        className="rounded-full border border-black/[0.08] bg-white px-5 py-3 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
+        className={
+          buttonClassName ||
+          "rounded-full border border-black/[0.08] bg-white px-5 py-3 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
+        }
         onClick={() => setIsOpen(true)}
         type="button"
       >
-        Log client reply
+        {buttonLabel}
       </button>
 
       {isOpen ? (

@@ -111,8 +111,22 @@ export function InvoiceWorkspace({
   const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>(
     initialPaymentSchedule.length > 0 ? initialPaymentSchedule : [createBlankScheduleItem()]
   );
-  const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [autosaveState, setAutosaveState] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState("");
   const hasMountedRef = useRef(false);
+  const autosaveResetTimeoutRef = useRef<number | null>(null);
+
+  function markAutosaveDirty() {
+    if (!invoiceId) {
+      return;
+    }
+
+    if (autosaveResetTimeoutRef.current) {
+      window.clearTimeout(autosaveResetTimeoutRef.current);
+    }
+
+    setAutosaveState("dirty");
+  }
 
   function getDerivedPaymentStatus(item: PaymentScheduleItem) {
     if (item.status === "PAID") {
@@ -194,7 +208,20 @@ export function InvoiceWorkspace({
           }),
         });
 
-        setAutosaveState(response.ok ? "saved" : "error");
+        if (response.ok) {
+          setAutosaveState("saved");
+          setLastSavedAt(
+            new Intl.DateTimeFormat("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+            }).format(new Date())
+          );
+          autosaveResetTimeoutRef.current = window.setTimeout(() => {
+            setAutosaveState((current) => (current === "saved" ? "idle" : current));
+          }, 2400);
+        } else {
+          setAutosaveState("error");
+        }
       } catch {
         setAutosaveState("error");
       }
@@ -213,7 +240,16 @@ export function InvoiceWorkspace({
     normalizedPaymentSchedule,
   ]);
 
+  useEffect(() => {
+    return () => {
+      if (autosaveResetTimeoutRef.current) {
+        window.clearTimeout(autosaveResetTimeoutRef.current);
+      }
+    };
+  }, []);
+
   function updateLineItem(index: number, key: keyof InvoiceLineItem, value: string) {
+    markAutosaveDirty();
     setLineItems((current) =>
       current.map((item, itemIndex) =>
         itemIndex === index
@@ -244,6 +280,8 @@ export function InvoiceWorkspace({
       return;
     }
 
+    markAutosaveDirty();
+
     const targetSubtotal = parsed - taxAmount;
     const otherItemsTotal = lineItems.slice(0, -1).reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const lastItemAmount = Math.max(0, Math.round((targetSubtotal - otherItemsTotal) * 100) / 100);
@@ -261,14 +299,17 @@ export function InvoiceWorkspace({
   }
 
   function addLineItem() {
+    markAutosaveDirty();
     setLineItems((current) => [...current, createBlankLineItem()]);
   }
 
   function removeLineItem(index: number) {
+    markAutosaveDirty();
     setLineItems((current) => (current.length === 1 ? [createBlankLineItem()] : current.filter((_, itemIndex) => itemIndex !== index)));
   }
 
   function updateScheduleItem(index: number, key: keyof PaymentScheduleItem, value: string) {
+    markAutosaveDirty();
     setPaymentSchedule((current) =>
       current.map((item, itemIndex) =>
         itemIndex === index
@@ -282,10 +323,12 @@ export function InvoiceWorkspace({
   }
 
   function addScheduleItem() {
+    markAutosaveDirty();
     setPaymentSchedule((current) => [...current, createBlankScheduleItem()]);
   }
 
   function removeScheduleItem(index: number) {
+    markAutosaveDirty();
     setPaymentSchedule((current) =>
       current.length === 1 ? [createBlankScheduleItem()] : current.filter((_, itemIndex) => itemIndex !== index)
     );
@@ -297,6 +340,8 @@ export function InvoiceWorkspace({
     if (grandTotal <= 0) {
       return;
     }
+
+    markAutosaveDirty();
 
     const baseDate = dueDate || new Date().toISOString().slice(0, 10);
 
@@ -378,7 +423,10 @@ export function InvoiceWorkspace({
               <p className="text-sm uppercase tracking-[0.24em] text-white/75">StudioFlow</p>
               <input
                 className="font-display mt-3 w-full max-w-4xl bg-transparent font-semibold tracking-[-0.05em] text-white outline-none placeholder:text-white/72"
-                onChange={(e) => setLabel(e.target.value)}
+                onChange={(e) => {
+                  markAutosaveDirty();
+                  setLabel(e.target.value);
+                }}
                 placeholder={projectName}
                 style={{ fontSize: "50px", lineHeight: "0.95" }}
                 value={label}
@@ -475,7 +523,10 @@ export function InvoiceWorkspace({
                 <input
                   className="w-16 bg-transparent text-right font-medium outline-none"
                   min="0"
-                  onChange={(e) => setTaxRate(e.target.value)}
+                  onChange={(e) => {
+                    markAutosaveDirty();
+                    setTaxRate(e.target.value);
+                  }}
                   step="0.01"
                   type="number"
                   value={taxRate}
@@ -611,16 +662,43 @@ export function InvoiceWorkspace({
           </p>
           <p className="mt-1 text-sm text-[var(--muted)]">
             {invoiceId
-              ? autosaveState === "saving"
+              ? autosaveState === "dirty"
+                ? "Unsaved changes are queued and will save automatically."
+                : autosaveState === "saving"
                 ? "Saving your latest changes..."
                 : autosaveState === "saved"
-                  ? "All changes are saved."
+                  ? `Saved at ${lastSavedAt}.`
                   : autosaveState === "error"
                     ? "Autosave ran into an issue. Refresh and try again."
                     : "Any changes you make here will save automatically."
               : "The invoice preview above and the payment plan below are synced to the same saved record."}
           </p>
         </div>
+        {invoiceId ? (
+          <span
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] ${
+              autosaveState === "error"
+                ? "bg-[rgba(207,114,79,0.12)] text-[var(--accent)]"
+                : autosaveState === "saved"
+                  ? "bg-[rgba(47,125,92,0.12)] text-[var(--forest)]"
+                  : autosaveState === "saving"
+                    ? "bg-[rgba(15,23,42,0.06)] text-[var(--ink)]"
+                    : autosaveState === "dirty"
+                      ? "bg-[rgba(216,166,87,0.16)] text-[#8a5a12]"
+                      : "bg-[rgba(15,23,42,0.04)] text-[var(--muted)]"
+            }`}
+          >
+            {autosaveState === "error"
+              ? "Autosave issue"
+              : autosaveState === "saved"
+                ? "Saved"
+                : autosaveState === "saving"
+                  ? "Saving"
+                  : autosaveState === "dirty"
+                    ? "Unsaved"
+                    : "Auto-save on"}
+          </span>
+        ) : null}
         {!invoiceId ? (
           <button className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
             {submitLabel}

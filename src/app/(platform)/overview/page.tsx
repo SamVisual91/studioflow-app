@@ -321,13 +321,13 @@ export default async function HomePage() {
                 className="rounded-full bg-[var(--forest)] px-5 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_rgba(47,125,92,0.22)] transition hover:brightness-110"
                 href="/projects"
               >
-                Open projects
+                Projects
               </Link>
               <Link
                 className="rounded-full border border-black/10 bg-white/80 px-5 py-3 text-center text-sm font-semibold text-[var(--ink)] transition hover:bg-white"
                 href="/schedule"
               >
-                Open schedule
+                Schedule
               </Link>
             </div>
           </div>
@@ -521,7 +521,7 @@ export default async function HomePage() {
                   <h3 className="mt-3 text-2xl font-semibold">New website inquiries</h3>
                 </div>
                 <Link className="text-sm font-semibold text-[var(--accent)] hover:underline" href="/leads">
-                  Open leads
+                  Leads
                 </Link>
               </div>
               <div className="mt-5 grid gap-3">
@@ -564,7 +564,7 @@ export default async function HomePage() {
                   <h3 className="mt-3 text-2xl font-semibold">Pending deliveries</h3>
                 </div>
                 <Link className="text-sm font-semibold text-[var(--accent)] hover:underline" href="/projects">
-                  Open projects
+                  Projects
                 </Link>
               </div>
               <div className="mt-5 grid gap-3">
@@ -597,7 +597,7 @@ export default async function HomePage() {
                   <h3 className="mt-3 text-2xl font-semibold">Gear alerts</h3>
                 </div>
                 <Link className="text-sm font-semibold text-[var(--accent)] hover:underline" href="/crm">
-                  Open gear
+                  Gear
                 </Link>
               </div>
               <div className="mt-5 grid gap-3">

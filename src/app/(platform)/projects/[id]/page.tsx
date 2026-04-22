@@ -360,6 +360,7 @@ export default async function ProjectClientPage({
   const portalLink = project.publicPortalToken
     ? `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}${projectPortalPath}`
     : "#";
+  const primaryContactEmail = client?.contactEmail || "";
   const successMessage = query.email
     ? "Email sent and added to the client activity feed."
     : query.portal
@@ -452,11 +453,6 @@ export default async function ProjectClientPage({
   return (
     <DashboardShell
       currentPath="/projects"
-      summary={{
-        weeklyRevenue: data.invoices.reduce((sum, invoice) => sum + invoice.amount, 0),
-        tasksDue: data.stats.tasksDue,
-        eventCount: data.schedule.length,
-      }}
       user={user}
     >
       <section className="grid gap-8">
@@ -493,7 +489,7 @@ export default async function ProjectClientPage({
             <ProjectContactControls
               action={updateProjectContactAction}
               clientName={project.client}
-              contactEmail={client?.contactEmail || ""}
+              contactEmail={primaryContactEmail}
               mode="primary"
               projectId={project.id}
               returnTab={activeTab}
@@ -520,7 +516,7 @@ export default async function ProjectClientPage({
               <p className="font-semibold text-[var(--ink)]">{project.name}</p>
               <p className="text-sm text-[var(--muted)]">
                 Visible to you and {project.client}
-                {client?.contactEmail ? ` | ${client.contactEmail}` : ""}
+                {primaryContactEmail ? ` | ${primaryContactEmail}` : ""}
               </p>
             </div>
           </div>
@@ -543,12 +539,63 @@ export default async function ProjectClientPage({
               </Link>
             ) : null}
             <ProjectFileLauncher
+              buttonLabel="New file"
               clientName={project.client}
               packagePresets={data.packagePresets}
               projectId={project.id}
               projectName={project.name}
               projectType={project.type}
             />
+          </div>
+        </div>
+
+        <div className="sticky top-4 z-20 rounded-[1.4rem] border border-black/[0.08] bg-white/92 p-4 shadow-[0_16px_40px_rgba(59,36,17,0.10)] backdrop-blur">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              className="rounded-full bg-[var(--sidebar)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+              href={`/projects/${project.id}?tab=activity#email-composer`}
+            >
+              Email
+            </Link>
+            <ProjectReplyLogger
+              action={logClientReplyAction}
+              buttonClassName="rounded-full border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
+              buttonLabel="Log reply"
+              clientName={project.client}
+              projectId={project.id}
+            />
+            <ProjectFileLauncher
+              buttonClassName="rounded-full border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
+              buttonLabel="New file"
+              clientName={project.client}
+              packagePresets={data.packagePresets}
+              projectId={project.id}
+              projectName={project.name}
+              projectType={project.type}
+            />
+            {canSeeFinancials ? (
+              <Link
+                className="rounded-full border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
+                href={`/projects/${project.id}?tab=financials`}
+              >
+                Invoices
+              </Link>
+            ) : null}
+            <Link
+              className="rounded-full border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
+              href={`/projects/${project.id}/deliverables`}
+            >
+              Deliverables
+            </Link>
+            {project.publicPortalToken ? (
+              <Link
+                className="rounded-full border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
+                href={projectPortalPath}
+                target="_blank"
+              >
+                Portal
+              </Link>
+            ) : null}
           </div>
         </div>
 
@@ -582,14 +629,10 @@ export default async function ProjectClientPage({
                           Send a new email or log a client reply so the whole conversation stays on this project.
                         </p>
                       </div>
-                      <ProjectReplyLogger
-                        action={logClientReplyAction}
-                        clientName={project.client}
-                        projectId={project.id}
-                      />
+                      <ProjectReplyLogger action={logClientReplyAction} clientName={project.client} projectId={project.id} />
                     </div>
 
-                    <details className="mt-5 rounded-[1.5rem] border border-black/[0.08] bg-[rgba(247,241,232,0.54)]">
+                    <details className="mt-5 rounded-[1.5rem] border border-black/[0.08] bg-[rgba(247,241,232,0.54)]" id="email-composer">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5">
                         <div>
                           <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Outbound</p>
@@ -609,7 +652,7 @@ export default async function ProjectClientPage({
                       >
                         <input name="projectId" type="hidden" value={project.id} />
                         <input name="clientName" type="hidden" value={project.client} />
-                        <input name="recipientEmail" type="hidden" value={client?.contactEmail || ""} />
+                        <input name="recipientEmail" type="hidden" value={primaryContactEmail} />
                         <MessageAiAssistant clientName={project.client} />
                         <button className="mt-5 rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
                           Send email
@@ -928,7 +971,7 @@ export default async function ProjectClientPage({
                   <div className="mt-5 grid gap-3">
                     <label className="grid gap-2 text-sm font-medium">
                       Contact email
-                      <input className="rounded-2xl border border-black/[0.08] px-4 py-3" defaultValue={client?.contactEmail || ""} name="contactEmail" required type="email" />
+                      <input className="rounded-2xl border border-black/[0.08] px-4 py-3" defaultValue={primaryContactEmail} name="contactEmail" required type="email" />
                     </label>
                     <label className="grid gap-2 text-sm font-medium">
                       Project name

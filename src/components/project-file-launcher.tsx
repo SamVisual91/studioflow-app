@@ -64,12 +64,16 @@ function normalizePackagePresetCategory(category: string) {
 }
 
 export function ProjectFileLauncher({
+  buttonClassName,
+  buttonLabel = "New file",
   clientName,
   packagePresets,
   projectId,
   projectName,
   projectType,
 }: {
+  buttonClassName?: string;
+  buttonLabel?: string;
   clientName: string;
   packagePresets: PackagePreset[];
   projectId: string;
@@ -267,11 +271,14 @@ export function ProjectFileLauncher({
   return (
     <div className="relative">
       <button
-        className="rounded-full bg-[var(--sidebar)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
+        className={
+          buttonClassName ||
+          "rounded-full bg-[var(--sidebar)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
+        }
         onClick={() => setIsOpen((value) => !value)}
         type="button"
       >
-        Create file
+        {buttonLabel}
       </button>
 
       {isOpen ? (

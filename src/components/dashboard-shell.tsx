@@ -36,25 +36,25 @@ const navItems = [
 const quickActions = [
   {
     href: "/projects",
-    label: "Make a project",
+    label: "New project",
     copy: "Add a new client project from the Projects page.",
     roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[],
   },
   {
     href: "/projects",
-    label: "Create a contact",
+    label: "New contact",
     copy: "Add a new client or contact from the Projects page.",
     roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[],
   },
   {
     href: "/projects",
-    label: "Make an invoice",
+    label: "New invoice",
     copy: "Open a project, then create an invoice from Files.",
     roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[],
   },
   {
     href: "/follow-ups",
-    label: "Do a follow-up",
+    label: "Follow-up queue",
     copy: "Send a client follow-up from the queue.",
     roles: ["SUPER_ADMIN", "ADMIN"] as UserRole[],
   },
@@ -425,9 +425,9 @@ export function DashboardShell({ currentPath, user, summary: summaryOverride, ch
               <div className="absolute right-0 mt-3 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-[1.4rem] border border-black/[0.08] bg-white shadow-[0_24px_70px_rgba(36,24,14,0.18)]">
                 <div className="border-b border-black/[0.08] bg-[rgba(247,241,232,0.62)] px-4 py-3">
                   <p className="text-[10px] uppercase tracking-[0.24em] text-[var(--muted)]">
-                    Shortcut
+                    Quick actions
                   </p>
-                  <p className="mt-1 text-sm font-semibold">What do you want to make?</p>
+                  <p className="mt-1 text-sm font-semibold">Jump into a common task</p>
                 </div>
                 <div className="grid gap-1 p-2">
                   {visibleQuickActions.map((action) => (
