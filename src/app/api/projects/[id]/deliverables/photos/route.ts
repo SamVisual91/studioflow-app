@@ -59,99 +59,106 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const user = await getCurrentUser();
+  try {
+    const user = await getCurrentUser();
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const { id: routeProjectId } = await context.params;
-  const formData = await request.formData();
-  const projectId = getString(formData, "projectId");
+    const { id: routeProjectId } = await context.params;
+    const formData = await request.formData();
+    const projectId = getString(formData, "projectId");
 
-  if (!routeProjectId || !projectId || routeProjectId !== projectId) {
-    return NextResponse.json({ error: "Invalid project." }, { status: 400 });
-  }
+    if (!routeProjectId || !projectId || routeProjectId !== projectId) {
+      return NextResponse.json({ error: "Invalid project." }, { status: 400 });
+    }
 
-  const rawTitle = getString(formData, "title");
-  const caption = getString(formData, "caption");
-  const files = getUploadFiles(formData, "file");
-  const albumTitle = getString(formData, "albumTitle");
-  const albumSection = getString(formData, "albumSection");
-  const albumDownloadUrl = getString(formData, "albumDownloadUrl");
-  const accessType = getString(formData, "accessType").toUpperCase() === "PAID" ? "PAID" : "FREE";
-  const rawPrice = getString(formData, "price");
-  const photoPrice = rawPrice ? Number(rawPrice) : 0;
+    const rawTitle = getString(formData, "title");
+    const caption = getString(formData, "caption");
+    const files = getUploadFiles(formData, "file");
+    const albumTitle = getString(formData, "albumTitle");
+    const albumSection = getString(formData, "albumSection");
+    const albumDownloadUrl = getString(formData, "albumDownloadUrl");
+    const accessType = getString(formData, "accessType").toUpperCase() === "PAID" ? "PAID" : "FREE";
+    const rawPrice = getString(formData, "price");
+    const photoPrice = rawPrice ? Number(rawPrice) : 0;
 
-  if (files.length === 0) {
-    return NextResponse.json({ error: "Choose at least one photo." }, { status: 400 });
-  }
+    if (files.length === 0) {
+      return NextResponse.json({ error: "Choose at least one photo." }, { status: 400 });
+    }
 
-  if (albumDownloadUrl) {
-    try {
-      const parsedUrl = new URL(albumDownloadUrl);
-      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+    if (albumDownloadUrl) {
+      try {
+        const parsedUrl = new URL(albumDownloadUrl);
+        if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+          return NextResponse.json({ error: "Use a valid download link." }, { status: 400 });
+        }
+      } catch {
         return NextResponse.json({ error: "Use a valid download link." }, { status: 400 });
       }
-    } catch {
-      return NextResponse.json({ error: "Use a valid download link." }, { status: 400 });
     }
-  }
 
-  if (accessType === "PAID" && (!rawPrice || Number.isNaN(photoPrice) || photoPrice <= 0)) {
-    return NextResponse.json({ error: "Enter a valid price per photo." }, { status: 400 });
-  }
-
-  const db = getDb();
-  ensureProjectDeliverablesTable();
-  const project = db
-    .prepare("SELECT id, client FROM projects WHERE id = ? LIMIT 1")
-    .get(projectId) as { id: string; client?: string } | undefined;
-
-  if (!project) {
-    return NextResponse.json({ error: "Project not found." }, { status: 404 });
-  }
-
-  for (const file of files) {
-    if (!file.type.startsWith("image/")) {
-      return NextResponse.json({ error: "Choose image files only." }, { status: 400 });
+    if (accessType === "PAID" && (!rawPrice || Number.isNaN(photoPrice) || photoPrice <= 0)) {
+      return NextResponse.json({ error: "Enter a valid price per photo." }, { status: 400 });
     }
-  }
 
-  const title = rawTitle || `${project.client || "Client"} Photo Deliverable`;
-  const timestamp = new Date().toISOString();
-  const insertDeliverable = db.prepare(
-    "INSERT INTO project_deliverables (id, project_id, media_type, title, caption, file_path, source_type, thumbnail_path, album_title, album_section, album_download_url, access_type, price, public_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  );
+    const db = getDb();
+    ensureProjectDeliverablesTable();
+    const project = db
+      .prepare("SELECT id, client FROM projects WHERE id = ? LIMIT 1")
+      .get(projectId) as { id: string; client?: string } | undefined;
 
-  for (const [index, photoFile] of files.entries()) {
-    const filePath = await saveProjectDeliverableFile(photoFile);
-    insertDeliverable.run(
-      randomUUID(),
+    if (!project) {
+      return NextResponse.json({ error: "Project not found." }, { status: 404 });
+    }
+
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) {
+        return NextResponse.json({ error: "Choose image files only." }, { status: 400 });
+      }
+    }
+
+    const title = rawTitle || `${project.client || "Client"} Photo Deliverable`;
+    const timestamp = new Date().toISOString();
+    const insertDeliverable = db.prepare(
+      "INSERT INTO project_deliverables (id, project_id, media_type, title, caption, file_path, source_type, thumbnail_path, album_title, album_section, album_download_url, access_type, price, public_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+
+    for (const [index, photoFile] of files.entries()) {
+      const filePath = await saveProjectDeliverableFile(photoFile);
+      insertDeliverable.run(
+        randomUUID(),
+        projectId,
+        "PHOTO",
+        `${title} ${index + 1}`,
+        caption,
+        filePath,
+        "UPLOAD",
+        "",
+        albumTitle || "Final Gallery",
+        albumSection,
+        albumDownloadUrl,
+        accessType,
+        accessType === "PAID" ? photoPrice : 0,
+        randomUUID(),
+        timestamp,
+        timestamp
+      );
+    }
+
+    updateProjectRecentActivity(
+      db,
       projectId,
-      "PHOTO",
-      `${title} ${index + 1}`,
-      caption,
-      filePath,
-      "UPLOAD",
-      "",
-      albumTitle || "Final Gallery",
-      albumSection,
-      albumDownloadUrl,
-      accessType,
-      accessType === "PAID" ? photoPrice : 0,
-      randomUUID(),
-      timestamp,
+      createRecentActivity(`${files.length} photo deliverables uploaded`, timestamp),
       timestamp
     );
+
+    return NextResponse.json({ ok: true, uploaded: files.length });
+  } catch {
+    return NextResponse.json(
+      { error: "The photo batch was too large or the upload was interrupted. Try again with fewer large photos at once." },
+      { status: 500 }
+    );
   }
-
-  updateProjectRecentActivity(
-    db,
-    projectId,
-    createRecentActivity(`${files.length} photo deliverables uploaded`, timestamp),
-    timestamp
-  );
-
-  return NextResponse.json({ ok: true, uploaded: files.length });
 }

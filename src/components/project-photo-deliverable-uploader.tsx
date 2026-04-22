@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
-const PHOTO_BATCH_SIZE = 6;
+const PHOTO_BATCH_SIZE = 3;
 
 export function ProjectPhotoDeliverableUploader({
   projectId,
@@ -88,6 +88,10 @@ export function ProjectPhotoDeliverableUploader({
         const payload = (await response.json().catch(() => ({}))) as { error?: string };
 
         if (!response.ok) {
+          if (response.status === 413) {
+            throw new Error("These photos are still too large for one upload batch. Try smaller image files or upload fewer high-resolution photos at a time.");
+          }
+
           throw new Error(payload.error || "Photo upload failed.");
         }
       }
