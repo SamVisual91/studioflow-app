@@ -5,6 +5,13 @@ import { getDb } from "@/lib/db";
 
 const signatureFont = '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive';
 
+function sanitizeRichText(value: string) {
+  return value
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/\son\w+="[^"]*"/gi, "")
+    .replace(/\son\w+='[^']*'/gi, "");
+}
+
 export default async function PublicContractPage({
   params,
   searchParams,
@@ -132,7 +139,10 @@ export default async function PublicContractPage({
                     </h4>
                   ) : null}
 
-                  <p className="whitespace-pre-line">{section.body}</p>
+                  <div
+                    className="[&_blockquote]:border-l-4 [&_blockquote]:border-black/20 [&_blockquote]:pl-4 [&_h3]:text-[1.05rem] [&_h3]:font-bold [&_h4]:text-[0.98rem] [&_h4]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_p]:last:mb-0 [&_ul]:list-disc [&_ul]:pl-5"
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichText(section.body) }}
+                  />
                 </div>
               );
             })}

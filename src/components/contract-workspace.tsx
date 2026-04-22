@@ -15,6 +15,13 @@ type Props = {
 
 const signatureFont = '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive';
 
+function sanitizeRichText(value: string) {
+  return value
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/\son\w+="[^"]*"/gi, "")
+    .replace(/\son\w+='[^']*'/gi, "");
+}
+
 function InlineField({
   align = "center",
   className = "",
@@ -71,6 +78,125 @@ function AutoGrowTextarea({
   );
 }
 
+function RichTextToolbar({
+  activeEditor,
+  onFormatBlock,
+  onRun,
+}: {
+  activeEditor: boolean;
+  onRun: (command: string, value?: string) => void;
+  onFormatBlock: (value: string) => void;
+}) {
+  const buttonClass =
+    "inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-black/[0.08] bg-white px-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-[rgba(31,27,24,0.06)] disabled:cursor-not-allowed disabled:opacity-45";
+
+  return (
+    <div className="sticky top-3 z-20 flex flex-wrap items-center gap-2 rounded-[0.9rem] border border-black/[0.08] bg-[#f4efe7] px-3 py-2 shadow-[0_10px_24px_rgba(59,36,17,0.08)]">
+      <select
+        className="h-9 rounded-md border border-black/[0.08] bg-white px-3 text-sm text-[var(--ink)] outline-none disabled:cursor-not-allowed disabled:opacity-45"
+        disabled={!activeEditor}
+        onChange={(event) => {
+          onFormatBlock(event.target.value);
+          event.currentTarget.value = "";
+        }}
+        defaultValue=""
+      >
+        <option value="" disabled>
+          Format
+        </option>
+        <option value="P">Paragraph</option>
+        <option value="H3">Heading</option>
+        <option value="H4">Subheading</option>
+        <option value="BLOCKQUOTE">Quote</option>
+      </select>
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("bold")} type="button">
+        B
+      </button>
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("italic")} type="button">
+        <span className="italic">I</span>
+      </button>
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("underline")} type="button">
+        <span className="underline">U</span>
+      </button>
+      <input
+        aria-label="Text color"
+        className="h-9 w-11 rounded-md border border-black/[0.08] bg-white p-1 disabled:cursor-not-allowed disabled:opacity-45"
+        defaultValue="#1f1b18"
+        disabled={!activeEditor}
+        onChange={(event) => onRun("foreColor", event.target.value)}
+        type="color"
+      />
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("justifyLeft")} type="button">
+        ≡
+      </button>
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("justifyCenter")} type="button">
+        ≣
+      </button>
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("justifyRight")} type="button">
+        ☰
+      </button>
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("insertUnorderedList")} type="button">
+        ••
+      </button>
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("insertOrderedList")} type="button">
+        1.
+      </button>
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("outdent")} type="button">
+        ←
+      </button>
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("indent")} type="button">
+        →
+      </button>
+      <button className={buttonClass} disabled={!activeEditor} onClick={() => onRun("removeFormat")} type="button">
+        Tx
+      </button>
+    </div>
+  );
+}
+
+function RichTextField({
+  editorId,
+  onActivate,
+  onChange,
+  registerEditor,
+  value,
+}: {
+  editorId: string;
+  value: string;
+  onChange: (value: string) => void;
+  onActivate: (id: string) => void;
+  registerEditor: (id: string, node: HTMLDivElement | null) => void;
+}) {
+  const lastValue = useRef(value);
+
+  useEffect(() => {
+    lastValue.current = value;
+  }, [value]);
+
+  return (
+    <div
+      ref={(node) => {
+        registerEditor(editorId, node);
+        if (node && node.innerHTML !== value) {
+          node.innerHTML = value;
+        }
+      }}
+      className="min-h-[5rem] rounded-[0.8rem] border border-black/[0.06] bg-[rgba(31,27,24,0.025)] px-3 py-2 text-[inherit] text-[var(--ink)] outline-none transition focus:border-[var(--forest)] focus:bg-[rgba(47,125,92,0.05)] [&_blockquote]:border-l-4 [&_blockquote]:border-black/20 [&_blockquote]:pl-4 [&_h3]:text-[1.05rem] [&_h3]:font-bold [&_h4]:text-[0.98rem] [&_h4]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_p]:last:mb-0 [&_ul]:list-disc [&_ul]:pl-5"
+      contentEditable
+      onBlur={(event) => onChange(sanitizeRichText(event.currentTarget.innerHTML))}
+      onFocus={() => onActivate(editorId)}
+      onInput={(event) => {
+        const html = sanitizeRichText(event.currentTarget.innerHTML);
+        if (html !== lastValue.current) {
+          lastValue.current = html;
+          onChange(html);
+        }
+      }}
+      suppressContentEditableWarning
+    />
+  );
+}
+
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <div className="pt-8 text-center">
@@ -122,6 +248,8 @@ export function ContractWorkspace({
   titleLabel,
 }: Props) {
   const [document, setDocument] = useState<ContractDocument>(() => createDefaultContractDocument(initialDocument));
+  const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
+  const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     setDocument(createDefaultContractDocument(initialDocument));
@@ -175,6 +303,30 @@ export function ContractWorkspace({
     }));
   }
 
+  function registerEditor(id: string, node: HTMLDivElement | null) {
+    editorRefs.current[id] = node;
+  }
+
+  function runEditorCommand(command: string, value?: string) {
+    const editorId = activeEditorId;
+    const editor = editorId ? editorRefs.current[editorId] : null;
+    if (!editor || !editorId) {
+      return;
+    }
+
+    editor.focus();
+    globalThis.document.execCommand(command, false, value);
+    const sectionIndex = Number(editorId.replace("section-body-", ""));
+    if (!Number.isNaN(sectionIndex)) {
+      updateSection(sectionIndex, "body", sanitizeRichText(editor.innerHTML));
+    }
+  }
+
+  function formatBlock(value: string) {
+    const normalized = value === "P" ? "p" : value.toLowerCase();
+    runEditorCommand("formatBlock", normalized);
+  }
+
   return (
     <form action={action} className="grid gap-6" id={formId}>
       {Object.entries(hiddenFields || {}).map(([key, value]) => (
@@ -196,6 +348,12 @@ export function ContractWorkspace({
           {saveLabel}
         </button>
       </div>
+
+      <RichTextToolbar
+        activeEditor={Boolean(activeEditorId)}
+        onFormatBlock={formatBlock}
+        onRun={runEditorCommand}
+      />
 
       <section className="overflow-hidden rounded-[0.6rem] border border-black/[0.08] bg-white shadow-[0_24px_70px_rgba(59,36,17,0.10)]">
         <div
@@ -337,9 +495,11 @@ export function ContractWorkspace({
                     />
                   ) : null}
 
-                  <AutoGrowTextarea
-                    className="whitespace-pre-wrap leading-7"
+                  <RichTextField
+                    editorId={`section-body-${index}`}
+                    onActivate={setActiveEditorId}
                     onChange={(value) => updateSection(index, "body", value)}
+                    registerEditor={registerEditor}
                     value={section.body}
                   />
                 </div>
