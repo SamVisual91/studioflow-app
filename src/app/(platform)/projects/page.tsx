@@ -24,6 +24,12 @@ const sortOptions = {
   nameAsc: "Name A-Z",
   stage: "Stage",
 } as const;
+const viewOptions = [
+  { value: "active", label: "Active" },
+  { value: "completed", label: "Completed" },
+  { value: "archived", label: "Archived" },
+  { value: "all", label: "All" },
+] as const;
 
 const stageCardStyles: Record<
   string,
@@ -137,6 +143,7 @@ export default async function ProjectsPage({
   const sourceFilter = String(params.source ?? "").trim();
   const viewFilter = String(params.view ?? "active").trim();
   const sortFilter = String(params.sort ?? "recent").trim();
+  const hasActiveFilters = Boolean(stageFilter || typeFilter || sourceFilter);
   const errorMessage =
     params.error === "project-invalid"
       ? "Fill out every new client field before creating the project."
@@ -296,7 +303,13 @@ export default async function ProjectsPage({
                   <input name="type" type="hidden" value={typeFilter} />
                   <input name="source" type="hidden" value={sourceFilter} />
                   <input name="view" type="hidden" value={viewFilter} />
-                  <label className="flex items-center gap-2 border border-[#d8dfeb] bg-white px-4 py-2.5 text-sm font-medium text-[var(--ink)] shadow-[0_10px_30px_rgba(31,27,24,0.03)]">
+                  <label
+                    className={`flex items-center gap-2 border px-4 py-2.5 text-sm font-medium text-[var(--ink)] shadow-[0_10px_30px_rgba(31,27,24,0.03)] transition ${
+                      sortFilter !== "recent"
+                        ? "border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)]"
+                        : "border-[#d8dfeb] bg-white"
+                    }`}
+                  >
                     <svg aria-hidden="true" className="h-4 w-4 text-[#64748b]" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
                       <path d="M3 6h18" />
                       <path d="M7 12h10" />
@@ -315,7 +328,7 @@ export default async function ProjectsPage({
                     </select>
                   </label>
                   <button
-                    className="flex h-10 items-center justify-center rounded-full border border-[#d8dfeb] bg-white px-4 text-sm font-medium text-[#3b82f6] shadow-[0_10px_30px_rgba(31,27,24,0.03)] transition hover:bg-[#f8fafc]"
+                    className="flex h-10 items-center justify-center rounded-full border border-[#d8dfeb] bg-white px-4 text-sm font-medium text-[#3b82f6] shadow-[0_10px_30px_rgba(31,27,24,0.03)] transition hover:bg-[#f8fafc] active:scale-[0.99]"
                     type="submit"
                   >
                     Apply
@@ -323,9 +336,15 @@ export default async function ProjectsPage({
                 </form>
 
                 <details className="group relative">
-                  <summary className="flex cursor-pointer list-none items-center gap-2 px-2 text-[1.05rem] font-medium text-[#3b82f6] transition hover:opacity-80">
+                  <summary
+                    className={`flex list-none items-center gap-2 rounded-full px-3 py-2 text-[1.05rem] font-medium transition hover:opacity-80 ${
+                      hasActiveFilters
+                        ? "bg-[rgba(47,125,92,0.10)] text-[var(--forest)]"
+                        : "text-[#3b82f6]"
+                    }`}
+                  >
                     <span className="text-xl leading-none">+</span>
-                    <span>Add Filter</span>
+                    <span>{hasActiveFilters ? "Filters applied" : "Add Filter"}</span>
                   </summary>
                   <div className="absolute left-0 top-full z-20 mt-3 w-[20rem] border border-[#d8dfeb] bg-white p-4 shadow-[0_18px_44px_rgba(31,27,24,0.12)]">
                     <form className="grid gap-3" method="get">
@@ -366,7 +385,7 @@ export default async function ProjectsPage({
                         </select>
                       </label>
                       <div className="flex items-center gap-3 pt-1">
-                        <button className="bg-[linear-gradient(180deg,#2c394d,#1f2937)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110">
+                        <button className="bg-[linear-gradient(180deg,#2c394d,#1f2937)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.99]">
                           Apply filters
                         </button>
                         <Link
@@ -403,22 +422,33 @@ export default async function ProjectsPage({
               </form>
             </div>
 
-            <div className="flex items-center gap-2">
-              {[
-                <svg key="list" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M8 6h12" /><path d="M8 12h12" /><path d="M8 18h12" /><path d="M4 6h.01" /><path d="M4 12h.01" /><path d="M4 18h.01" /></svg>,
-                <svg key="stack" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></svg>,
-                <svg key="board" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24"><rect height="14" rx="2" width="16" x="4" y="5" /><path d="M9 5v14" /><path d="M15 5v14" /></svg>,
-                <svg key="grid" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24"><rect height="6" rx="1" width="6" x="4" y="4" /><rect height="6" rx="1" width="6" x="14" y="4" /><rect height="6" rx="1" width="6" x="4" y="14" /><rect height="6" rx="1" width="6" x="14" y="14" /></svg>,
-              ].map((icon, index) => (
-                <button
-                  key={`view-icon-${index}`}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8dfeb] bg-white text-[#64748b] shadow-[0_10px_30px_rgba(31,27,24,0.03)] transition hover:bg-[#f8fafc]"
-                  type="button"
-                >
-                  {icon}
-                </button>
-              ))}
-            </div>
+            <form className="flex flex-wrap items-center gap-2" method="get">
+              <input name="q" type="hidden" value={query} />
+              <input name="stage" type="hidden" value={stageFilter} />
+              <input name="type" type="hidden" value={typeFilter} />
+              <input name="source" type="hidden" value={sourceFilter} />
+              <input name="sort" type="hidden" value={sortFilter} />
+              {viewOptions.map((option) => {
+                const isSelected = viewFilter === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    aria-pressed={isSelected}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_10px_30px_rgba(31,27,24,0.03)] transition active:scale-[0.99] ${
+                      isSelected
+                        ? "border-[rgba(47,125,92,0.28)] bg-[rgba(47,125,92,0.10)] text-[var(--forest)]"
+                        : "border-[#d8dfeb] bg-white text-[#64748b] hover:bg-[#f8fafc]"
+                    }`}
+                    name="view"
+                    type="submit"
+                    value={option.value}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </form>
           </div>
 
           <div className="mt-6 grid gap-3 md:grid-cols-4 xl:grid-cols-7">
