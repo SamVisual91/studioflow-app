@@ -549,56 +549,6 @@ export default async function ProjectClientPage({
           </div>
         </div>
 
-        <div className="sticky top-4 z-20 rounded-[1.4rem] border border-black/[0.08] bg-white/92 p-4 shadow-[0_16px_40px_rgba(59,36,17,0.10)] backdrop-blur">
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              className="rounded-full bg-[var(--sidebar)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
-              href={`/projects/${project.id}?tab=activity#email-composer`}
-            >
-              Email
-            </Link>
-            <ProjectReplyLogger
-              action={logClientReplyAction}
-              buttonClassName="rounded-full border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
-              buttonLabel="Log reply"
-              clientName={project.client}
-              projectId={project.id}
-            />
-            <ProjectFileLauncher
-              buttonClassName="rounded-full border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
-              buttonLabel="New file"
-              clientName={project.client}
-              packagePresets={data.packagePresets}
-              projectId={project.id}
-              projectName={project.name}
-              projectType={project.type}
-            />
-            {canSeeFinancials ? (
-              <Link
-                className="rounded-full border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
-                href={`/projects/${project.id}?tab=financials`}
-              >
-                Invoices
-              </Link>
-            ) : null}
-            <Link
-              className="rounded-full border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
-              href={`/projects/${project.id}/deliverables`}
-            >
-              Deliverables
-            </Link>
-            {project.publicPortalToken ? (
-              <Link
-                className="rounded-full border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
-                href={projectPortalPath}
-                target="_blank"
-              >
-                Portal
-              </Link>
-            ) : null}
-          </div>
-        </div>
-
         <div className="flex flex-wrap gap-6 border-b border-black/[0.08] pb-4 text-sm font-semibold text-[var(--muted)]">
           {availableProjectTabs.map((tab) => (
             <Link
