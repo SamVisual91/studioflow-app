@@ -14,7 +14,7 @@ export default async function NewProjectFilePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ type?: string; title?: string; summary?: string }>;
+  searchParams: Promise<{ type?: string; title?: string; summary?: string; template?: string }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const { data } = await getDashboardPageData();
@@ -30,12 +30,23 @@ export default async function NewProjectFilePage({
   const client = db
     .prepare("SELECT contact_email FROM clients WHERE name = ? LIMIT 1")
     .get(project.client) as { contact_email?: string | null } | undefined;
-  const contractTemplate = db
+  const templateClientType = getContractTemplateClientType(project.type || "");
+  const contractTemplates = db
     .prepare(
-      "SELECT body FROM document_templates WHERE template_type = 'Contract' AND client_type = ? ORDER BY updated_at DESC LIMIT 1"
+      "SELECT id, name, client_type, body, updated_at FROM document_templates WHERE template_type = 'Contract' ORDER BY updated_at DESC"
     )
-    .get(getContractTemplateClientType(project.type || "")) as { body?: string | null } | undefined;
-  const contractDocument = parseContractDocument(String(contractTemplate?.body || ""), {
+    .all() as Array<{
+      id?: string | null;
+      name?: string | null;
+      client_type?: string | null;
+      body?: string | null;
+      updated_at?: string | null;
+    }>;
+  const selectedContractTemplate =
+    contractTemplates.find((item) => String(item.id || "") === String(query.template || "")) ||
+    contractTemplates.find((item) => String(item.client_type || "") === templateClientType) ||
+    undefined;
+  const contractDocument = parseContractDocument(String(selectedContractTemplate?.body || ""), {
     clientEmail: String(client?.contact_email || ""),
     clientName: project.client,
     contractTitle: `${project.type || "Project"} Contract`,
@@ -49,6 +60,35 @@ export default async function NewProjectFilePage({
     return (
       <main className="min-h-screen bg-[var(--canvas)] px-4 py-8 text-[var(--ink)]">
         <div className="mx-auto max-w-7xl">
+          <div className="mb-6 rounded-[1.5rem] border border-black/[0.08] bg-white/80 p-5">
+            <form action={`/projects/${project.id}/files/new`} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <input name="type" type="hidden" value="CONTRACT" />
+              <label className="grid gap-2 text-sm font-semibold">
+                Choose a saved contract template
+                <select
+                  className="rounded-[1rem] border border-black/[0.08] bg-white px-4 py-3 text-sm outline-none transition focus:border-[var(--forest)]"
+                  defaultValue={String(selectedContractTemplate?.id || "")}
+                  name="template"
+                >
+                  <option value="">Default starter contract</option>
+                  {contractTemplates.map((item) => (
+                    <option key={String(item.id)} value={String(item.id)}>
+                      {String(item.name || "Untitled contract")} · {String(item.client_type || "Others")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button className="rounded-full border border-black/[0.08] bg-white px-5 py-3 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]">
+                Load template
+              </button>
+            </form>
+            <p className="mt-3 text-sm text-[var(--muted)]">
+              {selectedContractTemplate
+                ? `Starting from ${String(selectedContractTemplate.name || "your selected contract template")}.`
+                : `Starting from the default contract starter for ${templateClientType}.`}
+            </p>
+          </div>
+
           <ContractWorkspace
             action={saveProjectFileAction}
             formId="project-contract-form"
