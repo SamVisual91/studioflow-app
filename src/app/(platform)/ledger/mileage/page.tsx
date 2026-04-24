@@ -1,7 +1,6 @@
 import { MileageEntryDialog } from "@/components/mileage-entry-dialog";
 import { MileageHistoryRow } from "@/components/mileage-history-row";
 import { LedgerWorkspace } from "@/components/ledger-workspace";
-import { shortDate } from "@/lib/formatters";
 import { getLedgerPageData } from "@/lib/ledger-page";
 import { getMileageData } from "@/lib/mileage";
 
