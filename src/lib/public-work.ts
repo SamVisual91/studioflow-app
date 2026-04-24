@@ -97,7 +97,7 @@ export const publicWorkSections: PublicWorkSection[] = [
         title: "JONAS RIDGE",
         subtitle: "Snow Tubing Campaign",
         image: "/brand/jonas-ridge-tubing-thumbnail.png",
-        videoSrc: "/work-videos/jonas-ridge-snow-tubing.mp4",
+        youtubeEmbedSrc: "https://www.youtube.com/embed/UHG0nDxC8_I?si=4W4-Vw7NlsqyFcLq",
         client: "Jonas Ridge Snow Tubing",
         category: "Attractions & Destination Campaigns",
         summary: "Family-friendly winter promotion designed to sell the experience, not just the location.",
