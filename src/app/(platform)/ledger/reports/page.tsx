@@ -174,7 +174,8 @@ export default async function LedgerReportsPage() {
             <h2 className="mt-2 text-2xl font-semibold">{reportYear} expenses and revenue sheet</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
               Every ledger entry and imported bank transaction flows into this sheet automatically. Add or reconcile
-              transactions in Ledger, and this annual view updates with the new monthly totals.
+              transactions in Ledger, and this annual view updates with the new monthly totals. Client refunds now land
+              in expenses automatically so your profit and annual reporting stay honest.
             </p>
           </div>
           <div className="rounded-[1rem] bg-[rgba(16,33,52,0.04)] px-4 py-3 text-sm text-[var(--muted)]">
@@ -337,7 +338,7 @@ export default async function LedgerReportsPage() {
                   <span className="text-sm text-[var(--muted)]">{month.year}</span>
                 </div>
                 <p className="mt-2 text-sm text-[var(--muted)]">
-                  Income {preciseCurrencyFormatter.format(month.income)} | Expenses {preciseCurrencyFormatter.format(month.expenses)}
+                  Income {preciseCurrencyFormatter.format(month.income)} | Expenses {preciseCurrencyFormatter.format(month.expenses)} | Refunds {preciseCurrencyFormatter.format(month.clientRefunds)}
                 </p>
                 <p className="mt-1 text-lg font-semibold">P&amp;L {preciseCurrencyFormatter.format(month.profit)}</p>
               </div>
@@ -361,7 +362,7 @@ export default async function LedgerReportsPage() {
                   <span className="text-sm text-[var(--muted)]">{quarter.year}</span>
                 </div>
                 <p className="mt-2 text-sm text-[var(--muted)]">
-                  Income {preciseCurrencyFormatter.format(quarter.income)} | Expenses {preciseCurrencyFormatter.format(quarter.expenses)}
+                  Income {preciseCurrencyFormatter.format(quarter.income)} | Expenses {preciseCurrencyFormatter.format(quarter.expenses)} | Refunds {preciseCurrencyFormatter.format(quarter.clientRefunds)}
                 </p>
                 <p className="mt-1 text-lg font-semibold">P&amp;L {preciseCurrencyFormatter.format(quarter.profit)}</p>
               </div>
@@ -385,7 +386,7 @@ export default async function LedgerReportsPage() {
                   <span className="text-sm text-[var(--muted)]">Annual</span>
                 </div>
                 <p className="mt-2 text-sm text-[var(--muted)]">
-                  Income {preciseCurrencyFormatter.format(year.income)} | Expenses {preciseCurrencyFormatter.format(year.expenses)}
+                  Income {preciseCurrencyFormatter.format(year.income)} | Expenses {preciseCurrencyFormatter.format(year.expenses)} | Refunds {preciseCurrencyFormatter.format(year.clientRefunds)}
                 </p>
                 <p className="mt-1 text-lg font-semibold">P&amp;L {preciseCurrencyFormatter.format(year.profit)}</p>
               </div>

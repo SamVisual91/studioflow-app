@@ -194,9 +194,20 @@ export default async function LedgerTransactionsPage({
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-semibold">{preciseCurrencyFormatter.format(entry.amount)}</p>
+                        <p
+                          className={`text-lg font-semibold ${
+                            entry.direction === "EXPENSE" ? "text-[var(--accent)]" : "text-[var(--forest)]"
+                          }`}
+                        >
+                          {entry.direction === "EXPENSE" ? "-" : "+"}
+                          {preciseCurrencyFormatter.format(entry.amount)}
+                        </p>
                         <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
-                          {entry.isReconciled ? "Reconciled" : "Needs review"}
+                          {entry.category === "CLIENT_REFUNDS"
+                            ? "Client refund"
+                            : entry.isReconciled
+                              ? "Reconciled"
+                              : "Needs review"}
                         </p>
                       </div>
                     </div>

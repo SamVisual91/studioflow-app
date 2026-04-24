@@ -3521,6 +3521,14 @@ export async function createStripeCheckoutAction(formData: FormData) {
       paymentId: payment.id,
       token,
     },
+    payment_intent_data: {
+      metadata: {
+        invoiceId: String(invoice.id),
+        paymentId: payment.id,
+        token,
+        mode: "checkout",
+      },
+    },
     line_items: [
       {
         quantity: 1,

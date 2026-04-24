@@ -6,6 +6,7 @@ import {
   markInvoicePaymentPaid,
   updateInvoiceAutopaySetup,
 } from "@/lib/autopay";
+import { recordInvoiceRefundToLedger } from "@/lib/ledger";
 import { getStripe, getStripeWebhookSecret, hasStripeConfig, hasStripeWebhookSecret } from "@/lib/stripe";
 import { markVideoPaywallPaid } from "@/lib/video-paywalls";
 
@@ -57,6 +58,18 @@ export async function POST(request: Request) {
       }
 
       if (mode === "payment" && invoiceId && paymentId) {
+        const paymentIntentId = String(session.payment_intent || "");
+        if (paymentIntentId) {
+          await stripe.paymentIntents.update(paymentIntentId, {
+            metadata: {
+              invoiceId,
+              paymentId,
+              token,
+              mode: "checkout",
+            },
+          });
+        }
+
         markInvoicePaymentPaid(invoiceId, paymentId, {
           channel: "Stripe webhook",
           preview: `Stripe confirmed payment for ${paymentId}.`,
@@ -113,6 +126,48 @@ export async function POST(request: Request) {
         markInvoiceAutopayFailure(invoiceId, paymentId);
         revalidatePath("/ledger");
       }
+
+      return NextResponse.json({ received: true });
+    }
+
+    case "charge.refunded": {
+      const charge = event.data.object as Stripe.Charge;
+      const paymentIntentId =
+        typeof charge.payment_intent === "string"
+          ? charge.payment_intent
+          : charge.payment_intent?.id || "";
+
+      if (!paymentIntentId) {
+        return NextResponse.json({ received: true });
+      }
+
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const invoiceId = String(paymentIntent.metadata?.invoiceId || "");
+      const paymentId = String(paymentIntent.metadata?.paymentId || "");
+
+      if (!invoiceId || !paymentId) {
+        return NextResponse.json({ received: true });
+      }
+
+      for (const refund of charge.refunds?.data || []) {
+        if (refund.status !== "succeeded") {
+          continue;
+        }
+
+        recordInvoiceRefundToLedger({
+          invoiceId,
+          paymentId,
+          refundId: refund.id,
+          refundAmount: Number(refund.amount || 0) / 100,
+          refundDate: refund.created ? new Date(refund.created * 1000).toISOString() : new Date().toISOString(),
+          paymentMethod: "Stripe refund",
+        });
+      }
+
+      revalidatePath("/ledger");
+      revalidatePath("/ledger/reports");
+      revalidatePath("/overview");
+      revalidatePath("/invoices");
 
       return NextResponse.json({ received: true });
     }

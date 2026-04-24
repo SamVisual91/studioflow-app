@@ -10,6 +10,7 @@ export default async function LedgerOverviewPage() {
   const recentEntries = ledger.entries.slice(0, 8);
   const unreconciledCount = ledger.entries.filter((entry) => !entry.isReconciled).length;
   const recurringActive = ledger.recurringRules.filter((rule) => rule.active).length;
+  const monthlyRefunds = ledger.summary.month.clientRefunds;
 
   return (
     <LedgerWorkspace
@@ -35,10 +36,11 @@ export default async function LedgerOverviewPage() {
         </>
       }
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {[
           { label: "Monthly profit", value: preciseCurrencyFormatter.format(ledger.summary.month.profit), note: ledger.summary.month.label },
           { label: "Quarterly profit", value: preciseCurrencyFormatter.format(ledger.summary.quarter.profit), note: ledger.summary.quarter.label },
+          { label: "Client refunds", value: preciseCurrencyFormatter.format(monthlyRefunds), note: "Refunded this month" },
           { label: "Unreconciled entries", value: String(unreconciledCount), note: "Need statement review" },
           { label: "Recurring rules", value: String(recurringActive), note: "Active monthly automations" },
         ].map((card) => (
@@ -96,7 +98,14 @@ export default async function LedgerOverviewPage() {
                         {entry.isReconciled ? "Reconciled" : "Review"}
                       </span>
                     </td>
-                    <td className="px-2 py-3 text-right font-semibold">{preciseCurrencyFormatter.format(entry.amount)}</td>
+                    <td
+                      className={`px-2 py-3 text-right font-semibold ${
+                        entry.direction === "EXPENSE" ? "text-[var(--accent)]" : "text-[var(--forest)]"
+                      }`}
+                    >
+                      {entry.direction === "EXPENSE" ? "-" : "+"}
+                      {preciseCurrencyFormatter.format(entry.amount)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -137,7 +146,7 @@ export default async function LedgerOverviewPage() {
                     <span className="text-sm text-[var(--muted)]">P&L</span>
                   </div>
                   <p className="mt-2 text-sm text-[var(--muted)]">
-                    Income {preciseCurrencyFormatter.format(report.income)} | Expenses {preciseCurrencyFormatter.format(report.expenses)}
+                    Income {preciseCurrencyFormatter.format(report.income)} | Expenses {preciseCurrencyFormatter.format(report.expenses)} | Refunds {preciseCurrencyFormatter.format(report.clientRefunds)}
                   </p>
                   <p className="mt-1 text-xl font-semibold">{preciseCurrencyFormatter.format(report.profit)}</p>
                 </div>

@@ -74,6 +74,7 @@ const ledgerCategoryMeta = [
   { value: "OTHERS", label: "Others", direction: "INCOME", taxCategory: "Gross receipts" },
   { value: "CLIENT_PAYMENTS", label: "Client payments", direction: "INCOME", taxCategory: "Gross receipts" },
   { value: "OTHER_INCOME", label: "Other income", direction: "INCOME", taxCategory: "Other income" },
+  { value: "CLIENT_REFUNDS", label: "Client refunds", direction: "EXPENSE", taxCategory: "Returns and allowances" },
   { value: "EQUIPMENT", label: "Equipment", direction: "EXPENSE", taxCategory: "Supplies" },
   { value: "TRAVEL", label: "Travel", direction: "EXPENSE", taxCategory: "Travel" },
   { value: "MEALS", label: "Meals", direction: "EXPENSE", taxCategory: "Meals" },
@@ -287,6 +288,54 @@ export function recordInvoicePaymentToLedger(opts: {
     sourceType: opts.sourceType || "INVOICE_PAYMENT",
     sourceId: paymentSourceId,
     taxCategory: "Gross receipts",
+  });
+}
+
+export function recordInvoiceRefundToLedger(opts: {
+  invoiceId: string;
+  paymentId: string;
+  refundId: string;
+  refundAmount: number;
+  refundDate?: string;
+  paymentMethod?: string;
+  invoiceLabel?: string;
+  invoiceNumber?: string;
+  clientName?: string;
+}) {
+  const db = getDb();
+  const existingRefundRecord = db
+    .prepare("SELECT id FROM ledger_transactions WHERE source_type = ? AND source_id = ? LIMIT 1")
+    .get("STRIPE_REFUND", opts.refundId) as { id?: string } | undefined;
+
+  if (existingRefundRecord?.id) {
+    return existingRefundRecord.id;
+  }
+
+  const invoice = db
+    .prepare("SELECT id, project_id, client, label, method, public_token FROM invoices WHERE id = ? LIMIT 1")
+    .get(opts.invoiceId) as
+    | { id: string; project_id?: string | null; client: string; label: string; method: string; public_token?: string | null }
+    | undefined;
+
+  if (!invoice) {
+    return null;
+  }
+
+  const resolvedProject = resolveProjectForInvoice(invoice, db);
+
+  return createLedgerTransaction({
+    transactionDate: opts.refundDate || new Date().toISOString(),
+    direction: "EXPENSE",
+    category: "CLIENT_REFUNDS",
+    amount: Number(opts.refundAmount || 0),
+    description: `Refund for ${opts.invoiceLabel || invoice.label} ${opts.invoiceNumber ? `(${opts.invoiceNumber})` : ""}`.trim(),
+    paymentMethod: opts.paymentMethod || "Stripe refund",
+    counterparty: opts.clientName || invoice.client,
+    projectId: resolvedProject?.id || "",
+    invoiceId: invoice.id,
+    sourceType: "STRIPE_REFUND",
+    sourceId: opts.refundId,
+    taxCategory: "Returns and allowances",
   });
 }
 
@@ -558,9 +607,11 @@ export function getLedgerData() {
   const summarize = (subset: typeof entries) => {
     const income = sumAmounts(subset.filter((entry) => entry.direction === "INCOME"));
     const expenses = sumAmounts(subset.filter((entry) => entry.direction === "EXPENSE"));
+    const clientRefunds = sumAmounts(subset.filter((entry) => entry.category === "CLIENT_REFUNDS"));
     return {
       income,
       expenses,
+      clientRefunds,
       profit: toMoney(income - expenses),
     };
   };
