@@ -1629,6 +1629,16 @@ export async function updateMileageLogAction(formData: FormData) {
   redirect("/ledger/mileage?updated=1");
 }
 
+function toRecurringBoundaryDate(input: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(input) ? `${input}T12:00:00.000Z` : "";
+}
+
+function getRecurringMonthlyDate(year: number, monthIndex: number, dayOfMonth: number) {
+  const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  const safeDay = Math.min(Math.max(dayOfMonth, 1), lastDay);
+  return new Date(Date.UTC(year, monthIndex, safeDay, 12)).toISOString();
+}
+
 export async function createRecurringLedgerRuleAction(formData: FormData) {
   await requireBackOfficeAccess();
 
@@ -1639,10 +1649,13 @@ export async function createRecurringLedgerRuleAction(formData: FormData) {
   const paymentMethod = getString(formData, "paymentMethod");
   const counterparty = getString(formData, "counterparty");
   const description = getString(formData, "description");
-  const dayOfMonth = Number(getString(formData, "dayOfMonth"));
+  const startDate = getString(formData, "startDate");
+  const endDate = getString(formData, "endDate");
   const projectId = getString(formData, "projectId");
 
   const categoryMeta = ledgerCategories.find((item) => item.value === category);
+  const parsedStartDate = toRecurringBoundaryDate(startDate);
+  const parsedEndDate = toRecurringBoundaryDate(endDate);
 
   if (
     !name ||
@@ -1651,27 +1664,23 @@ export async function createRecurringLedgerRuleAction(formData: FormData) {
     Number.isNaN(amount) ||
     amount <= 0 ||
     !description ||
-    Number.isNaN(dayOfMonth) ||
-    dayOfMonth < 1 ||
-    dayOfMonth > 31
+    !parsedStartDate ||
+    !parsedEndDate ||
+    new Date(parsedEndDate).getTime() < new Date(parsedStartDate).getTime()
   ) {
-    redirect("/ledger?error=transaction-invalid");
+    redirect("/ledger/recurring?error=transaction-invalid");
   }
 
-  const now = new Date();
-  const currentMonthRun = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), Math.min(dayOfMonth, 28), 12));
-  const nextRunDate =
-    currentMonthRun.getTime() > now.getTime()
-      ? currentMonthRun.toISOString()
-      : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, Math.min(dayOfMonth, 28), 12)).toISOString();
   const timestamp = new Date().toISOString();
   const db = getDb();
+  const startRunDate = new Date(parsedStartDate);
+  const isActive = new Date(parsedEndDate).getTime() >= startRunDate.getTime() ? 1 : 0;
 
   db.prepare(
     `INSERT INTO recurring_ledger_rules (
       id, name, direction, category, amount, payment_method, counterparty, description, day_of_month,
-      project_id, tax_category, active, next_run_date, last_run_date, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      start_date, end_date, project_id, tax_category, active, next_run_date, last_run_date, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     randomUUID(),
     name,
@@ -1681,18 +1690,21 @@ export async function createRecurringLedgerRuleAction(formData: FormData) {
     paymentMethod,
     counterparty,
     description,
-    dayOfMonth,
+    startRunDate.getUTCDate(),
+    parsedStartDate,
+    parsedEndDate,
     projectId,
     categoryMeta.taxCategory,
-    1,
-    nextRunDate,
+    isActive,
+    parsedStartDate,
     null,
     timestamp,
     timestamp
   );
 
   revalidatePath("/ledger");
-  redirect("/ledger?recurring=1");
+  revalidatePath("/ledger/recurring");
+  redirect("/ledger/recurring?recurring=1");
 }
 
 export async function updateRecurringLedgerRuleAction(formData: FormData) {
@@ -1706,10 +1718,13 @@ export async function updateRecurringLedgerRuleAction(formData: FormData) {
   const paymentMethod = getString(formData, "paymentMethod");
   const counterparty = getString(formData, "counterparty");
   const description = getString(formData, "description");
-  const dayOfMonth = Number(getString(formData, "dayOfMonth"));
+  const startDate = getString(formData, "startDate");
+  const endDate = getString(formData, "endDate");
   const projectId = getString(formData, "projectId");
 
   const categoryMeta = ledgerCategories.find((item) => item.value === category);
+  const parsedStartDate = toRecurringBoundaryDate(startDate);
+  const parsedEndDate = toRecurringBoundaryDate(endDate);
 
   if (
     !id ||
@@ -1719,11 +1734,11 @@ export async function updateRecurringLedgerRuleAction(formData: FormData) {
     Number.isNaN(amount) ||
     amount <= 0 ||
     !description ||
-    Number.isNaN(dayOfMonth) ||
-    dayOfMonth < 1 ||
-    dayOfMonth > 31
+    !parsedStartDate ||
+    !parsedEndDate ||
+    new Date(parsedEndDate).getTime() < new Date(parsedStartDate).getTime()
   ) {
-    redirect("/ledger?error=transaction-invalid");
+    redirect("/ledger/recurring?error=transaction-invalid");
   }
 
   const db = getDb();
@@ -1732,18 +1747,23 @@ export async function updateRecurringLedgerRuleAction(formData: FormData) {
     .get(id) as { active?: number; last_run_date?: string | null } | undefined;
 
   if (!existing) {
-    redirect("/ledger?error=transaction-invalid");
+    redirect("/ledger/recurring?error=transaction-invalid");
   }
 
-  const baseDate = existing.last_run_date ? new Date(existing.last_run_date) : new Date();
-  const nextRunDate = new Date(
-    Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth() + 1, Math.min(dayOfMonth, 28), 12)
-  ).toISOString();
+  const startRunDate = new Date(parsedStartDate);
+  const recurringDay = startRunDate.getUTCDate();
+  const baseDate = existing.last_run_date ? new Date(existing.last_run_date) : startRunDate;
+  const nextRunDate = existing.last_run_date
+    ? getRecurringMonthlyDate(baseDate.getUTCFullYear(), baseDate.getUTCMonth() + 1, recurringDay)
+    : parsedStartDate;
+  const normalizedNextRunDate =
+    new Date(nextRunDate).getTime() < startRunDate.getTime() ? parsedStartDate : nextRunDate;
+  const shouldRemainActive = new Date(parsedEndDate).getTime() >= new Date(normalizedNextRunDate).getTime() ? 1 : 0;
 
   db.prepare(
     `UPDATE recurring_ledger_rules
      SET name = ?, direction = ?, category = ?, amount = ?, payment_method = ?, counterparty = ?,
-         description = ?, day_of_month = ?, project_id = ?, tax_category = ?, next_run_date = ?, updated_at = ?
+        description = ?, day_of_month = ?, start_date = ?, end_date = ?, project_id = ?, tax_category = ?, active = ?, next_run_date = ?, updated_at = ?
      WHERE id = ?`
   ).run(
     name,
@@ -1753,16 +1773,20 @@ export async function updateRecurringLedgerRuleAction(formData: FormData) {
     paymentMethod,
     counterparty,
     description,
-    dayOfMonth,
+    startRunDate.getUTCDate(),
+    parsedStartDate,
+    parsedEndDate,
     projectId,
     categoryMeta.taxCategory,
-    nextRunDate,
+    shouldRemainActive,
+    normalizedNextRunDate,
     new Date().toISOString(),
     id
   );
 
   revalidatePath("/ledger");
-  redirect("/ledger?recurring=1");
+  revalidatePath("/ledger/recurring");
+  redirect("/ledger/recurring?recurring=1");
 }
 
 export async function toggleRecurringLedgerRuleAction(formData: FormData) {
@@ -1772,7 +1796,7 @@ export async function toggleRecurringLedgerRuleAction(formData: FormData) {
   const nextActive = getString(formData, "nextActive") === "1" ? 1 : 0;
 
   if (!id) {
-    redirect("/ledger?error=transaction-invalid");
+    redirect("/ledger/recurring?error=transaction-invalid");
   }
 
   const db = getDb();
@@ -1783,7 +1807,8 @@ export async function toggleRecurringLedgerRuleAction(formData: FormData) {
   );
 
   revalidatePath("/ledger");
-  redirect("/ledger?recurring=1");
+  revalidatePath("/ledger/recurring");
+  redirect("/ledger/recurring?recurring=1");
 }
 
 export async function deleteRecurringLedgerRuleAction(formData: FormData) {
@@ -1792,14 +1817,15 @@ export async function deleteRecurringLedgerRuleAction(formData: FormData) {
   const id = getString(formData, "id");
 
   if (!id) {
-    redirect("/ledger?error=transaction-invalid");
+    redirect("/ledger/recurring?error=transaction-invalid");
   }
 
   const db = getDb();
   db.prepare("DELETE FROM recurring_ledger_rules WHERE id = ?").run(id);
 
   revalidatePath("/ledger");
-  redirect("/ledger?recurring=1");
+  revalidatePath("/ledger/recurring");
+  redirect("/ledger/recurring?recurring=1");
 }
 
 export async function importBankStatementAction(formData: FormData) {

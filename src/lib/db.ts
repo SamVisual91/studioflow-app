@@ -477,6 +477,8 @@ function createSchema(db: DatabaseSync) {
       counterparty TEXT,
       description TEXT NOT NULL,
       day_of_month INTEGER NOT NULL,
+      start_date TEXT,
+      end_date TEXT,
       project_id TEXT,
       tax_category TEXT,
       active INTEGER NOT NULL DEFAULT 1,
@@ -625,6 +627,8 @@ function createSchema(db: DatabaseSync) {
   ensureColumn(db, "recurring_ledger_rules", "counterparty", "TEXT");
   ensureColumn(db, "recurring_ledger_rules", "project_id", "TEXT");
   ensureColumn(db, "recurring_ledger_rules", "tax_category", "TEXT");
+  ensureColumn(db, "recurring_ledger_rules", "start_date", "TEXT");
+  ensureColumn(db, "recurring_ledger_rules", "end_date", "TEXT");
   ensureColumn(db, "recurring_ledger_rules", "active", "INTEGER NOT NULL DEFAULT 1");
   ensureColumn(db, "users", "role", "TEXT NOT NULL DEFAULT 'SUPER_ADMIN'");
   db.prepare("UPDATE users SET role = 'SUPER_ADMIN' WHERE role IS NULL OR TRIM(role) = ''").run();

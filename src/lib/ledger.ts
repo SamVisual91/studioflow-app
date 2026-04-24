@@ -59,6 +59,8 @@ type RecurringLedgerRuleRow = {
   counterparty: string | null;
   description: string;
   day_of_month: number;
+  start_date: string | null;
+  end_date: string | null;
   project_id: string | null;
   tax_category: string | null;
   active: number;
@@ -109,16 +111,14 @@ function formatRecurringRunDate(year: number, monthIndex: number, dayOfMonth: nu
   return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(safeDay).padStart(2, "0")}T12:00:00.000Z`;
 }
 
-function getNextMonthlyRunDate(afterDate: Date, dayOfMonth: number) {
-  const year = afterDate.getUTCFullYear();
-  const month = afterDate.getUTCMonth();
-  const currentMonthRun = new Date(formatRecurringRunDate(year, month, dayOfMonth));
+function getRecurringDayOfMonth(startDateIso: string) {
+  const startDate = safeDate(startDateIso);
+  return startDate.getUTCDate();
+}
 
-  if (currentMonthRun.getTime() > afterDate.getTime()) {
-    return currentMonthRun.toISOString();
-  }
-
-  const nextMonth = new Date(Date.UTC(year, month + 1, 1, 12));
+function getNextMonthlyRunDate(lastRunDate: Date, startDateIso: string) {
+  const dayOfMonth = getRecurringDayOfMonth(startDateIso);
+  const nextMonth = new Date(Date.UTC(lastRunDate.getUTCFullYear(), lastRunDate.getUTCMonth() + 1, 1, 12));
   return formatRecurringRunDate(nextMonth.getUTCFullYear(), nextMonth.getUTCMonth(), dayOfMonth);
 }
 
@@ -346,13 +346,25 @@ export function syncRecurringLedgerRules() {
     .all() as RecurringLedgerRuleRow[];
   const now = new Date();
   const updateRule = db.prepare(
-    "UPDATE recurring_ledger_rules SET next_run_date = ?, last_run_date = ?, updated_at = ? WHERE id = ?"
+    "UPDATE recurring_ledger_rules SET next_run_date = ?, last_run_date = ?, active = ?, updated_at = ? WHERE id = ?"
   );
 
   for (const rule of rules) {
     let nextRun = safeDate(rule.next_run_date);
+    const startDate = rule.start_date || rule.next_run_date;
+    const endDate = rule.end_date ? safeDate(rule.end_date) : null;
+
+    if (endDate && nextRun.getTime() > endDate.getTime()) {
+      updateRule.run(rule.next_run_date, rule.last_run_date || null, 0, new Date().toISOString(), rule.id);
+      continue;
+    }
 
     while (nextRun.getTime() <= now.getTime()) {
+      if (endDate && nextRun.getTime() > endDate.getTime()) {
+        updateRule.run(nextRun.toISOString(), rule.last_run_date || null, 0, new Date().toISOString(), rule.id);
+        break;
+      }
+
       createLedgerTransaction({
         transactionDate: nextRun.toISOString(),
         direction: rule.direction as LedgerDirection,
@@ -367,10 +379,16 @@ export function syncRecurringLedgerRules() {
         taxCategory: rule.tax_category || getDefaultTaxCategory(rule.category, rule.direction as LedgerDirection),
       });
 
-      const nextRunDate = getNextMonthlyRunDate(nextRun, Number(rule.day_of_month || 1));
+      const nextRunDate = getNextMonthlyRunDate(nextRun, startDate);
       const timestamp = new Date().toISOString();
-      updateRule.run(nextRunDate, nextRun.toISOString(), timestamp, rule.id);
+      const nextRunValue = safeDate(nextRunDate);
+      const shouldRemainActive = !endDate || nextRunValue.getTime() <= endDate.getTime();
+      updateRule.run(nextRunDate, nextRun.toISOString(), shouldRemainActive ? 1 : 0, timestamp, rule.id);
       nextRun = safeDate(nextRunDate);
+
+      if (!shouldRemainActive) {
+        break;
+      }
     }
   }
 }
@@ -680,6 +698,8 @@ export function getLedgerData() {
       counterparty: rule.counterparty || "",
       description: rule.description,
       dayOfMonth: Number(rule.day_of_month || 1),
+      startDate: rule.start_date || rule.next_run_date.slice(0, 10),
+      endDate: rule.end_date ? rule.end_date.slice(0, 10) : "",
       projectId: rule.project_id || "",
       taxCategory: rule.tax_category || "",
       active: Number(rule.active || 0) === 1,
