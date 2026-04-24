@@ -14,6 +14,14 @@ export function MediaCarousel({ children, className = "", itemCount }: MediaCaro
   const shouldCarousel = itemCount > 3;
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(shouldCarousel);
+  const [isPaused, setIsPaused] = useState(false);
+
+  function getStepSize(track: HTMLDivElement) {
+    const firstCard = track.firstElementChild as HTMLElement | null;
+    const gap = 16;
+    const cardWidth = firstCard?.getBoundingClientRect().width ?? track.clientWidth * 0.84;
+    return cardWidth + gap;
+  }
 
   useEffect(() => {
     const track = trackRef.current;
@@ -45,15 +53,48 @@ export function MediaCarousel({ children, className = "", itemCount }: MediaCaro
       return;
     }
 
-    const firstCard = track.firstElementChild as HTMLElement | null;
-    const gap = 16;
-    const cardWidth = firstCard?.getBoundingClientRect().width ?? track.clientWidth * 0.84;
+    const maxScrollLeft = Math.max(track.scrollWidth - track.clientWidth, 0);
+    const stepSize = getStepSize(track);
+    const atStart = track.scrollLeft <= 8;
+    const atEnd = maxScrollLeft - track.scrollLeft <= 8;
+
+    if (direction === "right" && atEnd) {
+      track.scrollTo({ left: 0, behavior: "smooth" });
+      return;
+    }
+
+    if (direction === "left" && atStart) {
+      track.scrollTo({ left: maxScrollLeft, behavior: "smooth" });
+      return;
+    }
 
     track.scrollBy({
-      left: direction === "right" ? cardWidth + gap : -(cardWidth + gap),
+      left: direction === "right" ? stepSize : -stepSize,
       behavior: "smooth",
     });
   }
+
+  useEffect(() => {
+    const track = trackRef.current;
+
+    if (!track || !shouldCarousel || isPaused) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      const maxScrollLeft = Math.max(track.scrollWidth - track.clientWidth, 0);
+      const atEnd = maxScrollLeft - track.scrollLeft <= 8;
+
+      if (atEnd) {
+        track.scrollTo({ left: 0, behavior: "smooth" });
+        return;
+      }
+
+      track.scrollBy({ left: getStepSize(track), behavior: "smooth" });
+    }, 3000);
+
+    return () => window.clearInterval(timer);
+  }, [isPaused, shouldCarousel, itemCount]);
 
   if (!shouldCarousel) {
     return (
@@ -68,12 +109,7 @@ export function MediaCarousel({ children, className = "", itemCount }: MediaCaro
       <div className="mb-4 flex items-center justify-end gap-2">
         <button
           aria-label="Previous"
-          className={`inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur transition ${
-            canScrollLeft
-              ? "border-white/14 bg-[#141210]/88 text-white hover:bg-[#1b1816]"
-              : "cursor-default border-white/8 bg-[#141210]/38 text-white/25"
-          }`}
-          disabled={!canScrollLeft}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/14 bg-[#141210]/88 text-white backdrop-blur transition hover:bg-[#1b1816] focus:outline-none focus:ring-2 focus:ring-white/60"
           onClick={() => scrollTrack("left")}
           type="button"
         >
@@ -83,12 +119,7 @@ export function MediaCarousel({ children, className = "", itemCount }: MediaCaro
         </button>
         <button
           aria-label="Next"
-          className={`inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur transition ${
-            canScrollRight
-              ? "border-white/14 bg-[#141210]/88 text-white hover:bg-[#1b1816]"
-              : "cursor-default border-white/8 bg-[#141210]/38 text-white/25"
-          }`}
-          disabled={!canScrollRight}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/14 bg-[#141210]/88 text-white backdrop-blur transition hover:bg-[#1b1816] focus:outline-none focus:ring-2 focus:ring-white/60"
           onClick={() => scrollTrack("right")}
           type="button"
         >
@@ -107,6 +138,10 @@ export function MediaCarousel({ children, className = "", itemCount }: MediaCaro
         ) : null}
 
         <div
+          onFocusCapture={() => setIsPaused(true)}
+          onBlurCapture={() => setIsPaused(false)}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
           ref={trackRef}
           className="no-scrollbar overflow-x-auto scroll-smooth pb-2"
         >
