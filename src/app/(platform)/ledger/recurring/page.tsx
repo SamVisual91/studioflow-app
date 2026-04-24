@@ -155,35 +155,18 @@ export default async function LedgerRecurringPage({
             No recurring rules yet. Create your first monthly rule above and it will appear here.
           </div>
         ) : (
-          <div className="mt-5 overflow-x-auto rounded-[1.15rem] border border-black/[0.08]">
-            <table className="min-w-[1500px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="bg-[rgba(16,33,52,0.06)] text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">Status</th>
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">Rule</th>
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">Category</th>
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">Direction</th>
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">Amount</th>
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">Start date</th>
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">End date</th>
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">Vendor</th>
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">Method</th>
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">Description</th>
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">Project</th>
-                  <th className="border-b border-r border-black/[0.08] px-3 py-3 font-medium">Next run</th>
-                  <th className="border-b border-black/[0.08] px-3 py-3 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ledger.recurringRules.map((rule) => {
-                  const updateFormId = `rule-form-${rule.id}`;
-                  const activeClass = rule.active
-                    ? "bg-[rgba(47,125,92,0.08)]"
-                    : "bg-[rgba(16,33,52,0.03)] text-[var(--muted)]";
+          <div className="mt-5 grid gap-3.5">
+            {ledger.recurringRules.map((rule) => {
+              const updateFormId = `rule-form-${rule.id}`;
+              const activeClass = rule.active
+                ? "border-[rgba(47,125,92,0.16)] bg-[rgba(47,125,92,0.05)]"
+                : "border-black/[0.08] bg-[rgba(16,33,52,0.03)]";
 
-                  return (
-                    <tr key={rule.id} className={activeClass}>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
+              return (
+                <article key={rule.id} className={`rounded-[1.15rem] border p-4 ${activeClass}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
                             rule.active
@@ -193,148 +176,173 @@ export default async function LedgerRecurringPage({
                         >
                           {rule.active ? "Active" : "Paused"}
                         </span>
-                      </td>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
-                        <input
-                          className="w-[180px] rounded-2xl border border-black/[0.08] bg-white px-3 py-2"
-                          defaultValue={rule.name}
-                          form={updateFormId}
-                          name="name"
-                        />
-                      </td>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
-                        <select
-                          className="w-[170px] rounded-2xl border border-black/[0.08] bg-white px-3 py-2"
-                          defaultValue={rule.category}
-                          form={updateFormId}
-                          name="category"
-                        >
-                          {ledger.categories.map((category) => (
-                            <option key={category.value} value={category.value}>
-                              {category.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
-                        <select
-                          className="w-[130px] rounded-2xl border border-black/[0.08] bg-white px-3 py-2"
-                          defaultValue={rule.direction}
-                          form={updateFormId}
-                          name="direction"
-                        >
-                          <option value="EXPENSE">Expense</option>
-                          <option value="INCOME">Income</option>
-                        </select>
-                      </td>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
-                        <input
-                          className="w-[110px] rounded-2xl border border-black/[0.08] bg-white px-3 py-2"
-                          defaultValue={rule.amount}
-                          form={updateFormId}
-                          min="0.01"
-                          name="amount"
-                          step="0.01"
-                          type="number"
-                        />
-                        <p className="mt-2 text-xs font-semibold text-[var(--muted)]">
-                          {preciseCurrencyFormatter.format(rule.amount)}
-                        </p>
-                      </td>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
-                        <input
-                          className="w-[150px] rounded-2xl border border-black/[0.08] bg-white px-3 py-2"
-                          defaultValue={rule.startDate}
-                          form={updateFormId}
-                          name="startDate"
-                          type="date"
-                        />
-                      </td>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
-                        <input
-                          className="w-[150px] rounded-2xl border border-black/[0.08] bg-white px-3 py-2"
-                          defaultValue={rule.endDate}
-                          form={updateFormId}
-                          name="endDate"
-                          type="date"
-                        />
-                      </td>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
-                        <input
-                          className="w-[160px] rounded-2xl border border-black/[0.08] bg-white px-3 py-2"
-                          defaultValue={rule.counterparty}
-                          form={updateFormId}
-                          name="counterparty"
-                        />
-                      </td>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
-                        <input
-                          className="w-[150px] rounded-2xl border border-black/[0.08] bg-white px-3 py-2"
-                          defaultValue={rule.paymentMethod}
-                          form={updateFormId}
-                          name="paymentMethod"
-                        />
-                      </td>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
-                        <input
-                          className="w-[220px] rounded-2xl border border-black/[0.08] bg-white px-3 py-2"
-                          defaultValue={rule.description}
-                          form={updateFormId}
-                          name="description"
-                        />
-                      </td>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
-                        <select
-                          className="w-[200px] rounded-2xl border border-black/[0.08] bg-white px-3 py-2"
-                          defaultValue={rule.projectId}
-                          form={updateFormId}
-                          name="projectId"
-                        >
-                          <option value="">No linked project</option>
-                          {data.projects.map((project) => (
-                            <option key={project.id} value={project.id}>
-                              {project.client} | {project.name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="border-b border-r border-black/[0.08] px-3 py-3 align-top">
-                        <p className="font-semibold">{shortDate.format(new Date(rule.nextRunDate))}</p>
-                        <p className="mt-1 text-xs text-[var(--muted)]">
-                          {rule.lastRunDate ? `Last ${shortDate.format(new Date(rule.lastRunDate))}` : "Not run yet"}
-                        </p>
-                      </td>
-                      <td className="border-b border-black/[0.08] px-3 py-3 align-top">
-                        <div className="flex min-w-[180px] flex-col gap-2">
-                          <form action={updateRecurringLedgerRuleAction} id={updateFormId}>
-                            <input name="id" type="hidden" value={rule.id} />
-                          </form>
-                          <button
-                            className="rounded-full bg-[var(--sidebar)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
-                            form={updateFormId}
-                          >
-                            Save row
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">{rule.categoryLabel}</p>
+                      </div>
+                      <h3 className="mt-2 text-lg font-semibold">{rule.name}</h3>
+                      <p className="mt-1 text-sm text-[var(--muted)]">
+                        {rule.direction === "EXPENSE" ? "Expense" : "Income"} | {preciseCurrencyFormatter.format(rule.amount)} | Next run{" "}
+                        {shortDate.format(new Date(rule.nextRunDate))}
+                      </p>
+                    </div>
+
+                    <div className="flex min-w-[190px] flex-col gap-2 sm:min-w-[220px]">
+                      <form action={updateRecurringLedgerRuleAction} id={updateFormId}>
+                        <input name="id" type="hidden" value={rule.id} />
+                      </form>
+                      <button
+                        className="rounded-full bg-[var(--sidebar)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
+                        form={updateFormId}
+                      >
+                        Save row
+                      </button>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <form action={toggleRecurringLedgerRuleAction}>
+                          <input name="id" type="hidden" value={rule.id} />
+                          <input name="nextActive" type="hidden" value={rule.active ? "0" : "1"} />
+                          <button className="w-full rounded-full border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]">
+                            {rule.active ? "Pause" : "Resume"}
                           </button>
-                          <form action={toggleRecurringLedgerRuleAction}>
-                            <input name="id" type="hidden" value={rule.id} />
-                            <input name="nextActive" type="hidden" value={rule.active ? "0" : "1"} />
-                            <button className="w-full rounded-full border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]">
-                              {rule.active ? "Pause rule" : "Resume rule"}
-                            </button>
-                          </form>
-                          <form action={deleteRecurringLedgerRuleAction}>
-                            <input name="id" type="hidden" value={rule.id} />
-                            <button className="w-full rounded-full border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-4 py-2 text-sm font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.12)]">
-                              Delete
-                            </button>
-                          </form>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </form>
+                        <form action={deleteRecurringLedgerRuleAction}>
+                          <input name="id" type="hidden" value={rule.id} />
+                          <button className="w-full rounded-full border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-4 py-2 text-sm font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.12)]">
+                            Delete
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                      Rule name
+                      <input
+                        className="h-11 rounded-2xl border border-black/[0.08] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--ink)]"
+                        defaultValue={rule.name}
+                        form={updateFormId}
+                        name="name"
+                      />
+                    </label>
+                    <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                      Category
+                      <select
+                        className="h-11 rounded-2xl border border-black/[0.08] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--ink)]"
+                        defaultValue={rule.category}
+                        form={updateFormId}
+                        name="category"
+                      >
+                        {ledger.categories.map((category) => (
+                          <option key={category.value} value={category.value}>
+                            {category.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                      Direction
+                      <select
+                        className="h-11 rounded-2xl border border-black/[0.08] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--ink)]"
+                        defaultValue={rule.direction}
+                        form={updateFormId}
+                        name="direction"
+                      >
+                        <option value="EXPENSE">Expense</option>
+                        <option value="INCOME">Income</option>
+                      </select>
+                    </label>
+                    <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                      Amount
+                      <input
+                        className="h-11 rounded-2xl border border-black/[0.08] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--ink)]"
+                        defaultValue={rule.amount}
+                        form={updateFormId}
+                        min="0.01"
+                        name="amount"
+                        step="0.01"
+                        type="number"
+                      />
+                    </label>
+                    <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                      Start date
+                      <input
+                        className="h-11 rounded-2xl border border-black/[0.08] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--ink)]"
+                        defaultValue={rule.startDate}
+                        form={updateFormId}
+                        name="startDate"
+                        type="date"
+                      />
+                    </label>
+                    <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                      End date
+                      <input
+                        className="h-11 rounded-2xl border border-black/[0.08] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--ink)]"
+                        defaultValue={rule.endDate}
+                        form={updateFormId}
+                        name="endDate"
+                        type="date"
+                      />
+                    </label>
+                    <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                      Vendor
+                      <input
+                        className="h-11 rounded-2xl border border-black/[0.08] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--ink)]"
+                        defaultValue={rule.counterparty}
+                        form={updateFormId}
+                        name="counterparty"
+                      />
+                    </label>
+                    <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                      Method
+                      <input
+                        className="h-11 rounded-2xl border border-black/[0.08] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--ink)]"
+                        defaultValue={rule.paymentMethod}
+                        form={updateFormId}
+                        name="paymentMethod"
+                      />
+                    </label>
+                    <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] md:col-span-2 xl:col-span-3">
+                      Description
+                      <input
+                        className="h-11 rounded-2xl border border-black/[0.08] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--ink)]"
+                        defaultValue={rule.description}
+                        form={updateFormId}
+                        name="description"
+                      />
+                    </label>
+                    <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] md:col-span-2 xl:col-span-1">
+                      Project
+                      <select
+                        className="h-11 rounded-2xl border border-black/[0.08] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--ink)]"
+                        defaultValue={rule.projectId}
+                        form={updateFormId}
+                        name="projectId"
+                      >
+                        <option value="">No linked project</option>
+                        {data.projects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.client} | {project.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="mt-4 grid gap-2 rounded-[1rem] bg-white/72 px-3.5 py-3 text-sm text-[var(--muted)] sm:grid-cols-3">
+                    <p>
+                      <span className="font-semibold text-[var(--ink)]">Next run:</span>{" "}
+                      {shortDate.format(new Date(rule.nextRunDate))}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[var(--ink)]">Last run:</span>{" "}
+                      {rule.lastRunDate ? shortDate.format(new Date(rule.lastRunDate)) : "Not run yet"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[var(--ink)]">Range:</span> {rule.startDate} to {rule.endDate}
+                    </p>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
