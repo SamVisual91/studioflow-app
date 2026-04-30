@@ -510,6 +510,7 @@ function createSchema(db: DatabaseSync) {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       category TEXT NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
       barcode TEXT,
       serial_number TEXT,
       status TEXT NOT NULL,
@@ -636,6 +637,7 @@ function createSchema(db: DatabaseSync) {
   ensureColumn(db, "recurring_ledger_rules", "last_run_date", "TEXT");
   ensureColumn(db, "gear_inventory", "serial_number", "TEXT");
   ensureColumn(db, "gear_inventory", "barcode", "TEXT");
+  ensureColumn(db, "gear_inventory", "quantity", "INTEGER NOT NULL DEFAULT 1");
   ensureColumn(db, "gear_inventory", "status", "TEXT");
   ensureColumn(db, "gear_inventory", "condition", "TEXT");
   ensureColumn(db, "gear_inventory", "daily_rate", "REAL DEFAULT 0");
@@ -644,6 +646,7 @@ function createSchema(db: DatabaseSync) {
   ensureColumn(db, "gear_inventory", "checked_out_at", "TEXT");
   ensureColumn(db, "gear_inventory", "due_back_at", "TEXT");
   ensureColumn(db, "gear_inventory", "notes", "TEXT");
+  db.prepare("UPDATE gear_inventory SET quantity = 1 WHERE quantity IS NULL OR quantity < 1").run();
   ensureColumn(db, "gear_checkouts", "checkout_type", "TEXT");
   ensureColumn(db, "gear_checkouts", "project_id", "TEXT");
   ensureColumn(db, "gear_checkouts", "renter_name", "TEXT");

@@ -10,6 +10,7 @@ export type GearInventoryItem = {
   id: string;
   name: string;
   category: string;
+  quantity: number;
   barcode: string | null;
   serial_number: string | null;
   status: string;
@@ -29,6 +30,7 @@ type DraftRow = {
   dailyRate: string;
   name: string;
   notes: string;
+  quantity: string;
   replacementValue: string;
   serialNumber: string;
 };
@@ -67,6 +69,7 @@ function toDraftRow(item: GearInventoryItem): DraftRow {
     dailyRate: String(item.daily_rate),
     name: item.name,
     notes: item.notes ?? "",
+    quantity: String(item.quantity),
     replacementValue: String(item.replacement_value),
     serialNumber: item.serial_number ?? "",
   };
@@ -181,6 +184,7 @@ export function GearInventoryManager({ initialGearItems }: { initialGearItems: G
       formData.set("gearId", itemId);
       formData.set("name", draft.name);
       formData.set("category", draft.category);
+      formData.set("quantity", draft.quantity);
       formData.set("barcode", draft.barcode);
       formData.set("serialNumber", draft.serialNumber);
       formData.set("condition", draft.condition);
@@ -242,11 +246,12 @@ export function GearInventoryManager({ initialGearItems }: { initialGearItems: G
         </datalist>
 
         <div className="mt-6 overflow-x-auto">
-          <table className="w-full min-w-[1120px] border-collapse text-left">
+          <table className="w-full min-w-[1210px] border-collapse text-left">
             <thead className="border-b border-black/[0.06] bg-[#fbf8f3] text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
               <tr>
                 <th className="px-4 py-4 font-semibold">Gear</th>
                 <th className="px-4 py-4 font-semibold">Category</th>
+                <th className="px-4 py-4 font-semibold">Quantity</th>
                 <th className="px-4 py-4 font-semibold">Barcode</th>
                 <th className="px-4 py-4 font-semibold">Status</th>
                 <th className="px-4 py-4 font-semibold">Condition</th>
@@ -302,6 +307,22 @@ export function GearInventoryManager({ initialGearItems }: { initialGearItems: G
                         />
                       ) : (
                         <span className="text-sm text-[var(--muted)]">{item.category}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 align-top">
+                      {isEditing ? (
+                        <input
+                          className="w-24 rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm text-[var(--ink)]"
+                          min="1"
+                          name="quantity"
+                          onBlur={() => flushAutosave(item.id)}
+                          onChange={(event) => updateDraft(item.id, "quantity", event.target.value)}
+                          step="1"
+                          type="number"
+                          value={draft.quantity}
+                        />
+                      ) : (
+                        <span className="text-sm font-semibold text-[var(--ink)]">{item.quantity}</span>
                       )}
                     </td>
                     <td className="px-4 py-4 align-top">

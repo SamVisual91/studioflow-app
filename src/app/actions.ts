@@ -1111,14 +1111,23 @@ export async function createGearItemAction(formData: FormData) {
 
   const name = getString(formData, "name");
   const category = getString(formData, "category");
+  const quantityInput = getString(formData, "quantity");
   const barcode = getString(formData, "barcode");
   const serialNumber = getString(formData, "serialNumber");
   const condition = getString(formData, "condition") || "Ready";
   const notes = getString(formData, "notes");
   const dailyRate = Number(getString(formData, "dailyRate") || "0");
   const replacementValue = Number(getString(formData, "replacementValue") || "0");
+  const quantity = quantityInput ? Number(quantityInput) : 1;
 
-  if (!name || !category || Number.isNaN(dailyRate) || Number.isNaN(replacementValue)) {
+  if (
+    !name ||
+    !category ||
+    !Number.isInteger(quantity) ||
+    quantity < 1 ||
+    Number.isNaN(dailyRate) ||
+    Number.isNaN(replacementValue)
+  ) {
     redirect("/crm?error=gear-invalid");
   }
 
@@ -1138,13 +1147,14 @@ export async function createGearItemAction(formData: FormData) {
 
   db.prepare(
     `INSERT INTO gear_inventory (
-      id, name, category, barcode, serial_number, status, condition, daily_rate, replacement_value,
+      id, name, category, quantity, barcode, serial_number, status, condition, daily_rate, replacement_value,
       current_holder, checked_out_at, due_back_at, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     randomUUID(),
     name,
     category,
+    quantity,
     normalizedBarcode,
     serialNumber,
     "AVAILABLE",
@@ -1169,14 +1179,24 @@ export async function updateGearItemAction(formData: FormData) {
   const gearId = getString(formData, "gearId");
   const name = getString(formData, "name");
   const category = getString(formData, "category");
+  const quantityInput = getString(formData, "quantity");
   const barcode = getString(formData, "barcode");
   const serialNumber = getString(formData, "serialNumber");
   const condition = getString(formData, "condition") || "Ready";
   const notes = getString(formData, "notes");
   const dailyRate = Number(getString(formData, "dailyRate") || "0");
   const replacementValue = Number(getString(formData, "replacementValue") || "0");
+  const quantity = quantityInput ? Number(quantityInput) : 1;
 
-  if (!gearId || !name || !category || Number.isNaN(dailyRate) || Number.isNaN(replacementValue)) {
+  if (
+    !gearId ||
+    !name ||
+    !category ||
+    !Number.isInteger(quantity) ||
+    quantity < 1 ||
+    Number.isNaN(dailyRate) ||
+    Number.isNaN(replacementValue)
+  ) {
     return {
       error: "gear-update-invalid" as const,
       ok: false as const,
@@ -1202,10 +1222,10 @@ export async function updateGearItemAction(formData: FormData) {
 
   db.prepare(
     `UPDATE gear_inventory
-      SET name = ?, category = ?, barcode = ?, serial_number = ?, condition = ?, daily_rate = ?,
+      SET name = ?, category = ?, quantity = ?, barcode = ?, serial_number = ?, condition = ?, daily_rate = ?,
           replacement_value = ?, notes = ?, updated_at = ?
       WHERE id = ?`
-  ).run(name, category, normalizedBarcode, serialNumber, condition, dailyRate, replacementValue, notes, timestamp, gearId);
+  ).run(name, category, quantity, normalizedBarcode, serialNumber, condition, dailyRate, replacementValue, notes, timestamp, gearId);
 
   revalidatePath("/crm");
   const updatedItem = db.prepare("SELECT * FROM gear_inventory WHERE id = ? LIMIT 1").get(gearId) as
@@ -1213,6 +1233,7 @@ export async function updateGearItemAction(formData: FormData) {
         id: string;
         name: string;
         category: string;
+        quantity: number;
         barcode: string | null;
         serial_number: string | null;
         status: string;
@@ -1238,6 +1259,7 @@ export async function updateGearItemAction(formData: FormData) {
       id: updatedItem.id,
       name: updatedItem.name,
       category: updatedItem.category,
+      quantity: updatedItem.quantity,
       barcode: updatedItem.barcode,
       serial_number: updatedItem.serial_number,
       status: updatedItem.status,

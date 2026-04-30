@@ -34,6 +34,7 @@ function toPlainGearItem(item: GearInventoryItem): GearInventoryItem {
     id: item.id,
     name: item.name,
     category: item.category,
+    quantity: item.quantity,
     barcode: item.barcode,
     serial_number: item.serial_number,
     status: item.status,
@@ -361,6 +362,17 @@ export default async function ProductionPage({
                 <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
                   Category
                   <input className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3" name="category" placeholder="Camera body" required />
+                </label>
+                <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
+                  Quantity
+                  <input
+                    className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                    defaultValue="1"
+                    min="1"
+                    name="quantity"
+                    step="1"
+                    type="number"
+                  />
                 </label>
                 <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
                   Barcode
