@@ -1163,6 +1163,48 @@ export async function createGearItemAction(formData: FormData) {
   redirect("/crm?gearCreated=1");
 }
 
+export async function updateGearItemAction(formData: FormData) {
+  await requireUser();
+
+  const gearId = getString(formData, "gearId");
+  const name = getString(formData, "name");
+  const category = getString(formData, "category");
+  const barcode = getString(formData, "barcode");
+  const serialNumber = getString(formData, "serialNumber");
+  const condition = getString(formData, "condition") || "Ready";
+  const notes = getString(formData, "notes");
+  const dailyRate = Number(getString(formData, "dailyRate") || "0");
+  const replacementValue = Number(getString(formData, "replacementValue") || "0");
+
+  if (!gearId || !name || !category || Number.isNaN(dailyRate) || Number.isNaN(replacementValue)) {
+    redirect("/crm?error=gear-update-invalid#full-inventory");
+  }
+
+  const db = getDb();
+  const timestamp = new Date().toISOString();
+  const normalizedBarcode =
+    barcode.toLowerCase() === "none" ? null : barcode || `SFG-${randomUUID().slice(0, 8).toUpperCase()}`;
+  const existingBarcode = normalizedBarcode
+    ? ((db
+        .prepare("SELECT id FROM gear_inventory WHERE barcode = ? AND id != ? LIMIT 1")
+        .get(normalizedBarcode, gearId) as { id?: string } | undefined) ?? undefined)
+    : undefined;
+
+  if (existingBarcode?.id) {
+    redirect(`/crm?error=gear-barcode-duplicate&editGear=${gearId}#full-inventory`);
+  }
+
+  db.prepare(
+    `UPDATE gear_inventory
+      SET name = ?, category = ?, barcode = ?, serial_number = ?, condition = ?, daily_rate = ?,
+          replacement_value = ?, notes = ?, updated_at = ?
+      WHERE id = ?`
+  ).run(name, category, normalizedBarcode, serialNumber, condition, dailyRate, replacementValue, notes, timestamp, gearId);
+
+  revalidatePath("/crm");
+  redirect("/crm?gearUpdated=1#full-inventory");
+}
+
 export async function removeGearBarcodeAction(formData: FormData) {
   await requireUser();
 
