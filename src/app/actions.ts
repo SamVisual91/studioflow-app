@@ -1177,7 +1177,10 @@ export async function updateGearItemAction(formData: FormData) {
   const replacementValue = Number(getString(formData, "replacementValue") || "0");
 
   if (!gearId || !name || !category || Number.isNaN(dailyRate) || Number.isNaN(replacementValue)) {
-    redirect("/crm?error=gear-update-invalid#full-inventory");
+    return {
+      error: "gear-update-invalid" as const,
+      ok: false as const,
+    };
   }
 
   const db = getDb();
@@ -1191,7 +1194,10 @@ export async function updateGearItemAction(formData: FormData) {
     : undefined;
 
   if (existingBarcode?.id) {
-    redirect(`/crm?error=gear-barcode-duplicate&editGear=${gearId}#full-inventory`);
+    return {
+      error: "gear-barcode-duplicate" as const,
+      ok: false as const,
+    };
   }
 
   db.prepare(
@@ -1202,7 +1208,12 @@ export async function updateGearItemAction(formData: FormData) {
   ).run(name, category, normalizedBarcode, serialNumber, condition, dailyRate, replacementValue, notes, timestamp, gearId);
 
   revalidatePath("/crm");
-  redirect("/crm?gearUpdated=1#full-inventory");
+  const updatedItem = db.prepare("SELECT * FROM gear_inventory WHERE id = ? LIMIT 1").get(gearId);
+
+  return {
+    item: updatedItem,
+    ok: true as const,
+  };
 }
 
 export async function removeGearBarcodeAction(formData: FormData) {

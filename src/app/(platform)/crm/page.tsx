@@ -3,34 +3,15 @@ import {
   checkInGearAction,
   checkoutGearAction,
   createGearItemAction,
-  deleteGearItemAction,
-  removeGearBarcodeAction,
-  updateGearItemAction,
 } from "@/app/actions";
 import { BarcodeLabel } from "@/components/barcode-label";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { SectionHeader } from "@/components/dashboard-ui";
 import { DoubleChevronDownIcon } from "@/components/double-chevron-down-icon";
-import { PrintBarcodesButton } from "@/components/print-barcodes-button";
+import { GearInventoryManager, type GearInventoryItem } from "@/components/gear-inventory-manager";
 import { getDb } from "@/lib/db";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { currencyFormatter, shortDate } from "@/lib/formatters";
-
-type GearItem = {
-  id: string;
-  name: string;
-  category: string;
-  barcode: string | null;
-  serial_number: string | null;
-  status: string;
-  condition: string;
-  daily_rate: number;
-  replacement_value: number;
-  current_holder: string | null;
-  checked_out_at: string | null;
-  due_back_at: string | null;
-  notes: string | null;
-};
 
 type ActiveCheckoutRow = {
   id: string;
@@ -74,7 +55,7 @@ export default async function ProductionPage({
   const db = getDb();
   const gearItems = db
     .prepare("SELECT * FROM gear_inventory ORDER BY category ASC, name ASC")
-    .all() as GearItem[];
+    .all() as GearInventoryItem[];
   const activeCheckouts = db
     .prepare(
       `SELECT
@@ -92,15 +73,12 @@ export default async function ProductionPage({
     .all() as ActiveCheckoutRow[];
 
   const availableGear = gearItems.filter((item) => item.status === "AVAILABLE");
-  const gearItemsWithBarcodes = gearItems.filter((item) => Boolean(item.barcode));
   const rentalGear = activeCheckouts.filter((item) => item.checkout_type === "RENTAL");
   const projectGear = activeCheckouts.filter((item) => item.checkout_type === "PROJECT");
   const availableCount = gearItems.filter((item) => item.status === "AVAILABLE").length;
-  const editGearId = Array.isArray(params?.editGear) ? params.editGear[0] : params?.editGear;
-  const selectedGear = editGearId ? gearItems.find((item) => item.id === editGearId) ?? null : null;
   const barcodeQuery = String(params?.barcode ?? "").trim();
   const scannedGear = barcodeQuery
-    ? ((db.prepare("SELECT * FROM gear_inventory WHERE barcode = ? LIMIT 1").get(barcodeQuery) as GearItem | undefined) ??
+    ? ((db.prepare("SELECT * FROM gear_inventory WHERE barcode = ? LIMIT 1").get(barcodeQuery) as GearInventoryItem | undefined) ??
       null)
     : null;
   const scannedCheckoutQuery = db.prepare(
@@ -125,14 +103,11 @@ export default async function ProductionPage({
   const gearCheckedIn = params?.gearCheckedIn === "1";
   const gearDeleted = params?.gearDeleted === "1";
   const gearBarcodeRemoved = params?.gearBarcodeRemoved === "1";
-  const gearUpdated = params?.gearUpdated === "1";
   const errorMessage =
     params?.error === "gear-invalid"
       ? "Fill out the required gear details before saving."
       : params?.error === "gear-barcode-duplicate"
         ? "That barcode is already assigned to another gear item."
-      : params?.error === "gear-update-invalid"
-        ? "That gear item could not be updated."
       : params?.error === "gear-barcode-remove-invalid"
         ? "That barcode could not be removed."
       : params?.error === "gear-checkout-invalid"
@@ -189,11 +164,6 @@ export default async function ProductionPage({
         {gearBarcodeRemoved ? (
           <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
             Barcode removed from gear item.
-          </div>
-        ) : null}
-        {gearUpdated ? (
-          <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
-            Gear item updated.
           </div>
         ) : null}
         {errorMessage ? (
@@ -569,165 +539,9 @@ export default async function ProductionPage({
           </section>
         </div>
 
-        <section className="border border-black/[0.06] bg-white/92 p-6 shadow-[0_18px_50px_rgba(31,27,24,0.06)]" id="full-inventory">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Full inventory</p>
-              <h2 className="mt-2 text-2xl font-semibold text-[var(--ink)]">Gear list</h2>
-            </div>
-            <p className="text-sm text-[var(--muted)]">Track status, rates, and current holder at a glance.</p>
-          </div>
+        <GearInventoryManager initialGearItems={gearItems} />
+        {/* Legacy inventory markup replaced by GearInventoryManager.
 
-          {selectedGear ? (
-            <div className="mt-6 border border-black/[0.06] bg-[#fbf8f3] p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Edit gear</p>
-                  <h3 className="mt-2 text-xl font-semibold text-[var(--ink)]">{selectedGear.name}</h3>
-                </div>
-                <Link
-                  className="text-sm font-semibold text-[var(--muted)] transition hover:text-[var(--ink)]"
-                  href="/crm#full-inventory"
-                >
-                  Cancel
-                </Link>
-              </div>
-
-              <form action={updateGearItemAction} className="mt-5">
-                <input name="gearId" type="hidden" value={selectedGear.id} />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
-                    Gear name
-                    <input
-                      className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
-                      defaultValue={selectedGear.name}
-                      name="name"
-                      required
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
-                    Category
-                    <input
-                      className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
-                      defaultValue={selectedGear.category}
-                      name="category"
-                      required
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
-                    Barcode
-                    <input
-                      className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
-                      list="gear-barcode-options"
-                      defaultValue={selectedGear.barcode || "none"}
-                      name="barcode"
-                    />
-                    <span className="text-xs font-normal text-[var(--muted)]">
-                      Leave blank to auto-generate, choose <span className="font-mono">none</span> for no barcode, or enter your own code.
-                    </span>
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
-                    Serial #
-                    <input
-                      className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
-                      defaultValue={selectedGear.serial_number || ""}
-                      name="serialNumber"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
-                    Condition
-                    <input
-                      className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
-                      defaultValue={selectedGear.condition}
-                      name="condition"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
-                    Daily rental rate
-                    <input
-                      className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
-                      defaultValue={selectedGear.daily_rate}
-                      min="0"
-                      name="dailyRate"
-                      step="0.01"
-                      type="number"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
-                    Replacement value
-                    <input
-                      className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
-                      defaultValue={selectedGear.replacement_value}
-                      min="0"
-                      name="replacementValue"
-                      step="0.01"
-                      type="number"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-[var(--ink)] sm:col-span-2">
-                    Notes
-                    <textarea
-                      className="min-h-24 rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
-                      defaultValue={selectedGear.notes || ""}
-                      name="notes"
-                    />
-                  </label>
-                </div>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <button className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-                    Save changes
-                  </button>
-                  <Link
-                    className="rounded-full border border-black/[0.08] bg-white px-5 py-3 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
-                    href="/crm#full-inventory"
-                  >
-                    Cancel
-                  </Link>
-                </div>
-              </form>
-            </div>
-          ) : null}
-
-          <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[1080px] border-collapse text-left">
-              <thead className="border-b border-black/[0.06] bg-[#fbf8f3] text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-                <tr>
-                  <th className="px-4 py-4 font-semibold">Gear</th>
-                  <th className="px-4 py-4 font-semibold">Category</th>
-                  <th className="px-4 py-4 font-semibold">Barcode</th>
-                  <th className="px-4 py-4 font-semibold">Status</th>
-                  <th className="px-4 py-4 font-semibold">Condition</th>
-                  <th className="px-4 py-4 font-semibold">Daily rate</th>
-                  <th className="px-4 py-4 font-semibold">Current holder</th>
-                  <th className="px-4 py-4 font-semibold">Due back</th>
-                  <th className="px-4 py-4 text-right font-semibold">Edit</th>
-                  <th className="px-4 py-4 text-right font-semibold sr-only">Delete</th>
-                </tr>
-              </thead>
-              <tbody>
-                {gearItems.map((item) => (
-                  <tr className="border-t border-black/[0.05] transition hover:bg-[#fbf8f3]" key={item.id}>
-                    <td className="px-4 py-4 font-semibold text-[var(--ink)]">{item.name}</td>
-                    <td className="px-4 py-4 text-sm text-[var(--muted)]">{item.category}</td>
-                    <td className="px-4 py-4">
-                      <div className="max-w-[9rem]">
-                        <BarcodeLabel small value={item.barcode || ""} />
-                      </div>
-                      {item.barcode ? (
-                        <form action={removeGearBarcodeAction} className="mt-2">
-                          <input name="gearId" type="hidden" value={item.id} />
-                          <button className="text-xs font-semibold text-[var(--accent)] transition hover:opacity-80" type="submit">
-                            Remove barcode
-                          </button>
-                        </form>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={`inline-flex border px-2.5 py-1 text-xs font-semibold ${statusTone(item.status)}`}>
-                        {item.status.replaceAll("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-[var(--ink)]">{item.condition}</td>
                     <td className="px-4 py-4 text-sm text-[var(--ink)]">
                       {item.daily_rate > 0 ? currencyFormatter.format(item.daily_rate) : "—"}
                     </td>
@@ -796,7 +610,7 @@ export default async function ProductionPage({
           {!gearItemsWithBarcodes.length ? (
             <p className="mt-6 text-sm text-[var(--muted)]">No barcode labels to print yet.</p>
           ) : null}
-        </section>
+        </section> */}
       </section>
     </DashboardShell>
   );
