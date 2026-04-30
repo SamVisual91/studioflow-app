@@ -1124,10 +1124,13 @@ export async function createGearItemAction(formData: FormData) {
 
   const db = getDb();
   const timestamp = new Date().toISOString();
-  const normalizedBarcode = barcode || `SFG-${randomUUID().slice(0, 8).toUpperCase()}`;
-  const existingBarcode = db
-    .prepare("SELECT id FROM gear_inventory WHERE barcode = ? LIMIT 1")
-    .get(normalizedBarcode) as { id?: string } | undefined;
+  const normalizedBarcode =
+    barcode.toLowerCase() === "none" ? null : barcode || `SFG-${randomUUID().slice(0, 8).toUpperCase()}`;
+  const existingBarcode = normalizedBarcode
+    ? ((db
+        .prepare("SELECT id FROM gear_inventory WHERE barcode = ? LIMIT 1")
+        .get(normalizedBarcode) as { id?: string } | undefined) ?? undefined)
+    : undefined;
 
   if (existingBarcode?.id) {
     redirect("/crm?error=gear-barcode-duplicate");
@@ -1158,6 +1161,24 @@ export async function createGearItemAction(formData: FormData) {
 
   revalidatePath("/crm");
   redirect("/crm?gearCreated=1");
+}
+
+export async function removeGearBarcodeAction(formData: FormData) {
+  await requireUser();
+
+  const gearId = getString(formData, "gearId");
+
+  if (!gearId) {
+    redirect("/crm?error=gear-barcode-remove-invalid");
+  }
+
+  const db = getDb();
+  const timestamp = new Date().toISOString();
+
+  db.prepare("UPDATE gear_inventory SET barcode = NULL, updated_at = ? WHERE id = ?").run(timestamp, gearId);
+
+  revalidatePath("/crm");
+  redirect("/crm?gearBarcodeRemoved=1");
 }
 
 export async function checkoutGearAction(formData: FormData) {

@@ -4,6 +4,7 @@ import {
   checkoutGearAction,
   createGearItemAction,
   deleteGearItemAction,
+  removeGearBarcodeAction,
 } from "@/app/actions";
 import { BarcodeLabel } from "@/components/barcode-label";
 import { DashboardShell } from "@/components/dashboard-shell";
@@ -90,6 +91,7 @@ export default async function ProductionPage({
     .all() as ActiveCheckoutRow[];
 
   const availableGear = gearItems.filter((item) => item.status === "AVAILABLE");
+  const gearItemsWithBarcodes = gearItems.filter((item) => Boolean(item.barcode));
   const rentalGear = activeCheckouts.filter((item) => item.checkout_type === "RENTAL");
   const projectGear = activeCheckouts.filter((item) => item.checkout_type === "PROJECT");
   const availableCount = gearItems.filter((item) => item.status === "AVAILABLE").length;
@@ -119,11 +121,14 @@ export default async function ProductionPage({
   const gearCheckedOut = params?.gearCheckedOut === "1";
   const gearCheckedIn = params?.gearCheckedIn === "1";
   const gearDeleted = params?.gearDeleted === "1";
+  const gearBarcodeRemoved = params?.gearBarcodeRemoved === "1";
   const errorMessage =
     params?.error === "gear-invalid"
       ? "Fill out the required gear details before saving."
       : params?.error === "gear-barcode-duplicate"
         ? "That barcode is already assigned to another gear item."
+      : params?.error === "gear-barcode-remove-invalid"
+        ? "That barcode could not be removed."
       : params?.error === "gear-checkout-invalid"
         ? "Choose the gear, dates, and a project or renter before checking it out."
         : params?.error === "gear-unavailable"
@@ -173,6 +178,11 @@ export default async function ProductionPage({
         {gearDeleted ? (
           <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
             Gear deleted from inventory.
+          </div>
+        ) : null}
+        {gearBarcodeRemoved ? (
+          <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+            Barcode removed from gear item.
           </div>
         ) : null}
         {errorMessage ? (
@@ -355,7 +365,18 @@ export default async function ProductionPage({
                 </label>
                 <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
                   Barcode
-                  <input className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3" name="barcode" placeholder="Auto-generated if blank" />
+                  <input
+                    className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                    list="gear-barcode-options"
+                    name="barcode"
+                    placeholder="Leave blank to auto-generate"
+                  />
+                  <datalist id="gear-barcode-options">
+                    <option value="none" />
+                  </datalist>
+                  <span className="text-xs font-normal text-[var(--muted)]">
+                    Leave blank to auto-generate, choose <span className="font-mono">none</span> for no barcode, or enter your own code.
+                  </span>
                 </label>
                 <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
                   Serial #
@@ -570,6 +591,14 @@ export default async function ProductionPage({
                       <div className="max-w-[9rem]">
                         <BarcodeLabel small value={item.barcode || ""} />
                       </div>
+                      {item.barcode ? (
+                        <form action={removeGearBarcodeAction} className="mt-2">
+                          <input name="gearId" type="hidden" value={item.id} />
+                          <button className="text-xs font-semibold text-[var(--accent)] transition hover:opacity-80" type="submit">
+                            Remove barcode
+                          </button>
+                        </form>
+                      ) : null}
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex border px-2.5 py-1 text-xs font-semibold ${statusTone(item.status)}`}>
@@ -619,7 +648,7 @@ export default async function ProductionPage({
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {gearItems.map((item) => (
+            {gearItemsWithBarcodes.map((item) => (
               <article className="border border-black/[0.06] bg-white p-4" key={`${item.id}-label`}>
                 <p className="font-semibold text-[var(--ink)]">{item.name}</p>
                 <p className="mt-1 text-sm text-[var(--muted)]">
@@ -632,6 +661,9 @@ export default async function ProductionPage({
               </article>
             ))}
           </div>
+          {!gearItemsWithBarcodes.length ? (
+            <p className="mt-6 text-sm text-[var(--muted)]">No barcode labels to print yet.</p>
+          ) : null}
         </section>
       </section>
     </DashboardShell>
