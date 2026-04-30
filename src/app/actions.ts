@@ -1208,10 +1208,47 @@ export async function updateGearItemAction(formData: FormData) {
   ).run(name, category, normalizedBarcode, serialNumber, condition, dailyRate, replacementValue, notes, timestamp, gearId);
 
   revalidatePath("/crm");
-  const updatedItem = db.prepare("SELECT * FROM gear_inventory WHERE id = ? LIMIT 1").get(gearId);
+  const updatedItem = db.prepare("SELECT * FROM gear_inventory WHERE id = ? LIMIT 1").get(gearId) as
+    | {
+        id: string;
+        name: string;
+        category: string;
+        barcode: string | null;
+        serial_number: string | null;
+        status: string;
+        condition: string;
+        daily_rate: number;
+        replacement_value: number;
+        current_holder: string | null;
+        checked_out_at: string | null;
+        due_back_at: string | null;
+        notes: string | null;
+      }
+    | undefined;
+
+  if (!updatedItem) {
+    return {
+      error: "gear-update-invalid" as const,
+      ok: false as const,
+    };
+  }
 
   return {
-    item: updatedItem,
+    item: {
+      id: updatedItem.id,
+      name: updatedItem.name,
+      category: updatedItem.category,
+      barcode: updatedItem.barcode,
+      serial_number: updatedItem.serial_number,
+      status: updatedItem.status,
+      condition: updatedItem.condition,
+      daily_rate: updatedItem.daily_rate,
+      replacement_value: updatedItem.replacement_value,
+      current_holder: updatedItem.current_holder,
+      checked_out_at: updatedItem.checked_out_at,
+      due_back_at: updatedItem.due_back_at,
+      notes: updatedItem.notes,
+    },
     ok: true as const,
   };
 }

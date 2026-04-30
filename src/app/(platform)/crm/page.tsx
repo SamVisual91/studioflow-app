@@ -29,6 +29,24 @@ type ActiveCheckoutRow = {
   project_client: string | null;
 };
 
+function toPlainGearItem(item: GearInventoryItem): GearInventoryItem {
+  return {
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    barcode: item.barcode,
+    serial_number: item.serial_number,
+    status: item.status,
+    condition: item.condition,
+    daily_rate: item.daily_rate,
+    replacement_value: item.replacement_value,
+    current_holder: item.current_holder,
+    checked_out_at: item.checked_out_at,
+    due_back_at: item.due_back_at,
+    notes: item.notes,
+  };
+}
+
 function statusTone(status: string) {
   if (status === "AVAILABLE") {
     return "border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] text-[var(--forest)]";
@@ -539,7 +557,7 @@ export default async function ProductionPage({
           </section>
         </div>
 
-        <GearInventoryManager initialGearItems={gearItems} />
+        <GearInventoryManager initialGearItems={gearItems.map(toPlainGearItem)} />
         {/* Legacy inventory markup replaced by GearInventoryManager.
 
                     <td className="px-4 py-4 text-sm text-[var(--ink)]">
