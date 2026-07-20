@@ -14,6 +14,9 @@ const photographyServices = [
 ];
 
 const showcasePhotos = [
+  "/brand/yang-tea-house-photo-3.jpg",
+  "/brand/yang-tea-house-photo-2.jpg",
+  "/brand/yang-tea-house-photo-1.jpg",
   "/brand/photography-watermarked-1.jpg",
   "/brand/photography-watermarked-3.jpg",
   "/brand/photography-gallery-sunset-portrait.png",
@@ -89,7 +92,7 @@ export default function WeddingsPage() {
       <section className="bg-[#141414] pb-20 text-white">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
           <div className="border-t border-white/8 pt-12">
-            <PhotographyLightboxCarousel images={showcasePhotos} />
+            <PhotographyLightboxCarousel images={showcasePhotos} layout="vertical" />
           </div>
         </div>
       </section>

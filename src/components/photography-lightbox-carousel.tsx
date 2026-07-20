@@ -5,11 +5,16 @@ import { useEffect, useRef, useState } from "react";
 
 type PhotographyLightboxCarouselProps = {
   images: string[];
+  layout?: "horizontal" | "vertical";
 };
 
-export function PhotographyLightboxCarousel({ images }: PhotographyLightboxCarouselProps) {
+export function PhotographyLightboxCarousel({
+  images,
+  layout = "horizontal",
+}: PhotographyLightboxCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const isVerticalLayout = layout === "vertical";
 
   useEffect(() => {
     if (selectedIndex === null) {
@@ -42,7 +47,7 @@ export function PhotographyLightboxCarousel({ images }: PhotographyLightboxCarou
 
   const scrollByAmount = (direction: "left" | "right") => {
     const container = scrollContainerRef.current;
-    if (!container) {
+    if (!container || isVerticalLayout) {
       return;
     }
 
@@ -55,49 +60,67 @@ export function PhotographyLightboxCarousel({ images }: PhotographyLightboxCarou
   return (
     <>
       <div className="mt-10">
-        <div className="mb-5 flex items-center justify-end gap-3">
-          <button
-            aria-label="Scroll photography gallery left"
-            className="inline-flex h-11 w-11 items-center justify-center border border-white/14 bg-[#101010] text-white transition hover:border-white/24 hover:bg-white/[0.06]"
-            onClick={() => scrollByAmount("left")}
-            type="button"
-          >
-            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-          </button>
-          <button
-            aria-label="Scroll photography gallery right"
-            className="inline-flex h-11 w-11 items-center justify-center border border-white/14 bg-[#101010] text-white transition hover:border-white/24 hover:bg-white/[0.06]"
-            onClick={() => scrollByAmount("right")}
-            type="button"
-          >
-            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="m9 18 6-6-6-6" />
-            </svg>
-          </button>
-        </div>
+        {!isVerticalLayout ? (
+          <div className="mb-5 flex items-center justify-end gap-3">
+            <button
+              aria-label="Scroll photography gallery left"
+              className="inline-flex h-11 w-11 items-center justify-center border border-white/14 bg-[#101010] text-white transition hover:border-white/24 hover:bg-white/[0.06]"
+              onClick={() => scrollByAmount("left")}
+              type="button"
+            >
+              <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+            <button
+              aria-label="Scroll photography gallery right"
+              className="inline-flex h-11 w-11 items-center justify-center border border-white/14 bg-[#101010] text-white transition hover:border-white/24 hover:bg-white/[0.06]"
+              onClick={() => scrollByAmount("right")}
+              type="button"
+            >
+              <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+        ) : null}
 
-        <div className="overflow-x-auto pb-3 scrollbar-hide" ref={scrollContainerRef}>
-          <div className="grid min-w-max auto-cols-[300px] grid-flow-col grid-rows-2 auto-rows-[600px] gap-4">
+        <div className={isVerticalLayout ? "" : "overflow-x-auto pb-3 scrollbar-hide"} ref={scrollContainerRef}>
+          <div
+            className={
+              isVerticalLayout
+                ? "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                : "grid min-w-max auto-cols-[300px] grid-flow-col grid-rows-2 auto-rows-[600px] gap-4"
+            }
+          >
             {images.map((photo, index) => (
               <button
-                className="snap-start overflow-hidden border border-white/10 bg-[#101010] text-left transition hover:border-white/22"
+                className={
+                  isVerticalLayout
+                    ? "group block overflow-hidden border border-white/10 bg-[#101010] text-left transition hover:border-white/22"
+                    : "snap-start overflow-hidden border border-white/10 bg-[#101010] text-left transition hover:border-white/22"
+                }
                 key={photo}
                 onClick={() => setSelectedIndex(index)}
                 type="button"
               >
-                <div className="relative h-[600px] w-[300px]">
+                <div className={isVerticalLayout ? "relative aspect-[4/5] w-full" : "relative h-[600px] w-[300px]"}>
                   <Image
                     alt={`Photography showcase ${index + 1}`}
                     className="object-cover"
                     fill
                     quality={100}
-                    sizes="300px"
+                    sizes={isVerticalLayout ? "(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw" : "300px"}
                     src={photo}
                     unoptimized
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/18 via-transparent to-black/6 transition hover:bg-black/10" />
+                  <div
+                    className={
+                      isVerticalLayout
+                        ? "absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/8 transition group-hover:bg-black/10"
+                        : "absolute inset-0 bg-gradient-to-t from-black/18 via-transparent to-black/6 transition hover:bg-black/10"
+                    }
+                  />
                 </div>
               </button>
             ))}
