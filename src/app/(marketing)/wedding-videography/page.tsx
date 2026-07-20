@@ -240,8 +240,10 @@ export default function WeddingVideographyPage() {
           <div className="grid gap-12 lg:grid-cols-[1.02fr_0.98fr] lg:items-end">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.42em] text-[#d7b892]/72">Wedding Videography</p>
-              <h1 className="mt-7 max-w-5xl text-balance font-display text-5xl leading-[0.9] text-white sm:text-6xl lg:text-[5.35rem]">
-                Wedding videography in Hickory, North Carolina that feels real, timeless, and personal.
+              <h1 className="mt-7 max-w-4xl text-balance font-sans text-[3.35rem] font-semibold leading-[0.92] tracking-[-0.05em] text-white sm:text-[4.35rem] lg:max-w-[12.5ch] lg:text-[5.1rem]">
+                Wedding videography in
+                <br className="hidden lg:block" /> Hickory, North Carolina
+                <br className="hidden lg:block" /> that feels real and timeless.
               </h1>
               <div className="mt-8 h-px w-44 bg-[linear-gradient(90deg,rgba(215,184,146,0.15),rgba(215,184,146,0.9),rgba(215,184,146,0.15))]" />
               <p className="mt-8 max-w-3xl text-lg leading-9 text-white/74 sm:text-[1.1rem]">
