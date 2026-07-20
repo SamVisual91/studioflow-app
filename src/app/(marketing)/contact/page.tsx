@@ -1,5 +1,17 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import { PublicContactForm } from "@/components/public-contact-form";
 import { PublicSiteShell } from "@/components/public-site-shell";
+import { StructuredDataScript } from "@/components/structured-data-script";
+import { buildMarketingMetadata } from "@/lib/marketing-metadata";
+import { buildLocalBusinessStructuredData } from "@/lib/structured-data";
+
+export const metadata: Metadata = buildMarketingMetadata({
+  title: "Contact Sam Visual for Wedding and Brand Projects",
+  description:
+    "Start an inquiry with Sam Visual for wedding videography, wedding photography, brand campaigns, commercial content, and business marketing projects in North Carolina.",
+  path: "/contact",
+});
 
 const contactHighlights = [
   "Wedding films, photography, and keepsakes",
@@ -39,9 +51,22 @@ export default async function ContactPage({
           : query.error === "send-failed"
             ? "We couldn't send your inquiry email right now. Please try again."
         : "";
+  const localBusinessStructuredData = buildLocalBusinessStructuredData({
+    pagePath: "/contact",
+    description:
+      "Contact Sam Visual for wedding videography, wedding photography, commercial content, and business marketing projects in Hickory and across North Carolina.",
+    serviceTypes: [
+      "Wedding videography",
+      "Wedding photography",
+      "Commercial photography",
+      "Brand campaigns",
+      "Marketing content production",
+    ],
+  });
 
   return (
     <PublicSiteShell currentPath="/contact">
+      <StructuredDataScript data={localBusinessStructuredData} />
       <section className="bg-[#141414] py-16 text-white sm:py-20">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
@@ -80,6 +105,30 @@ export default async function ContactPage({
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              <div className="mt-10 border border-white/10 bg-[#101010] p-6 sm:p-7">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/42">Need more details first?</p>
+                <div className="mt-6 grid gap-4">
+                  <Link
+                    className="border border-white/10 bg-white/[0.03] px-5 py-4 text-sm font-semibold text-white transition hover:bg-white/[0.06]"
+                    href="/wedding-videography"
+                  >
+                    Wedding videography in Hickory and North Carolina
+                  </Link>
+                  <Link
+                    className="border border-white/10 bg-white/[0.03] px-5 py-4 text-sm font-semibold text-white transition hover:bg-white/[0.06]"
+                    href="/wedding-photography"
+                  >
+                    Wedding photography galleries and FAQs
+                  </Link>
+                  <Link
+                    className="border border-white/10 bg-white/[0.03] px-5 py-4 text-sm font-semibold text-white transition hover:bg-white/[0.06]"
+                    href="/business"
+                  >
+                    Business marketing, brand content, and social media support
+                  </Link>
                 </div>
               </div>
             </div>

@@ -1,5 +1,18 @@
+import type { Metadata } from "next";
 import { PhotographyLightboxCarousel } from "@/components/photography-lightbox-carousel";
 import { PublicSiteShell } from "@/components/public-site-shell";
+import { StructuredDataScript } from "@/components/structured-data-script";
+import { buildMarketingMetadata } from "@/lib/marketing-metadata";
+import { buildLocalBusinessStructuredData } from "@/lib/structured-data";
+import Link from "next/link";
+
+export const metadata: Metadata = buildMarketingMetadata({
+  title: "Commercial Photography Gallery for Brands and Campaigns",
+  description:
+    "View commercial photography, brand visuals, product imagery, and marketing photo work from Sam Visual for businesses, campaigns, and editorial projects.",
+  path: "/photography",
+  ogImage: "/brand/yang-tea-house-photo-3.jpg",
+});
 
 const photographyServices = [
   "Website Photography",
@@ -48,9 +61,24 @@ const showcasePhotos = [
   "/brand/eerie-face-green-light.png",
 ];
 
-export default function WeddingsPage() {
+export default function PhotographyPage() {
+  const localBusinessStructuredData = buildLocalBusinessStructuredData({
+    pagePath: "/photography",
+    imagePath: "/brand/yang-tea-house-photo-3.jpg",
+    description:
+      "Sam Visual creates commercial photography, product imagery, website visuals, and marketing photography for brands and campaigns in Hickory, North Carolina.",
+    serviceTypes: [
+      "Commercial photography",
+      "Website photography",
+      "E-commerce product photography",
+      "Branded content photography",
+      "Advertising photography",
+    ],
+  });
+
   return (
-    <PublicSiteShell currentNavKey="photography" currentPath="/weddings">
+    <PublicSiteShell currentNavKey="photography" currentPath="/photography">
+      <StructuredDataScript data={localBusinessStructuredData} />
       <section className="bg-[#141414] py-16 text-white sm:py-20">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
           <div className="mx-auto max-w-5xl text-center">
@@ -92,6 +120,24 @@ export default function WeddingsPage() {
       <section className="bg-[#141414] pb-20 text-white">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
           <div className="border-t border-white/8 pt-12">
+            <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-4xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#8fb3a6]/80">Also Serving Couples</p>
+                <h2 className="mt-4 text-balance font-display text-3xl leading-[1] text-white sm:text-4xl">
+                  Looking for wedding photography instead of commercial work?
+                </h2>
+                <p className="mt-4 max-w-3xl text-base leading-8 text-white/68">
+                  Explore the dedicated wedding photography page for portrait-focused galleries, FAQ answers, and
+                  information tailored to couples.
+                </p>
+              </div>
+              <Link
+                className="inline-flex items-center justify-center border border-[#8fb3a6]/36 bg-[#8fb3a6]/10 px-6 py-3 text-xs font-semibold uppercase tracking-[0.28em] text-white transition hover:border-[#8fb3a6]/58 hover:bg-[#8fb3a6]/16"
+                href="/wedding-photography"
+              >
+                View Wedding Photography
+              </Link>
+            </div>
             <PhotographyLightboxCarousel images={showcasePhotos} layout="vertical" />
           </div>
         </div>

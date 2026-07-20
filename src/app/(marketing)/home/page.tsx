@@ -1,9 +1,28 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { MediaCarousel } from "@/components/media-carousel";
 import { PublicSiteShell } from "@/components/public-site-shell";
 import { PublicHeroReel } from "@/components/public-hero-reel";
+import { StructuredDataScript } from "@/components/structured-data-script";
+import { buildMarketingMetadata } from "@/lib/marketing-metadata";
+import {
+  buildLocalBusinessStructuredData,
+  buildOrganizationStructuredData,
+} from "@/lib/structured-data";
 import { publicWorkSections } from "@/lib/public-work";
+import {
+  featuredWeddingTestimonials,
+  weddingTestimonials,
+} from "@/lib/wedding-testimonials";
+
+export const metadata: Metadata = buildMarketingMetadata({
+  title: "Wedding Videographer and Brand Marketing in Hickory, North Carolina",
+  description:
+    "Sam Visual creates cinematic wedding films, brand videos, commercial photography, and marketing content for couples and businesses across Hickory and Western North Carolina.",
+  path: "/home",
+  ogImage: "/brand/lake-hickory-haunts-horror-entrance.png",
+});
 
 const trustedByLogos = [
   {
@@ -40,9 +59,64 @@ const trustedByLogos = [
   },
 ];
 
+const featuredServicePaths = [
+  {
+    eyebrow: "Wedding Videography",
+    title: "Cinematic wedding films for couples in Hickory and across North Carolina.",
+    description:
+      "Explore the main wedding videography page for films, service-area details, and answers couples usually want before they inquire.",
+    href: "/wedding-videography",
+    cta: "View Wedding Videography",
+  },
+  {
+    eyebrow: "Wedding Photography",
+    title: "Editorial wedding photography with polished galleries and honest moments.",
+    description:
+      "See the dedicated wedding photography page for portrait work, galleries, and booking information tailored to couples.",
+    href: "/wedding-photography",
+    cta: "View Wedding Photography",
+  },
+  {
+    eyebrow: "Business Marketing",
+    title: "Brand video, commercial photography, and marketing support for growing businesses.",
+    description:
+      "Visit the business marketing page for content strategy, commercial creative services, and brand support details.",
+    href: "/business",
+    cta: "View Business Marketing",
+  },
+];
+
+const homeReviewHighlights = featuredWeddingTestimonials.slice(0, 3);
+
 export default function HomePage() {
+  const organizationStructuredData = buildOrganizationStructuredData();
+  const localBusinessStructuredData = buildLocalBusinessStructuredData({
+    aggregateRating: {
+      ratingValue: 5,
+      reviewCount: weddingTestimonials.length,
+    },
+    pagePath: "/home",
+    imagePath: "/brand/lake-hickory-haunts-horror-entrance.png",
+    description:
+      "Sam Visual is a Hickory, North Carolina studio creating wedding films, brand videos, commercial photography, and marketing content for couples and businesses.",
+    reviews: featuredWeddingTestimonials.map((item) => ({
+      author: item.author,
+      rating: item.rating,
+      reviewBody: item.quote,
+    })),
+    serviceTypes: [
+      "Wedding videography",
+      "Wedding photography",
+      "Brand video production",
+      "Commercial photography",
+      "Marketing content production",
+    ],
+  });
+
   return (
     <PublicSiteShell currentPath="/home">
+      <StructuredDataScript data={organizationStructuredData} />
+      <StructuredDataScript data={localBusinessStructuredData} />
       <section className="relative isolate overflow-hidden bg-[#121212]">
         <div className="absolute inset-0">
           <PublicHeroReel />
@@ -86,6 +160,85 @@ export default function HomePage() {
                   />
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="border-t border-white/8 pt-12">
+            <div className="max-w-4xl">
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/48">Explore Services</p>
+              <h2 className="mt-4 text-balance font-display text-4xl leading-[0.98] text-white sm:text-5xl">
+                Start with the service that fits what you actually need.
+              </h2>
+              <p className="mt-4 max-w-3xl text-base leading-8 text-white/68">
+                Whether you are looking for a wedding videographer in Hickory, wedding photography in North Carolina,
+                or business marketing content for your brand, these pages give you the clearest path into the right
+                work.
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-5 lg:grid-cols-3">
+              {featuredServicePaths.map((item) => (
+                <article className="border border-white/10 bg-[#101010] px-7 py-8" key={item.href}>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#d7b892]/72">{item.eyebrow}</p>
+                  <h3 className="mt-4 text-3xl font-semibold text-white">{item.title}</h3>
+                  <p className="mt-5 text-base leading-8 text-white/70">{item.description}</p>
+                  <Link
+                    className="mt-6 inline-flex items-center justify-center border border-white/14 bg-white/[0.04] px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-white transition hover:bg-white/[0.08]"
+                    href={item.href}
+                  >
+                    {item.cta}
+                  </Link>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-14 border-t border-white/8 pt-12">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-4xl">
+                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/48">Client Trust</p>
+                <h2 className="mt-4 text-balance font-display text-4xl leading-[0.98] text-white sm:text-5xl">
+                  Five-star feedback from couples who wanted the work to feel as good as the day itself.
+                </h2>
+                <p className="mt-4 max-w-3xl text-base leading-8 text-white/68">
+                  The wedding side of Sam Visual is built around calm direction, strong communication, and films that
+                  still feel meaningful long after the day is over.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 border border-[#d7b892]/26 bg-[#d7b892]/8 px-5 py-4 text-white">
+                <span className="text-3xl font-semibold">5.0</span>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#d7b892]/82">Wedding Reviews</p>
+                  <p className="mt-1 text-sm text-white/72">{weddingTestimonials.length} five-star reviews</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-10 grid gap-5 lg:grid-cols-3">
+              {homeReviewHighlights.map((item) => (
+                <article className="border border-white/10 bg-[#101010] px-7 py-8" key={`home-review-${item.author}`}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#d7b892]/74">
+                    5-star review | {item.source}
+                  </p>
+                  <p className="mt-5 text-base leading-8 text-white/76">&ldquo;{item.quote}&rdquo;</p>
+                  <p className="mt-6 text-sm font-semibold uppercase tracking-[0.18em] text-white/68">{item.author}</p>
+                </article>
+              ))}
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                className="bg-[#d7b892] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#141414] transition hover:brightness-110"
+                href="/wedding-videography"
+              >
+                Explore Wedding Videography
+              </Link>
+              <Link
+                className="border border-white/14 bg-white/[0.04] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/[0.08]"
+                href="/contact"
+              >
+                Start Your Inquiry
+              </Link>
             </div>
           </div>
 

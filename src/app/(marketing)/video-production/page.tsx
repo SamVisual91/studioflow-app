@@ -1,6 +1,18 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { PublicVideoProductionMontage } from "@/components/public-video-production-montage";
 import { PublicSiteShell } from "@/components/public-site-shell";
+import { StructuredDataScript } from "@/components/structured-data-script";
+import { buildMarketingMetadata } from "@/lib/marketing-metadata";
+import { buildLocalBusinessStructuredData } from "@/lib/structured-data";
+
+export const metadata: Metadata = buildMarketingMetadata({
+  title: "Video Production for Brands, Campaigns, and Commercials",
+  description:
+    "Explore Sam Visual video production services for marketing videos, commercials, branded content, documentaries, product demos, and social media ads.",
+  path: "/video-production",
+  ogImage: "/brand/horsepower-park-thumbnail.png",
+});
 
 const productionServices = [
   {
@@ -223,8 +235,23 @@ const productionHighlights = [
 ];
 
 export default function VideoProductionPage() {
+  const localBusinessStructuredData = buildLocalBusinessStructuredData({
+    pagePath: "/video-production",
+    imagePath: "/brand/horsepower-park-thumbnail.png",
+    description:
+      "Sam Visual offers video production for commercials, branded content, marketing campaigns, product demos, and social media ads in Hickory, North Carolina.",
+    serviceTypes: [
+      "Video production",
+      "Marketing videos",
+      "TV commercials",
+      "Branded content",
+      "Social media ads",
+    ],
+  });
+
   return (
     <PublicSiteShell currentNavKey="video-production" currentPath="/video-production">
+      <StructuredDataScript data={localBusinessStructuredData} />
       <section className="bg-[#141414] py-16 text-white sm:py-20">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
           <div className="mx-auto max-w-5xl text-center">
@@ -258,6 +285,38 @@ export default function VideoProductionPage() {
       <section className="bg-[#141414] pb-20 text-white">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
           <div className="border-t border-white/8 pt-12">
+            <div className="mb-12 grid gap-5 lg:grid-cols-2">
+              <article className="border border-white/10 bg-[#101010] px-7 py-8">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#8ea89b]/78">For Couples</p>
+                <h2 className="mt-4 text-3xl font-semibold text-white">Need wedding videography instead?</h2>
+                <p className="mt-5 text-base leading-9 text-white/76">
+                  If you are looking for a wedding videographer in Hickory or anywhere in North Carolina, visit the
+                  dedicated wedding videography page for films, local service details, and couple-focused FAQs.
+                </p>
+                <Link
+                  className="mt-6 inline-flex items-center justify-center border border-white/14 bg-white/[0.04] px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-white transition hover:bg-white/[0.08]"
+                  href="/wedding-videography"
+                >
+                  View Wedding Videography
+                </Link>
+              </article>
+
+              <article className="border border-white/10 bg-[#101010] px-7 py-8">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#8ea89b]/78">For Brands</p>
+                <h2 className="mt-4 text-3xl font-semibold text-white">Need marketing support around the video too?</h2>
+                <p className="mt-5 text-base leading-9 text-white/76">
+                  Explore the business marketing page if you need strategy, content planning, social media support,
+                  commercial photography, or a website around the finished video work.
+                </p>
+                <Link
+                  className="mt-6 inline-flex items-center justify-center border border-white/14 bg-white/[0.04] px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-white transition hover:bg-white/[0.08]"
+                  href="/business"
+                >
+                  View Business Marketing
+                </Link>
+              </article>
+            </div>
+
             <div className="text-center">
               <h2 className="text-balance text-4xl font-semibold text-white sm:text-5xl">
                 What To Expect From Our Award-Winning Team

@@ -1,4 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { buildMarketingMetadata } from "@/lib/marketing-metadata";
+
+export const metadata: Metadata = buildMarketingMetadata({
+  title: "Sam Visual Studio Entrance",
+  description:
+    "Enter the Sam Visual studio site for wedding films, brand campaigns, commercial photography, and marketing content in Hickory, North Carolina.",
+  path: "/",
+  noIndex: true,
+});
 
 export default function SplashPage() {
   return (

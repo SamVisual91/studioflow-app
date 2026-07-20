@@ -6,6 +6,20 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "500mb",
     },
   },
+  async redirects() {
+    return [
+      {
+        source: "/wedding",
+        destination: "/wedding-videography",
+        permanent: true,
+      },
+      {
+        source: "/weddings",
+        destination: "/photography",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return {
       beforeFiles: [

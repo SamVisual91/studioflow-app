@@ -1,12 +1,40 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicSiteShell } from "@/components/public-site-shell";
 import { PublicWorkVideoLauncher } from "@/components/public-work-video-launcher";
+import { StructuredDataScript } from "@/components/structured-data-script";
+import { buildMarketingMetadata } from "@/lib/marketing-metadata";
+import { buildVideoObjectStructuredData } from "@/lib/structured-data";
 import { findPublicWorkBySlug, publicWorks } from "@/lib/public-work";
 
 export function generateStaticParams() {
   return publicWorks.map((item) => ({ slug: item.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const work = findPublicWorkBySlug(slug);
+
+  if (!work) {
+    return buildMarketingMetadata({
+      title: "Portfolio Project",
+      description: "Explore featured video production and photography work from Sam Visual.",
+      path: `/portfolio/${slug}`,
+    });
+  }
+
+  return buildMarketingMetadata({
+    title: `${work.title} ${work.subtitle ? `| ${work.subtitle}` : ""}`.trim(),
+    description: work.summary,
+    path: `/portfolio/${work.slug}`,
+    ogImage: work.image,
+  });
 }
 
 export default async function PortfolioProjectPage({
@@ -24,9 +52,21 @@ export default async function PortfolioProjectPage({
   const relatedWork = publicWorks
     .filter((item) => item.slug !== work.slug && item.category === work.category)
     .slice(0, 3);
+  const videoStructuredData =
+    work.youtubeEmbedSrc || work.videoSrc
+      ? buildVideoObjectStructuredData({
+          name: `${work.title}${work.subtitle ? ` | ${work.subtitle}` : ""}`,
+          description: work.summary,
+          pagePath: `/portfolio/${work.slug}`,
+          thumbnailPath: work.image,
+          embedUrl: work.youtubeEmbedSrc,
+          contentUrl: work.videoSrc,
+        })
+      : null;
 
   return (
     <PublicSiteShell currentPath="/portfolio">
+      {videoStructuredData ? <StructuredDataScript data={videoStructuredData} /> : null}
       <section className="bg-[#141414] py-16 text-white sm:py-20">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
           <div className="mb-8 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-white/50">

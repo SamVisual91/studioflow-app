@@ -1,5 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { PublicSiteShell } from "@/components/public-site-shell";
+import { buildMarketingMetadata } from "@/lib/marketing-metadata";
+
+export const metadata: Metadata = buildMarketingMetadata({
+  title: "About Sam Visual Wedding Videography and Brand Storytelling",
+  description:
+    "Learn about Sam Visual, a Hickory, North Carolina studio creating wedding films, commercial visuals, and polished client experiences for couples and growing brands.",
+  path: "/about",
+  ogImage: "/brand/sam-founder-portrait.jpg",
+});
 
 const steps = [
   {
@@ -31,6 +41,27 @@ const workflow = [
   {
     title: "Delivery that feels finished",
     description: "Private galleries, portals, films, and final assets are presented in a way that feels premium and easy to experience.",
+  },
+];
+
+const featuredPages = [
+  {
+    title: "Wedding Videography",
+    description:
+      "See the main wedding videography page for cinematic films, service-area details, and answers tailored to couples.",
+    href: "/wedding-videography",
+  },
+  {
+    title: "Wedding Photography",
+    description:
+      "Browse the wedding photography page for portrait galleries, candid coverage, and photography-specific FAQs.",
+    href: "/wedding-photography",
+  },
+  {
+    title: "Business Marketing",
+    description:
+      "Explore business marketing services for brand video, commercial photography, social media content, and websites.",
+    href: "/business",
   },
 ];
 
@@ -202,6 +233,34 @@ export default function AboutPage() {
                     </p>
                   </div>
                 </article>
+              </div>
+            </div>
+
+            <div className="mt-14 border border-white/10 bg-[#101010] px-7 py-8 sm:px-9">
+              <div className="max-w-4xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/62">Start Here</p>
+                <h2 className="mt-5 text-balance font-display text-4xl leading-[0.98] text-white sm:text-5xl">
+                  Need the right page for your project?
+                </h2>
+                <p className="mt-5 max-w-3xl text-base leading-8 text-white/70">
+                  These are the core pages we want clients to land on when they are comparing wedding videography,
+                  wedding photography, and business marketing support.
+                </p>
+              </div>
+
+              <div className="mt-10 grid gap-5 lg:grid-cols-3">
+                {featuredPages.map((item) => (
+                  <article className="border border-white/10 bg-[#151515] px-6 py-6" key={item.href}>
+                    <h3 className="text-2xl font-semibold text-white">{item.title}</h3>
+                    <p className="mt-4 text-sm leading-7 text-white/72">{item.description}</p>
+                    <Link
+                      className="mt-5 inline-flex items-center text-sm font-semibold uppercase tracking-[0.2em] text-[#d7b892] transition hover:text-white"
+                      href={item.href}
+                    >
+                      Explore page
+                    </Link>
+                  </article>
+                ))}
               </div>
             </div>
           </div>

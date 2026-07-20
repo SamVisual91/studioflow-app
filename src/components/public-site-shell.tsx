@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 
 const primaryNavItems = [
   { href: "/video-production", label: "Video Production", key: "video-production" },
-  { href: "/weddings", label: "Photography", key: "photography" },
-  { href: "/wedding", label: "Wedding", key: "wedding" },
+  { href: "/photography", label: "Photography", key: "photography" },
+  { href: "/wedding-videography", label: "Wedding", key: "wedding" },
   { href: "/business", label: "Social Media Marketing", key: "social-media-marketing" },
   { href: "/portfolio", label: "Our Work", key: "our-work" },
   { href: "/about", label: "About", key: "about" },

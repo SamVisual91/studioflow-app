@@ -1,5 +1,17 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { PublicSiteShell } from "@/components/public-site-shell";
+import { StructuredDataScript } from "@/components/structured-data-script";
+import { buildMarketingMetadata } from "@/lib/marketing-metadata";
+import { buildLocalBusinessStructuredData } from "@/lib/structured-data";
+
+export const metadata: Metadata = buildMarketingMetadata({
+  title: "Brand Video, Commercial Photography, and Business Marketing",
+  description:
+    "Sam Visual helps businesses with brand video production, commercial photography, website visuals, social media content, and marketing support in Hickory, North Carolina.",
+  path: "/business",
+  ogImage: "/brand/truly-flavor-explosion.png",
+});
 
 const capabilities = [
   {
@@ -36,8 +48,23 @@ const supportPoints = [
 ];
 
 export default function BusinessPage() {
+  const localBusinessStructuredData = buildLocalBusinessStructuredData({
+    pagePath: "/business",
+    imagePath: "/brand/truly-flavor-explosion.png",
+    description:
+      "Sam Visual helps businesses with brand video production, commercial photography, website visuals, social media content, and marketing support in Hickory, North Carolina.",
+    serviceTypes: [
+      "Brand video production",
+      "Commercial photography",
+      "Website photography",
+      "Social media marketing",
+      "Content production",
+    ],
+  });
+
   return (
     <PublicSiteShell currentNavKey="social-media-marketing" currentPath="/business">
+      <StructuredDataScript data={localBusinessStructuredData} />
       <section className="bg-[#141414] py-16 text-white sm:py-20">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-5 sm:px-8 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="self-center">
