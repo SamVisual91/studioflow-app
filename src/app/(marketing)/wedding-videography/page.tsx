@@ -241,12 +241,12 @@ export default function WeddingVideographyPage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.42em] text-[#d7b892]/72">Wedding Videography</p>
               <h1 className="mt-7 max-w-5xl text-balance font-display text-5xl leading-[0.9] text-white sm:text-6xl lg:text-[5.35rem]">
-                Wedding videography for North Carolina couples who want a film that feels real.
+                Wedding videography in Hickory, North Carolina that feels real, timeless, and personal.
               </h1>
               <div className="mt-8 h-px w-44 bg-[linear-gradient(90deg,rgba(215,184,146,0.15),rgba(215,184,146,0.9),rgba(215,184,146,0.15))]" />
               <p className="mt-8 max-w-3xl text-lg leading-9 text-white/74 sm:text-[1.1rem]">
-                Sam Visual films weddings in Hickory and across North Carolina with calm direction, clean visuals, and
-                a story-first approach.
+                Sam Visual creates cinematic wedding films across Hickory and North Carolina with calm direction,
+                clean visuals, and honest storytelling.
               </p>
 
               <div className="mt-10 flex flex-wrap gap-3">
