@@ -30,8 +30,7 @@ export function PublicWeddingMontage() {
   };
 
   return (
-    <div className="mt-12 overflow-hidden border border-white/10 bg-[#101010] shadow-[0_26px_80px_rgba(0,0,0,0.28)]">
-      <div className="relative aspect-video overflow-hidden bg-black">
+    <div className="relative aspect-video overflow-hidden rounded-[1.6rem] bg-black">
         <video
           autoPlay
           className="h-full w-full object-cover"
@@ -100,7 +99,6 @@ export function PublicWeddingMontage() {
             Sam Visual
           </span>
         </div>
-      </div>
     </div>
   );
 }
