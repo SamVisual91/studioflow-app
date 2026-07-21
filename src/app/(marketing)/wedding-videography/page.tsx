@@ -1,18 +1,17 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { PublicSiteShell } from "@/components/public-site-shell";
-import { PublicWeddingMontage } from "@/components/public-wedding-montage";
 import { StructuredDataScript } from "@/components/structured-data-script";
+import { WeddingTestimonialCarousel } from "@/components/wedding-testimonial-carousel";
 import { WeddingVideoCarousel } from "@/components/wedding-video-carousel";
 import { buildMarketingMetadata } from "@/lib/marketing-metadata";
 import {
   buildFaqStructuredData,
   buildLocalBusinessStructuredData,
+  buildOrganizationStructuredData,
   buildVideoObjectStructuredData,
 } from "@/lib/structured-data";
 import {
-  featuredWeddingTestimonials,
   weddingTestimonials,
 } from "@/lib/wedding-testimonials";
 import { weddingVenueGroups } from "@/lib/wedding-venues";
@@ -34,7 +33,9 @@ const weddingVideos = [
     accentFrom: "#f8d8b8",
     accentTo: "#ba7d50",
     posterSrc: "/brand/eloise-ken-wedding-thumbnail.png",
+    videoSrc: "/work-videos/eloise-ken-wedding.mov",
     youtubeEmbedSrc: "https://www.youtube.com/embed/gN3EzWvtKXs?si=PtpaaL0vXIquUxTJ",
+    uploadDate: "2026-04-12",
   },
   {
     title: "Tricia + Evan",
@@ -45,6 +46,7 @@ const weddingVideos = [
     accentTo: "#b38961",
     posterSrc: "/brand/tricia-evan-wedding-thumbnail.png",
     videoSrc: "/work-videos/tricia-evan-wedding.mov",
+    uploadDate: "2026-04-13",
   },
   {
     title: "Karina + Justin",
@@ -54,7 +56,9 @@ const weddingVideos = [
     accentFrom: "#f8d1b0",
     accentTo: "#c97a63",
     posterSrc: "/brand/karina-justin-wedding-thumbnail.png",
+    videoSrc: "/work-videos/karina-justin-wedding.mov",
     youtubeEmbedSrc: "https://www.youtube.com/embed/3QZk8g-F9Uw?si=2zMs1Vf-AzV_xGvC",
+    uploadDate: "2026-04-13",
   },
   {
     title: "Lauren + Aaron",
@@ -64,7 +68,9 @@ const weddingVideos = [
     accentFrom: "#ead4be",
     accentTo: "#8d6b55",
     posterSrc: "/brand/lauren-aaron-wedding-thumbnail.png",
+    videoSrc: "/work-videos/lauren-aaron-wedding.mov",
     youtubeEmbedSrc: "https://www.youtube.com/embed/Xg0Azl4kpLc?si=335MThcXgz3sH4NS",
+    uploadDate: "2026-04-12",
   },
   {
     title: "Lindsey + Matthew",
@@ -74,7 +80,9 @@ const weddingVideos = [
     accentFrom: "#f4dcc4",
     accentTo: "#9f6f50",
     posterSrc: "/brand/lindsey-matthew-wedding-thumbnail.png",
+    videoSrc: "/work-videos/lindsey-matthew-wedding.mp4",
     youtubeEmbedSrc: "https://www.youtube.com/embed/s-gOmqvSwLU?si=zQhsruaJxYpDKeeF",
+    uploadDate: "2026-04-12",
   },
   {
     title: "Catherine + Zach",
@@ -85,6 +93,7 @@ const weddingVideos = [
     accentTo: "#b88a5d",
     posterSrc: "/brand/catherine-zach-wedding-thumbnail.png",
     videoSrc: "/work-videos/catherine-zach-wedding.mov",
+    uploadDate: "2026-04-12",
   },
   {
     title: "Emily + Alex",
@@ -94,67 +103,23 @@ const weddingVideos = [
     accentFrom: "#eec6b5",
     accentTo: "#9d6c62",
     posterSrc: "/brand/emily-alex-wedding-thumbnail.png",
+    videoSrc: "/work-videos/emily-alex-wedding.mp4",
     youtubeEmbedSrc: "https://www.youtube.com/embed/HuEV0Byr2VA?si=EQbrKZ9RIaDuJuaV",
+    uploadDate: "2026-04-13",
   },
-];
-
-const weddingPhotos = [
-  "/brand/wedding-photo-1.png",
-  "/brand/wedding-photo-2.png",
-  "/brand/wedding-photo-3.png",
-];
-
-const collectionFeatures = [
-  {
-    title: "Built around your day",
-    description:
-      "Choose intimate coverage or fuller wedding-day storytelling based on what matters most to you.",
-  },
-  {
-    title: "Highlight films and full edits",
-    description:
-      "Collections can include trailers, highlight films, longer wedding edits, and keepsake films.",
-  },
-  {
-    title: "Ceremony and reception coverage",
-    description:
-      "Ceremony moments, speeches, toasts, and first dances can all be part of the final film.",
-  },
-  {
-    title: "Drone coverage when available",
-    description:
-      "Drone footage is available when weather, venue rules, and airspace allow.",
-  },
-];
-
-const serviceAreaHighlights = [
-  "Wedding videography in Hickory, North Carolina with a calm, story-first style.",
-  "Coverage at venues across Western North Carolina.",
-  "North Carolina wedding films that feel clean, emotional, and lasting.",
 ];
 
 const venueHighlights = [
   {
-    title: "Lakefront weddings around Hickory",
+    title: "Hickory, mountain, and estate venues",
     description:
-      "Open light, movement, and reflections help the setting feel like part of the story.",
-  },
-  {
-    title: "Mountain venues across Western North Carolina",
-    description:
-      "Mountain weddings often call for a slower, more atmospheric wedding film.",
-  },
-  {
-    title: "Estates, gardens, and polished indoor venues",
-    description:
-      "These venues work well for clean portraits, thoughtful lighting, and refined detail coverage.",
+      "We adjust the coverage to fit the light, pace, and feel of each wedding venue across Hickory and North Carolina.",
   },
 ];
 
 const venuePlanningPoints = [
-  "Timeline planning for ceremony light, sunset portraits, and room changes.",
+  "Coverage shaped around the light, the venue flow, and the pace of the day.",
   "Drone coverage only when weather, venue rules, and airspace allow.",
-  "Coverage that follows the venue flow so the film feels natural.",
 ];
 
 const faqItems = [
@@ -191,9 +156,7 @@ const featuredVenues = weddingVenueGroups.flatMap((group) =>
 );
 
 export default function WeddingVideographyPage() {
-  const heroReview = featuredWeddingTestimonials[0];
-  const reviewSpotlight = featuredWeddingTestimonials[2] || heroReview;
-  const finalCtaReview = featuredWeddingTestimonials[1] || featuredWeddingTestimonials[0];
+  const organizationStructuredData = buildOrganizationStructuredData();
   const localBusinessStructuredData = buildLocalBusinessStructuredData({
     aggregateRating: {
       ratingValue: 5,
@@ -224,70 +187,73 @@ export default function WeddingVideographyPage() {
       thumbnailPath: item.posterSrc || "/brand/eloise-ken-wedding-thumbnail.png",
       embedUrl: item.youtubeEmbedSrc,
       contentUrl: item.videoSrc,
+      uploadDate: item.uploadDate,
     })
   );
   const faqStructuredData = buildFaqStructuredData(faqItems);
 
   return (
     <PublicSiteShell currentNavKey="wedding" currentPath="/wedding-videography">
+      <StructuredDataScript data={organizationStructuredData} />
       <StructuredDataScript data={localBusinessStructuredData} />
       <StructuredDataScript data={weddingVideoStructuredData} />
       <StructuredDataScript data={faqStructuredData} />
 
       <section className="relative overflow-hidden bg-[#141414] text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(215,184,146,0.18),transparent_32%),radial-gradient(circle_at_85%_12%,rgba(143,179,166,0.12),transparent_24%),linear-gradient(180deg,rgba(20,20,20,0.88),rgba(20,20,20,1))]" />
-        <div className="relative mx-auto w-full max-w-7xl px-5 pb-20 pt-16 sm:px-8 sm:pb-24 sm:pt-20">
-          <div className="grid gap-12 lg:grid-cols-[1.02fr_0.98fr] lg:items-end">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.42em] text-[#d7b892]/72">Wedding Videography</p>
-              <h1 className="mt-7 max-w-4xl text-balance font-sans text-[3.35rem] font-semibold leading-[0.92] tracking-[-0.05em] text-white sm:text-[4.35rem] lg:max-w-[12.5ch] lg:text-[5.1rem]">
-                Wedding videography in
-                <br className="hidden lg:block" /> Hickory, North Carolina
-                <br className="hidden lg:block" /> that feels real and timeless.
-              </h1>
-              <div className="mt-8 h-px w-44 bg-[linear-gradient(90deg,rgba(215,184,146,0.15),rgba(215,184,146,0.9),rgba(215,184,146,0.15))]" />
-              <p className="mt-8 max-w-3xl text-lg leading-9 text-white/74 sm:text-[1.1rem]">
-                Sam Visual creates cinematic wedding films across Hickory and North Carolina with calm direction,
-                clean visuals, and honest storytelling.
-              </p>
+        <video
+          autoPlay
+          className="absolute inset-0 h-full w-full object-cover"
+          loop
+          muted
+          playsInline
+          poster="/brand/eloise-ken-wedding-thumbnail.png"
+          preload="auto"
+          src="/work-videos/wedding-hero.mp4"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.24),rgba(8,8,8,0.48)_36%,rgba(8,8,8,0.72)_68%,rgba(20,20,20,0.96)_100%),radial-gradient(circle_at_top_left,rgba(215,184,146,0.22),transparent_28%),radial-gradient(circle_at_80%_14%,rgba(143,179,166,0.12),transparent_22%)]" />
+        <div className="relative mx-auto w-full max-w-7xl px-5 pb-20 pt-24 sm:px-8 sm:pb-24 sm:pt-28">
+          <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.42em] text-[#d7b892]/78">Wedding Videography</p>
+            <h1 className="mt-7 flex flex-col items-center gap-2 text-center">
+              <span
+                className="font-cherie text-[3.2rem] uppercase leading-[0.82] tracking-[0.05em] text-[#ecd6bb] sm:text-[4.2rem] lg:text-[5.5rem]"
+              >
+                Timeless
+              </span>
+              <span className="font-cherie whitespace-nowrap text-[2.55rem] font-normal uppercase leading-[0.9] tracking-[0.12em] text-[#e6dbc7] sm:text-[3.45rem] lg:text-[4.45rem]">
+                Wedding Films
+              </span>
+            </h1>
+            <div className="mt-8 h-px w-44 bg-[linear-gradient(90deg,rgba(215,184,146,0.15),rgba(215,184,146,0.9),rgba(215,184,146,0.15))]" />
+            <p className="mt-8 max-w-3xl text-lg leading-9 text-white/78 sm:text-[1.1rem]">
+              Wedding videography in Hickory, North Carolina for couples who want a film that feels real, timeless,
+              and personal.
+            </p>
 
-              <div className="mt-10 flex flex-wrap gap-3">
-                <Link
-                  className="bg-[#d7b892] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#141414] transition hover:brightness-110"
-                  href="/contact"
-                >
-                  Check Your Date
-                </Link>
-                <Link
-                  className="border border-white/14 bg-white/[0.04] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/[0.08]"
-                  href="/wedding-photography"
-                >
-                  Add Photography
-                </Link>
-              </div>
-
-              {heroReview ? (
-                <div className="mt-10 max-w-2xl border-l border-[#d7b892]/42 pl-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#d7b892]/78">
-                    5-star review | {heroReview.source}
-                  </p>
-                  <p className="mt-4 text-base leading-8 text-white/76">&ldquo;{heroReview.quote}&rdquo;</p>
-                  <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-white/64">{heroReview.author}</p>
-                </div>
-              ) : null}
+            <div className="mt-10 flex flex-wrap justify-center gap-3">
+              <Link
+                className="bg-[#d7b892] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#141414] transition hover:brightness-110"
+                href="/contact"
+              >
+                Check Your Date
+              </Link>
+              <Link
+                className="border border-white/14 bg-white/[0.08] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/[0.14]"
+                href="/wedding-photography"
+              >
+                Add Photography
+              </Link>
             </div>
 
-            <div>
-              <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-3 shadow-[0_28px_90px_rgba(0,0,0,0.34)] sm:p-4">
-                <PublicWeddingMontage />
-              </div>
-            </div>
           </div>
 
-          <div className="mt-12 grid gap-4 border-t border-white/10 pt-8 md:grid-cols-3">
+          <div className="mt-14 grid gap-4 border-t border-white/10 pt-8 md:grid-cols-3">
             {heroMetrics.map((item) => (
-              <div className="border-l border-[#d7b892]/26 pl-5 md:first:border-l-0 md:first:pl-0" key={item.label}>
-                <p className="font-display text-4xl leading-none text-white">{item.value}</p>
+              <div
+                className="border-l border-[#d7b892]/26 pl-5 text-center md:first:border-l-0 md:first:pl-0"
+                key={item.label}
+              >
+                <p className="font-cherie text-4xl leading-none text-white">{item.value}</p>
                 <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.32em] text-white/52">{item.label}</p>
               </div>
             ))}
@@ -297,92 +263,48 @@ export default function WeddingVideographyPage() {
 
       <section className="bg-[#141414] pb-24 text-white">
         <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
-          <div className="grid gap-16 border-t border-white/8 pt-16 lg:grid-cols-[1.08fr_0.92fr]">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/64">Signature Coverage</p>
-              <h2 className="mt-5 max-w-4xl text-balance font-display text-4xl leading-[0.98] text-white sm:text-5xl">
-                Simple, clean coverage that follows the day naturally.
-              </h2>
-              <p className="mt-5 max-w-3xl text-base leading-8 text-white/68">
-                We keep the process calm and focused so your wedding film feels polished, personal, and easy to relive.
-              </p>
-
-              <div className="mt-10 border-t border-white/10">
-                {collectionFeatures.map((item) => (
-                  <article className="grid gap-4 border-b border-white/10 py-6 sm:grid-cols-[0.32fr_0.68fr]" key={item.title}>
-                    <h3 className="text-2xl font-semibold text-white">{item.title}</h3>
-                    <p className="text-base leading-8 text-white/70">{item.description}</p>
-                  </article>
-                ))}
+          <div className="mt-10 border-t border-white/8 pt-14">
+            <div className="flex flex-col items-center gap-6 text-center">
+              <div className="max-w-5xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/64">Wedding Films</p>
+                <h2 className="font-cherie mt-5 text-balance text-4xl uppercase leading-[0.98] tracking-[0.06em] text-white sm:text-5xl">
+                  You Deserve to remember how it felt, and relive every part of your day.
+                </h2>
               </div>
-
-              <div className="mt-10 grid gap-4 sm:grid-cols-3">
-                {serviceAreaHighlights.map((item) => (
-                  <div className="border-l border-[#d7b892]/36 pl-4 text-sm leading-7 text-white/68" key={item}>
-                    {item}
-                  </div>
-                ))}
-              </div>
+              <Link
+                className="inline-flex items-center justify-center border border-[#d7b892]/34 bg-[#d7b892]/8 px-6 py-3 text-xs font-semibold uppercase tracking-[0.28em] text-white transition hover:border-[#d7b892]/58 hover:bg-[#d7b892]/14"
+                href="/contact"
+              >
+                Inquire About Collections
+              </Link>
             </div>
 
-            <div className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-[1.1fr_0.9fr]">
-                {weddingPhotos.map((photo, index) => (
-                  <div
-                    className={`${index === 0 ? "sm:row-span-2 sm:min-h-[28rem]" : "min-h-[13.5rem]"} relative overflow-hidden rounded-[1.8rem] border border-white/10 bg-[#101010]`}
-                    key={photo}
-                  >
-                    <Image
-                      alt={`Wedding visual preview ${index + 1}`}
-                      className="object-cover"
-                      fill
-                      sizes={index === 0 ? "(max-width: 640px) 100vw, 55vw" : "(max-width: 640px) 100vw, 28vw"}
-                      src={photo}
-                    />
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,12,12,0.02),rgba(12,12,12,0.3)_62%,rgba(12,12,12,0.72)_100%)]" />
-                  </div>
-                ))}
-              </div>
-
-              <div className="rounded-[2.2rem] border border-[#d7b892]/14 bg-[radial-gradient(circle_at_top_left,rgba(215,184,146,0.14),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] px-7 py-7">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#d7b892]/78">Wedding Photography</p>
-                <h3 className="mt-4 max-w-lg font-display text-[2rem] leading-[1.02] text-white">
-                  Want your photos to match the film?
-                </h3>
-                <p className="mt-5 text-base leading-8 text-white/70">
-                  Explore wedding photography with the same clean style and direction across both photo and video.
-                </p>
-                <Link
-                  className="mt-7 inline-flex items-center justify-center border border-white/14 bg-white/[0.04] px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-white transition hover:bg-white/[0.08]"
-                  href="/wedding-photography"
-                >
-                  Explore Wedding Photography
-                </Link>
-              </div>
+            <div className="mt-10">
+              <WeddingVideoCarousel items={weddingVideos} />
             </div>
           </div>
 
           <div className="mt-16 grid gap-16 border-t border-white/8 pt-16 lg:grid-cols-[0.98fr_1.02fr]">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/64">Venue Awareness</p>
-              <h2 className="mt-5 text-balance font-display text-4xl leading-[0.98] text-white sm:text-5xl">
-                Every wedding film changes with the venue, the light, and the pace of the day.
+              <h2 className="font-cherie mt-5 max-w-3xl text-balance text-4xl uppercase leading-[0.98] tracking-[0.06em] text-white sm:text-5xl">
+                We shape each wedding film around the venue and the light.
               </h2>
               <p className="mt-5 max-w-3xl text-base leading-8 text-white/68">
-                A wedding in Hickory feels different from a mountain venue, vineyard, or estate. We shape the coverage
-                around the setting so the final film feels natural.
+                Weddings in Hickory, the mountains, and estate venues across North Carolina all move differently. We
+                keep the coverage natural to the setting.
               </p>
 
-              <div className="mt-10 space-y-8">
+              <div className="mt-8 space-y-6">
                 {venueHighlights.map((item) => (
                   <article className="border-l border-[#d7b892]/34 pl-5" key={item.title}>
-                    <h3 className="text-2xl font-semibold text-white">{item.title}</h3>
+                    <h3 className="font-cherie text-xl font-semibold uppercase tracking-[0.05em] text-white">{item.title}</h3>
                     <p className="mt-3 text-base leading-8 text-white/70">{item.description}</p>
                   </article>
                 ))}
               </div>
 
-              <div className="mt-10 grid gap-3">
+              <div className="mt-8 grid gap-3">
                 {venuePlanningPoints.map((item) => (
                   <div className="border-b border-white/10 pb-3 text-sm leading-7 text-white/68" key={item}>
                     {item}
@@ -395,7 +317,7 @@ export default function WeddingVideographyPage() {
               <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/64">Venues We&apos;ve Worked At</p>
-                  <h2 className="mt-5 text-balance font-display text-4xl leading-[0.98] text-white sm:text-5xl">
+                  <h2 className="font-cherie mt-5 text-balance text-4xl uppercase leading-[0.98] tracking-[0.06em] text-white sm:text-5xl">
                     Real North Carolina venues couples already know.
                   </h2>
                 </div>
@@ -418,130 +340,67 @@ export default function WeddingVideographyPage() {
           </div>
 
           <div className="mt-16 border-t border-white/8 pt-16">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-4xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/64">Wedding Films</p>
-                <h2 className="mt-5 text-balance font-display text-4xl leading-[0.98] text-white sm:text-5xl">
-                  A wedding film gallery that is easy to explore.
-                </h2>
-                <p className="mt-5 max-w-3xl text-base leading-8 text-white/68">
-                  Watch a few real films to get a feel for the style, pacing, and emotion of the work.
-                </p>
-              </div>
-              <Link
-                className="inline-flex items-center justify-center border border-[#d7b892]/34 bg-[#d7b892]/8 px-6 py-3 text-xs font-semibold uppercase tracking-[0.28em] text-white transition hover:border-[#d7b892]/58 hover:bg-[#d7b892]/14"
-                href="/contact"
-              >
-                Inquire About Collections
-              </Link>
-            </div>
-
-            <div className="mt-10 overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.01))] p-4 sm:p-5">
-              <WeddingVideoCarousel items={weddingVideos} />
+            <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/64">Kind Words</p>
+            <h2 className="font-cherie mt-5 text-balance text-4xl uppercase leading-[0.98] tracking-[0.06em] text-white sm:text-5xl">
+              Reviews
+            </h2>
+            <div className="mt-8">
+              <WeddingTestimonialCarousel items={weddingTestimonials} />
             </div>
           </div>
 
-          <div className="mt-16 grid gap-16 border-t border-white/8 pt-16 lg:grid-cols-[0.9fr_1.1fr]">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/64">Kind Words</p>
-              <h2 className="mt-5 max-w-3xl text-balance font-display text-4xl leading-[0.98] text-white sm:text-5xl">
-                Trusted by couples who wanted wedding films that felt personal and honest.
-              </h2>
-              <p className="mt-5 max-w-3xl text-base leading-8 text-white/68">
-                Couples often mention the same things: clear communication, calm direction, and a film they love coming back to.
-              </p>
+          <div className="mt-12 border-t border-white/10 px-1 pt-10 sm:px-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/62">Ready To Book</p>
+            <h2 className="font-cherie mt-5 max-w-3xl text-balance text-4xl uppercase leading-[0.98] tracking-[0.06em] text-white sm:text-[2.85rem]">
+              If the work feels right, the next step is checking your date.
+            </h2>
+            <p className="mt-5 max-w-3xl text-base leading-8 text-white/70">
+              Send your wedding date, venue, and what kind of coverage you want. We will help you choose the best fit.
+            </p>
 
-              {reviewSpotlight ? (
-                <article className="mt-10 border-t border-white/10 pt-8">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#d7b892]/78">
-                    5-star review | {reviewSpotlight.source}
-                  </p>
-                  <p className="mt-6 max-w-2xl font-display text-[1.9rem] leading-[1.18] text-white sm:text-[2.25rem]">
-                    &ldquo;{reviewSpotlight.quote}&rdquo;
-                  </p>
-                  <p className="mt-6 text-sm font-semibold uppercase tracking-[0.18em] text-white/64">
-                    {reviewSpotlight.author}
-                  </p>
-                </article>
-              ) : null}
+            <div className="mt-8 grid gap-5 border-t border-white/10 pt-8 sm:grid-cols-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#d7b892]/70">Step 1</p>
+                <p className="mt-3 text-sm leading-7 text-white/68">Send your date, venue, and whether you want photo, video, or both.</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#d7b892]/70">Step 2</p>
+                <p className="mt-3 text-sm leading-7 text-white/68">We recommend the collection that best fits your day.</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#d7b892]/70">Step 3</p>
+                <p className="mt-3 text-sm leading-7 text-white/68">If it feels right, we reserve the date and start planning.</p>
+              </div>
             </div>
 
-            <div className="rounded-[2.3rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(215,184,146,0.14),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.01))] px-7 py-8 shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:px-8 sm:py-9">
-              <div className="grid gap-8 border-b border-white/10 pb-8 sm:grid-cols-2">
-                {featuredWeddingTestimonials.slice(0, 2).map((item) => (
-                  <article className="border-l border-[#d7b892]/30 pl-4" key={item.author}>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#d7b892]/72">
-                      5-star review | {item.source}
-                    </p>
-                    <p className="mt-4 text-sm leading-7 text-white/74">&ldquo;{item.quote}&rdquo;</p>
-                    <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/58">{item.author}</p>
-                  </article>
-                ))}
-              </div>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                className="bg-[#d7b892] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#141414] transition hover:brightness-110"
+                href="/contact"
+              >
+                Start Your Inquiry
+              </Link>
+              <Link
+                className="border border-white/14 bg-white/[0.04] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/[0.08]"
+                href="/wedding-photography"
+              >
+                Add Photography
+              </Link>
+            </div>
+          </div>
 
-              <div className="mt-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/62">Ready To Book</p>
-                <h2 className="mt-5 max-w-3xl text-balance font-display text-4xl leading-[0.98] text-white sm:text-[2.85rem]">
-                  If the work feels right, the next step is checking your date.
-                </h2>
-                <p className="mt-5 max-w-3xl text-base leading-8 text-white/70">
-                  Send your wedding date, venue, and what kind of coverage you want. We will help you choose the best fit.
-                </p>
-              </div>
-
-              <div className="mt-8 grid gap-5 border-t border-white/10 pt-8 sm:grid-cols-3">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#d7b892]/70">Step 1</p>
-                  <p className="mt-3 text-sm leading-7 text-white/68">Send your date, venue, and whether you want photo, video, or both.</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#d7b892]/70">Step 2</p>
-                  <p className="mt-3 text-sm leading-7 text-white/68">We recommend the collection that best fits your day.</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#d7b892]/70">Step 3</p>
-                  <p className="mt-3 text-sm leading-7 text-white/68">If it feels right, we reserve the date and start planning.</p>
-                </div>
-              </div>
-
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link
-                  className="bg-[#d7b892] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#141414] transition hover:brightness-110"
-                  href="/contact"
-                >
-                  Start Your Inquiry
-                </Link>
-                <Link
-                  className="border border-white/14 bg-white/[0.04] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/[0.08]"
-                  href="/wedding-photography"
-                >
-                  Add Photography
-                </Link>
-              </div>
-
-              <div className="mt-10 border-t border-white/10 pt-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/64">Frequently Asked</p>
-                <div className="mt-6 space-y-5">
-                  {faqItems.map((item) => (
-                    <article className="border-b border-white/10 pb-5" key={item.question}>
-                      <h3 className="text-xl font-semibold text-white">{item.question}</h3>
-                      <p className="mt-4 text-base leading-8 text-white/72">{item.answer}</p>
-                    </article>
-                  ))}
-                </div>
-              </div>
-
-              {finalCtaReview ? (
-                <div className="mt-8 border-l border-[#d7b892]/34 pl-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#d7b892]/78">
-                    5-star review | {finalCtaReview.source}
-                  </p>
-                  <p className="mt-4 text-base leading-8 text-white/76">&ldquo;{finalCtaReview.quote}&rdquo;</p>
-                  <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-white/64">
-                    {finalCtaReview.author}
-                  </p>
-                </div>
-              ) : null}
+          <div className="mt-12 border-t border-white/10 px-1 pt-10 sm:px-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d7b892]/64">Frequently Asked</p>
+            <h2 className="font-cherie mt-5 max-w-4xl text-balance text-4xl uppercase leading-[0.98] tracking-[0.06em] text-white sm:text-5xl">
+              Questions couples usually ask before booking.
+            </h2>
+            <div className="mt-8 grid gap-5 lg:grid-cols-2">
+              {faqItems.map((item) => (
+                <article className="border-b border-white/10 pb-5" key={item.question}>
+                  <h3 className="font-cherie text-xl font-semibold uppercase tracking-[0.05em] text-white">{item.question}</h3>
+                  <p className="mt-4 text-base leading-8 text-white/72">{item.answer}</p>
+                </article>
+              ))}
             </div>
           </div>
         </div>

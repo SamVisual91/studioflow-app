@@ -13,6 +13,7 @@ type VideoStructuredDataOptions = {
   name: string;
   pagePath: string;
   thumbnailPath: string;
+  uploadDate?: string;
 };
 
 type LocalBusinessStructuredDataOptions = {
@@ -153,6 +154,7 @@ export function buildVideoObjectStructuredData({
   name,
   pagePath,
   thumbnailPath,
+  uploadDate,
 }: VideoStructuredDataOptions) {
   return {
     "@context": "https://schema.org",
@@ -163,6 +165,7 @@ export function buildVideoObjectStructuredData({
     url: absoluteMarketingUrl(pagePath),
     embedUrl: embedUrl || undefined,
     contentUrl: contentUrl ? absoluteMarketingUrl(contentUrl) : undefined,
+    uploadDate: uploadDate || undefined,
     publisher: {
       "@id": `${marketingSiteUrl}/#organization`,
     },

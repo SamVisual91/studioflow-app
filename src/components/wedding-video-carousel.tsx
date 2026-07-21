@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { MediaCarousel } from "@/components/media-carousel";
 
 type WeddingVideoCarouselItem = {
   title: string;
@@ -54,70 +53,49 @@ export function WeddingVideoCarousel({ items }: WeddingVideoCarouselProps) {
 
   return (
     <>
-      <MediaCarousel className="mt-10" itemCount={items.length}>
-        {items.map((item, index) => (
-          <button
-            className="group snap-start overflow-hidden border border-white/10 bg-[#101010] text-left transition hover:border-white/22"
-            key={`${item.title}-${index}`}
-            onClick={() => setSelectedIndex(index)}
-            type="button"
-          >
-            <div className="relative aspect-video overflow-hidden">
-              {item.posterSrc ? (
-                <Image
-                  alt={item.title}
-                  className="object-cover"
-                  fill
-                  sizes="(max-width: 768px) 85vw, (max-width: 1280px) 50vw, 33vw"
-                  src={item.posterSrc}
-                />
-              ) : (
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0"
-                  style={{
-                    background: `radial-gradient(circle at top left, ${item.accentFrom}2e 0%, transparent 42%), radial-gradient(circle at bottom right, ${item.accentTo}28 0%, transparent 36%), linear-gradient(135deg, #111111 0%, #171717 50%, #0d0d0d 100%)`,
-                  }}
-                />
-              )}
-              <div
-                className="absolute inset-0 opacity-90 transition duration-300 group-hover:opacity-100"
-                style={{
-                  background: `linear-gradient(180deg, rgba(8,8,8,0.08) 0%, rgba(8,8,8,0.24) 34%, rgba(8,8,8,0.74) 68%, rgba(8,8,8,0.94) 100%), linear-gradient(135deg, ${item.accentFrom}88 0%, transparent 42%, ${item.accentTo}60 100%)`,
-                }}
-              />
-              <div
-                className="absolute inset-x-0 top-0 h-1 transition-opacity duration-300 group-hover:opacity-100"
-                style={{ background: `linear-gradient(90deg, ${item.accentFrom}, ${item.accentTo})` }}
-              />
-              <div className="absolute left-4 top-4 max-w-[75%]">
-                <p className="inline-flex border border-white/16 bg-black/28 px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.28em] text-white/84 backdrop-blur-sm sm:text-[10px]">
-                  {item.eyebrow}
+      <div className="overflow-x-auto pb-2">
+        <div className="grid min-w-max grid-flow-col gap-5 sm:gap-6 xl:gap-6">
+          {items.map((item, index) => (
+            <button
+              className="group relative w-[18rem] overflow-hidden border border-white/12 bg-[#101010] text-left transition hover:border-white/26 sm:w-[20rem] xl:w-[15.9rem]"
+              key={`${item.title}-${index}`}
+              onClick={() => setSelectedIndex(index)}
+              type="button"
+            >
+              <div className="relative aspect-[0.7] overflow-hidden">
+                {item.posterSrc ? (
+                  <Image
+                    alt={item.title}
+                    className="object-cover transition duration-500 group-hover:scale-[1.03]"
+                    fill
+                    sizes="(max-width: 640px) 78vw, (max-width: 1280px) 20rem, 16rem"
+                    src={item.posterSrc}
+                  />
+                ) : (
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0"
+                    style={{
+                      background: `radial-gradient(circle at top left, ${item.accentFrom}2e 0%, transparent 42%), radial-gradient(circle at bottom right, ${item.accentTo}28 0%, transparent 36%), linear-gradient(135deg, #111111 0%, #171717 50%, #0d0d0d 100%)`,
+                    }}
+                  />
+                )}
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,5,5,0.42),rgba(5,5,5,0.18)_28%,rgba(5,5,5,0.36)_62%,rgba(5,5,5,0.7)_100%)] transition duration-300 group-hover:bg-[linear-gradient(180deg,rgba(5,5,5,0.34),rgba(5,5,5,0.12)_28%,rgba(5,5,5,0.3)_62%,rgba(5,5,5,0.62)_100%)]" />
+                <p className="font-cherie absolute left-5 top-5 pr-4 text-[1.1rem] uppercase tracking-[0.18em] text-[#f2e4cf] sm:text-[1.15rem]">
+                  {item.title}
                 </p>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/88 text-[#171515] shadow-[0_12px_28px_rgba(0,0,0,0.2)] transition duration-300 group-hover:scale-105 group-hover:bg-white">
+                    <svg aria-hidden="true" className="ml-1 h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="m7 5 8 5-8 5V5Z" />
+                    </svg>
+                  </span>
+                </div>
               </div>
-              <div className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/18 bg-black/30 text-white backdrop-blur transition duration-300 group-hover:scale-105 group-hover:bg-black/42">
-                <svg aria-hidden="true" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="m7 5 8 5-8 5V5Z" />
-                </svg>
-              </div>
-              <div className="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,rgba(8,8,8,0),rgba(8,8,8,0.78)_65%,rgba(8,8,8,0.96)_100%)]" />
-            </div>
-            <div className="space-y-3 px-5 pb-5 pt-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/56">{item.subtitle}</p>
-              <h3 className="font-display text-[1.9rem] leading-none text-white sm:text-[2rem]">{item.title}</h3>
-              <p className="max-w-[24rem] text-sm leading-6 text-white/70">{item.detail}</p>
-              <div className="flex items-center gap-3 pt-1">
-                <span
-                  aria-hidden="true"
-                  className="h-px w-14"
-                  style={{ background: `linear-gradient(90deg, ${item.accentFrom}, ${item.accentTo})` }}
-                />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/52">Play film</span>
-              </div>
-            </div>
-          </button>
-        ))}
-      </MediaCarousel>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {activeItem ? (
         <div
@@ -144,7 +122,9 @@ export function WeddingVideoCarousel({ items }: WeddingVideoCarouselProps) {
                 <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/54">
                   {activeItem.eyebrow}
                 </p>
-                <h3 className="mt-2 font-display text-2xl leading-none sm:text-[2rem]">{activeItem.title}</h3>
+                <h3 className="font-cherie mt-2 text-2xl uppercase leading-none tracking-[0.06em] sm:text-[2rem]">
+                  {activeItem.title}
+                </h3>
                 <p className="mt-2 text-sm text-white/62">{activeItem.subtitle}</p>
               </div>
               <button

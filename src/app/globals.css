@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Byliner Script";
+  src: url("/fonts/BylinerScript_PERSONAL_USE_ONLY.otf") format("opentype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NewYork";
+  src: url("/fonts/NewYork-Personal-Use.otf") format("opentype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bodoni XT";
+  src: url("/fonts/BodoniXT.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Cherie";
+  src: url("/fonts/Cherie_DEMO.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
   --canvas: #f7f1e8;
   --sidebar: #1d1b1f;
@@ -96,6 +120,22 @@ input[type="radio"] {
 
 .font-times {
   font-family: "Times New Roman", Times, serif;
+}
+
+.font-byliner {
+  font-family: "Byliner Script", "Snell Roundhand", "Brush Script MT", cursive;
+}
+
+.font-newyork {
+  font-family: "NewYork", Georgia, "Times New Roman", serif;
+}
+
+.font-bodoni {
+  font-family: "Bodoni XT", Georgia, "Times New Roman", serif;
+}
+
+.font-cherie {
+  font-family: "Cherie", Georgia, "Times New Roman", serif;
 }
 
 img,
