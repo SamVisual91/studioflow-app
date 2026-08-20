@@ -4175,10 +4175,7 @@ export async function updateProjectPipelineAction(formData: FormData) {
 
   const db = getDb();
   const timestamp = new Date().toISOString();
-  const recentLabel =
-    phase === "Completed"
-      ? "Project moved to completed"
-      : `Project moved to ${phase}`;
+  const recentLabel = phase === "DISMISSED" ? "Project marked dismissed" : "Project marked booked";
 
   db.prepare(
     "UPDATE projects SET phase = ?, stage_moved_at = ?, recent_activity = ?, updated_at = ? WHERE id = ?"

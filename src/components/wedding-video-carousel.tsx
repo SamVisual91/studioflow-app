@@ -21,6 +21,7 @@ type WeddingVideoCarouselProps = {
 
 export function WeddingVideoCarousel({ items }: WeddingVideoCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [failedPosterIndexes, setFailedPosterIndexes] = useState<number[]>([]);
   const activeItem = selectedIndex === null ? null : items[selectedIndex];
   const activeMediaType = useMemo(() => {
     if (!activeItem) {
@@ -37,6 +38,10 @@ export function WeddingVideoCarousel({ items }: WeddingVideoCarouselProps) {
 
     return null;
   }, [activeItem]);
+
+  const handlePosterError = (index: number) => {
+    setFailedPosterIndexes((current) => (current.includes(index) ? current : [...current, index]));
+  };
 
   useEffect(() => {
     if (!activeItem) {
@@ -63,11 +68,12 @@ export function WeddingVideoCarousel({ items }: WeddingVideoCarouselProps) {
               type="button"
             >
               <div className="relative aspect-[0.7] overflow-hidden">
-                {item.posterSrc ? (
+                {item.posterSrc && !failedPosterIndexes.includes(index) ? (
                   <Image
                     alt={item.title}
                     className="object-cover transition duration-500 group-hover:scale-[1.03]"
                     fill
+                    onError={() => handlePosterError(index)}
                     sizes="(max-width: 640px) 78vw, (max-width: 1280px) 20rem, 16rem"
                     src={item.posterSrc}
                   />

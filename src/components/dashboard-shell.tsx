@@ -238,7 +238,7 @@ export function DashboardShell({ currentPath, user, summary: summaryOverride, ch
 
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)]" data-app-shell>
-      <div className="mx-auto grid min-h-screen max-w-[1600px] lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="grid min-h-screen w-full lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="border-b border-white/10 bg-[var(--sidebar)] px-4 py-4 text-white sm:px-5 sm:py-6 lg:border-b-0 lg:border-r lg:border-white/10 lg:px-6 lg:py-8">
           <div className="flex h-full flex-col justify-between gap-6 lg:gap-8">
             <div className="space-y-8">
@@ -323,7 +323,7 @@ export function DashboardShell({ currentPath, user, summary: summaryOverride, ch
           </div>
         </aside>
 
-        <main className="min-w-0 px-3 py-4 sm:px-5 sm:py-6 lg:px-8 lg:py-8">
+        <main className="min-w-0 px-3 py-4 sm:px-5 sm:py-6 lg:px-7 lg:py-7 xl:px-8 xl:py-8 2xl:px-10">
           <div className="mb-4 flex justify-end gap-3">
             <Link
               className="flex items-center gap-2 rounded-full border border-black/[0.08] bg-white/88 px-4 py-2.5 text-sm font-semibold text-[var(--ink)] shadow-[0_14px_35px_rgba(59,36,17,0.08)] transition hover:border-[var(--forest)] hover:bg-[var(--forest)] hover:text-white"

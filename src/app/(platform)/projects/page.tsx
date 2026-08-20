@@ -1,32 +1,22 @@
 import Link from "next/link";
-import {
-} from "@/app/actions";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { NewProjectModal } from "@/components/new-project-modal";
 import { ProjectsTable } from "@/components/projects-table";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { canCreateProjects } from "@/lib/roles";
 
-const stageOrder = [
-  "Inquiry",
-  "Follow-up",
-  "Meeting",
-  "Proposal Sent",
-  "Proposal Signed",
-  "Planning",
-  "Completed",
-];
-const activeStages = stageOrder.filter((stage) => stage !== "Completed");
+const stageOrder = ["BOOKED", "DISMISSED"];
+const activeStages = [...stageOrder];
 const sortOptions = {
   recent: "Recently updated",
   dateAsc: "Date soonest first",
   dateDesc: "Date latest first",
   nameAsc: "Name A-Z",
-  stage: "Stage",
+  stage: "Status",
 } as const;
 const viewOptions = [
-  { value: "active", label: "Active" },
-  { value: "completed", label: "Completed" },
+  { value: "booked", label: "BOOKED" },
+  { value: "dismissed", label: "DISMISSED" },
   { value: "archived", label: "Archived" },
   { value: "all", label: "All" },
 ] as const;
@@ -38,45 +28,8 @@ const stageCardStyles: Record<
     icon: React.ReactNode;
   }
 > = {
-  Inquiry: {
-    accent: "bg-[rgba(255,184,107,0.18)] text-[#f3a43d]",
-    icon: (
-      <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
-        <path d="M12 5v14" />
-        <path d="M5 12h14" />
-      </svg>
-    ),
-  },
-  "Follow-up": {
-    accent: "bg-[rgba(96,165,250,0.18)] text-[#3b82f6]",
-    icon: (
-      <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
-        <path d="M7 12h10" />
-        <path d="M12 7l5 5-5 5" />
-      </svg>
-    ),
-  },
-  Meeting: {
-    accent: "bg-[rgba(96,165,250,0.18)] text-[#4f8df7]",
-    icon: (
-      <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
-        <rect height="12" rx="3" width="16" x="4" y="6" />
-        <path d="M10 10h4" />
-        <path d="M10 14h4" />
-      </svg>
-    ),
-  },
-  "Proposal Sent": {
-    accent: "bg-[rgba(196,181,253,0.24)] text-[#8b5cf6]",
-    icon: (
-      <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
-        <path d="M4 7h16v10H4z" />
-        <path d="m5 8 7 6 7-6" />
-      </svg>
-    ),
-  },
-  "Proposal Signed": {
-    accent: "bg-[rgba(134,239,172,0.2)] text-[#35a867]",
+  BOOKED: {
+    accent: "bg-[rgba(47,125,92,0.16)] text-[#2f7d5c]",
     icon: (
       <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
         <path d="M4 7h16v10H4z" />
@@ -84,26 +37,21 @@ const stageCardStyles: Record<
       </svg>
     ),
   },
-  Planning: {
-    accent: "bg-[rgba(125,211,252,0.22)] text-[#25a8ba]",
-    icon: (
-      <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
-        <path d="M8 12h8" />
-        <path d="M12 8v8" />
-        <circle cx="12" cy="12" r="8" />
-      </svg>
-    ),
-  },
-  Completed: {
-    accent: "bg-[rgba(96,165,250,0.18)] text-[#4f8df7]",
+  DISMISSED: {
+    accent: "bg-[rgba(207,114,79,0.16)] text-[#cf724f]",
     icon: (
       <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="8" />
-        <path d="m9 12 2 2 4-4" />
+        <path d="m9 9 6 6" />
+        <path d="m15 9-6 6" />
       </svg>
     ),
   },
 };
+
+function getProjectStatus(phase: string) {
+  return String(phase || "").trim().toUpperCase() === "DISMISSED" ? "DISMISSED" : "BOOKED";
+}
 
 function matchesSearch(value: string, query: string) {
   return value.toLowerCase().includes(query.toLowerCase());
@@ -141,14 +89,14 @@ export default async function ProjectsPage({
   const stageFilter = String(params.stage ?? "").trim();
   const typeFilter = String(params.type ?? "").trim();
   const sourceFilter = String(params.source ?? "").trim();
-  const viewFilter = String(params.view ?? "active").trim();
+  const viewFilter = String(params.view ?? "booked").trim();
   const sortFilter = String(params.sort ?? "recent").trim();
   const hasActiveFilters = Boolean(stageFilter || typeFilter || sourceFilter);
   const errorMessage =
     params.error === "project-invalid"
       ? "Fill out every new client field before creating the project."
       : params.error === "project-phase-invalid"
-        ? "Choose a valid project stage before updating the pipeline."
+        ? "Choose a valid project status before updating the project."
         : params.error === "project-archive-invalid"
           ? "Select at least one project before archiving."
           : params.error === "project-description-invalid"
@@ -187,18 +135,19 @@ export default async function ProjectsPage({
         project.location,
         project.description,
         project.leadSource,
-        project.phase,
+        getProjectStatus(project.phase),
       ].some((value) => matchesSearch(value, query));
-    const matchesStage = !stageFilter || project.phase === stageFilter;
+    const projectStatus = getProjectStatus(project.phase);
+    const matchesStage = !stageFilter || projectStatus === stageFilter;
     const matchesType = !typeFilter || project.type === typeFilter;
     const matchesSource = !sourceFilter || project.leadSource === sourceFilter;
     const matchesView =
       viewFilter === "all" ||
       (viewFilter === "archived"
         ? Boolean(project.archivedAt)
-        : viewFilter === "completed"
-          ? !project.archivedAt && project.phase === "Completed"
-          : !project.archivedAt && project.phase !== "Completed");
+        : viewFilter === "dismissed"
+          ? !project.archivedAt && projectStatus === "DISMISSED"
+          : !project.archivedAt && projectStatus === "BOOKED");
 
     return matchesQuery && matchesStage && matchesType && matchesSource && matchesView;
   });
@@ -217,7 +166,7 @@ export default async function ProjectsPage({
     }
 
     if (sortFilter === "stage") {
-      return stageOrder.indexOf(left.phase) - stageOrder.indexOf(right.phase);
+      return stageOrder.indexOf(getProjectStatus(left.phase)) - stageOrder.indexOf(getProjectStatus(right.phase));
     }
 
     return (right.stageMovedAt || "").localeCompare(left.stageMovedAt || "");
@@ -225,10 +174,11 @@ export default async function ProjectsPage({
 
   const stageCounts = stageOrder.map((stage) => ({
     label: stage,
-    count: data.projects.filter((project) => !project.archivedAt && project.phase === stage).length,
+    count: data.projects.filter((project) => !project.archivedAt && getProjectStatus(project.phase) === stage).length,
   }));
   const typeOptions = Array.from(new Set(data.projects.map((project) => project.type).filter(Boolean))).sort();
   const sourceOptions = Array.from(new Set(data.projects.map((project) => project.leadSource).filter(Boolean))).sort();
+  const activeProjectCount = data.projects.filter((project) => !project.archivedAt).length;
 
   return (
     <DashboardShell
@@ -240,63 +190,72 @@ export default async function ProjectsPage({
       }}
       user={user}
     >
-      <section className="grid gap-7">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <h1 className="text-4xl font-semibold tracking-[-0.03em] text-[var(--ink)]">Projects</h1>
+      <section className="grid gap-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="space-y-2">
+            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
+              Client pipeline
+            </p>
+            <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[var(--ink)] sm:text-[2.1rem]">
+              Projects
+            </h1>
+            <p className="text-sm text-[var(--muted)]">
+              {sortedProjects.length} showing
+              {viewFilter !== "all" ? ` in ${viewFilter}` : ""} from {activeProjectCount} active projects.
+            </p>
           </div>
 
-          <div className="flex items-center gap-4 self-start">
+          <div className="flex items-center gap-3 self-start">
             {canCreateNewProjects ? <NewProjectModal unavailableDates={unavailableDates} /> : null}
           </div>
         </div>
 
         {showCreated ? (
-          <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+          <div className="border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-4 py-3 text-sm text-[var(--forest)]">
             New client and project added successfully.
           </div>
         ) : null}
 
         {showDeleted ? (
-          <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+          <div className="border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-4 py-3 text-sm text-[var(--forest)]">
             Project deleted successfully.
           </div>
         ) : null}
 
         {showArchived ? (
-          <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+          <div className="border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-4 py-3 text-sm text-[var(--forest)]">
             Project archive updated.
           </div>
         ) : null}
 
         {showPipelineUpdated ? (
-          <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
-            Project stage updated.
+          <div className="border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-4 py-3 text-sm text-[var(--forest)]">
+            Project status updated.
           </div>
         ) : null}
 
         {showDescriptionSaved ? (
-          <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+          <div className="border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-4 py-3 text-sm text-[var(--forest)]">
             Project description updated.
           </div>
         ) : null}
 
         {showTypeUpdated ? (
-          <div className="rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+          <div className="border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-4 py-3 text-sm text-[var(--forest)]">
             Project type updated.
           </div>
         ) : null}
 
         {errorMessage ? (
-          <div className="rounded-[1.5rem] border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-5 py-4 text-sm text-[var(--accent)]">
+          <div className="border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-4 py-3 text-sm text-[var(--accent)]">
             {errorMessage}
           </div>
         ) : null}
 
-        <div className="border border-black/[0.05] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(250,248,244,0.96))] p-6 shadow-[0_22px_60px_rgba(31,27,24,0.06)]">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-1 flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-3">
+        <div className="border border-black/[0.05] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(250,248,244,0.96))] p-4 shadow-[0_16px_42px_rgba(31,27,24,0.05)] sm:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex flex-1 flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <form className="flex flex-wrap items-center gap-3" method="get">
                   <input name="q" type="hidden" value={query} />
                   <input name="stage" type="hidden" value={stageFilter} />
@@ -304,7 +263,7 @@ export default async function ProjectsPage({
                   <input name="source" type="hidden" value={sourceFilter} />
                   <input name="view" type="hidden" value={viewFilter} />
                   <label
-                    className={`flex items-center gap-2 border px-4 py-2.5 text-sm font-medium text-[var(--ink)] shadow-[0_10px_30px_rgba(31,27,24,0.03)] transition ${
+                    className={`flex items-center gap-2 border px-3 py-2 text-[0.85rem] font-medium text-[var(--ink)] shadow-[0_8px_22px_rgba(31,27,24,0.03)] transition ${
                       sortFilter !== "recent"
                         ? "border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)]"
                         : "border-[#d8dfeb] bg-white"
@@ -316,7 +275,7 @@ export default async function ProjectsPage({
                       <path d="M10 18h4" />
                     </svg>
                     <select
-                      className="bg-transparent text-sm font-medium text-[var(--ink)] outline-none"
+                      className="bg-transparent text-[0.85rem] font-medium text-[var(--ink)] outline-none"
                       defaultValue={sortFilter}
                       name="sort"
                     >
@@ -328,7 +287,7 @@ export default async function ProjectsPage({
                     </select>
                   </label>
                   <button
-                    className="flex h-10 items-center justify-center rounded-full border border-[#d8dfeb] bg-white px-4 text-sm font-medium text-[#3b82f6] shadow-[0_10px_30px_rgba(31,27,24,0.03)] transition hover:bg-[#f8fafc] active:scale-[0.99]"
+                    className="flex h-9 items-center justify-center border border-[#d8dfeb] bg-white px-3.5 text-[0.85rem] font-medium text-[#3b82f6] shadow-[0_8px_22px_rgba(31,27,24,0.03)] transition hover:bg-[#f8fafc] active:scale-[0.99]"
                     type="submit"
                   >
                     Apply
@@ -337,24 +296,24 @@ export default async function ProjectsPage({
 
                 <details className="group relative">
                   <summary
-                    className={`flex list-none items-center gap-2 rounded-full px-3 py-2 text-[1.05rem] font-medium transition hover:opacity-80 ${
+                    className={`flex list-none items-center gap-2 border px-3 py-2 text-[0.85rem] font-medium transition hover:opacity-80 ${
                       hasActiveFilters
-                        ? "bg-[rgba(47,125,92,0.10)] text-[var(--forest)]"
-                        : "text-[#3b82f6]"
+                        ? "border-[rgba(47,125,92,0.22)] bg-[rgba(47,125,92,0.10)] text-[var(--forest)]"
+                        : "border-[#d8dfeb] bg-white text-[#3b82f6]"
                     }`}
                   >
-                    <span className="text-xl leading-none">+</span>
+                    <span className="text-base leading-none">+</span>
                     <span>{hasActiveFilters ? "Filters applied" : "Add Filter"}</span>
                   </summary>
-                  <div className="absolute left-0 top-full z-20 mt-3 w-[20rem] border border-[#d8dfeb] bg-white p-4 shadow-[0_18px_44px_rgba(31,27,24,0.12)]">
+                  <div className="absolute left-0 top-full z-20 mt-2.5 w-[18rem] border border-[#d8dfeb] bg-white p-4 shadow-[0_16px_34px_rgba(31,27,24,0.10)]">
                     <form className="grid gap-3" method="get">
                       <input name="q" type="hidden" value={query} />
                       <input name="sort" type="hidden" value={sortFilter} />
                       <input name="view" type="hidden" value={viewFilter} />
                       <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">
-                        <span>Stage</span>
+                        <span>Status</span>
                         <select className="border border-[#d8dfeb] bg-white px-3 py-2.5 text-sm outline-none" defaultValue={stageFilter} name="stage">
-                          <option value="">All stages</option>
+                          <option value="">All statuses</option>
                           {stageOrder.map((stage) => (
                             <option key={stage} value={stage}>
                               {stage}
@@ -405,7 +364,7 @@ export default async function ProjectsPage({
                 <input name="source" type="hidden" value={sourceFilter} />
                 <input name="view" type="hidden" value={viewFilter} />
                 <input name="sort" type="hidden" value={sortFilter} />
-                <label className="flex items-center gap-3 border border-[#d8dfeb] bg-white px-4 py-3 text-sm text-[var(--muted)] shadow-[0_10px_30px_rgba(31,27,24,0.03)]">
+                <label className="flex items-center gap-3 border border-[#d8dfeb] bg-white px-3.5 py-2.5 text-sm text-[var(--muted)] shadow-[0_8px_22px_rgba(31,27,24,0.03)]">
                   <span aria-hidden="true">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
                       <circle cx="11" cy="11" r="7" />
@@ -435,7 +394,7 @@ export default async function ProjectsPage({
                   <button
                     key={option.value}
                     aria-pressed={isSelected}
-                    className={`rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_10px_30px_rgba(31,27,24,0.03)] transition active:scale-[0.99] ${
+                    className={`border px-3 py-1.5 text-[0.76rem] font-semibold uppercase tracking-[0.14em] shadow-[0_8px_22px_rgba(31,27,24,0.03)] transition active:scale-[0.99] ${
                       isSelected
                         ? "border-[rgba(47,125,92,0.28)] bg-[rgba(47,125,92,0.10)] text-[var(--forest)]"
                         : "border-[#d8dfeb] bg-white text-[#64748b] hover:bg-[#f8fafc]"
@@ -451,27 +410,27 @@ export default async function ProjectsPage({
             </form>
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-4 xl:grid-cols-7">
+          <div className="mt-4 grid gap-2.5 md:grid-cols-2">
             {stageCounts.map((item, index) => (
               <article
                 key={item.label}
-                className={`border px-5 py-4 transition hover:-translate-y-0.5 ${
+                className={`border px-4 py-3 transition hover:-translate-y-0.5 ${
                   index === stageCounts.length - 1
-                    ? "border-[#263245] bg-[linear-gradient(180deg,#31415a,#243043)] text-white shadow-[0_18px_34px_rgba(36,48,67,0.18)]"
-                    : "border-[#e2e8f2] bg-white shadow-[0_10px_28px_rgba(31,27,24,0.04)]"
+                    ? "border-[#263245] bg-[linear-gradient(180deg,#31415a,#243043)] text-white shadow-[0_14px_28px_rgba(36,48,67,0.16)]"
+                    : "border-[#e2e8f2] bg-white shadow-[0_8px_18px_rgba(31,27,24,0.04)]"
                 }`}
               >
                 <div className="flex items-center gap-3">
                   {index !== stageCounts.length - 1 ? (
-                    <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${stageCardStyles[item.label]?.accent || "bg-[rgba(15,23,42,0.08)] text-[var(--ink)]"}`}>
+                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${stageCardStyles[item.label]?.accent || "bg-[rgba(15,23,42,0.08)] text-[var(--ink)]"}`}>
                       {stageCardStyles[item.label]?.icon}
                     </span>
                   ) : null}
                   <div>
-                    <p className={`text-4xl font-semibold leading-none ${index === stageCounts.length - 1 ? "text-white" : "text-[var(--ink)]"}`}>
+                    <p className={`text-[2rem] font-semibold leading-none ${index === stageCounts.length - 1 ? "text-white" : "text-[var(--ink)]"}`}>
                       {item.count}
                     </p>
-                    <p className={`mt-2 text-sm leading-5 ${index === stageCounts.length - 1 ? "text-white/72" : "text-[var(--muted)]"}`}>
+                    <p className={`mt-1.5 text-[0.8rem] leading-5 ${index === stageCounts.length - 1 ? "text-white/72" : "text-[var(--muted)]"}`}>
                       {item.label}
                     </p>
                   </div>

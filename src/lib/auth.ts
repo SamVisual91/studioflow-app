@@ -135,7 +135,7 @@ export async function requireProjectFileManagement() {
 }
 
 export async function requirePathAccess(pathname: string) {
-  if (pathname === "/login") {
+  if (!pathname || pathname === "/login") {
     return null;
   }
 

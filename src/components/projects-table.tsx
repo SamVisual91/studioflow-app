@@ -40,6 +40,19 @@ type Props = {
   }>;
 };
 
+const desktopProjectGrid =
+  "grid-cols-[minmax(16rem,18rem)_minmax(12rem,14rem)_7rem_9rem_9rem_minmax(16rem,1fr)_9rem_auto]";
+
+function getProjectStatus(phase: string) {
+  return String(phase || "").trim().toUpperCase() === "DISMISSED" ? "DISMISSED" : "BOOKED";
+}
+
+function statusTone(status: string) {
+  return status === "DISMISSED"
+    ? "border-[rgba(207,114,79,0.2)] bg-[rgba(207,114,79,0.12)] text-[#cf724f]"
+    : "border-[rgba(47,125,92,0.2)] bg-[rgba(47,125,92,0.12)] text-[#2f7d5c]";
+}
+
 function ProjectTypeIcon({ type }: { type: string }) {
   const normalizedType = type.trim().toLowerCase();
 
@@ -121,14 +134,6 @@ function formatProjectDate(value: string) {
   }).format(new Date(value));
 }
 
-function shortenText(value: string, maxLength: number) {
-  if (!value) {
-    return "";
-  }
-
-  return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
-}
-
 export function ProjectsTable({ projects, activeStages, unavailableDates, userRole }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
@@ -142,6 +147,7 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
   const canManageBulkActions = canManageProjectBulkActions(userRole);
   const openProject = projects.find((project) => project.id === openProjectId) ?? null;
   const openStatusProject = projects.find((project) => project.id === openStatusProjectId) ?? null;
+  const openStatus = openStatusProject ? getProjectStatus(openStatusProject.phase) : null;
 
   useEffect(() => {
     setIsEditModalOpen(Boolean(openProjectId));
@@ -173,19 +179,19 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
 
   return (
     <>
-      <div className="overflow-hidden border border-black/[0.05] bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(250,249,246,0.96))] shadow-[0_22px_60px_rgba(31,27,24,0.06)]">
+      <div className="overflow-hidden border border-black/[0.05] bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(250,249,246,0.96))] shadow-[0_16px_42px_rgba(31,27,24,0.05)]">
         {canManageBulkActions ? (
-          <div className="flex flex-col gap-4 border-b border-[#e5ebf3] bg-white/86 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 border-b border-[#e5ebf3] bg-white/86 px-4 py-3.5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-semibold text-[var(--ink)]">Bulk project actions</p>
-              <p className="mt-1 text-sm text-[var(--muted)]">
+              <p className="text-[0.85rem] font-semibold text-[var(--ink)]">Bulk project actions</p>
+              <p className="mt-1 text-[0.82rem] text-[var(--muted)]">
                 Select one or more projects to archive them safely or delete them permanently.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
               <button
-                className="min-w-[9.75rem] border border-[#d8dfeb] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] shadow-[0_8px_18px_rgba(31,27,24,0.04)] transition hover:bg-[#f8fafc]"
+                className="min-w-[8.75rem] border border-[#d8dfeb] bg-white px-3.5 py-2 text-[0.8rem] font-semibold text-[var(--ink)] shadow-[0_8px_18px_rgba(31,27,24,0.04)] transition hover:bg-[#f8fafc]"
                 onClick={toggleAllVisible}
                 type="button"
               >
@@ -197,7 +203,7 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
                   <input key={`archive-${projectId}`} name="projectIds" type="hidden" value={projectId} />
                 ))}
                 <button
-                  className="min-w-[11.5rem] border border-[rgba(47,125,92,0.16)] bg-[rgba(47,125,92,0.08)] px-4 py-2 text-[0.92rem] font-semibold text-[var(--forest)] transition hover:bg-[rgba(47,125,92,0.14)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-w-[10.5rem] border border-[rgba(47,125,92,0.16)] bg-[rgba(47,125,92,0.08)] px-3.5 py-2 text-[0.8rem] font-semibold text-[var(--forest)] transition hover:bg-[rgba(47,125,92,0.14)] disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={selectedIds.length === 0}
                 >
                   Archive selected ({selectedIds.length})
@@ -209,7 +215,7 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
                   <input key={`delete-${projectId}`} name="projectIds" type="hidden" value={projectId} />
                 ))}
                 <button
-                  className="min-w-[10.75rem] border border-[rgba(207,114,79,0.16)] bg-[rgba(207,114,79,0.08)] px-4 py-2 text-[0.92rem] font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.14)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-w-[10rem] border border-[rgba(207,114,79,0.16)] bg-[rgba(207,114,79,0.08)] px-3.5 py-2 text-[0.8rem] font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.14)] disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={selectedIds.length === 0}
                 >
                   Delete selected
@@ -219,48 +225,134 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
           </div>
         ) : null}
 
-        <div className="overflow-x-auto bg-white">
-          <table className="w-full min-w-[1120px] table-fixed border-collapse xl:min-w-0">
-            <thead className="border-b border-[#e5ebf3] bg-[rgba(247,249,252,0.9)] text-left">
-              <tr className="text-xs uppercase tracking-[0.18em] text-[#7c8aa0]">
-                <th className="w-10 px-3 py-4 font-semibold">
+        {projects.length === 0 ? (
+          <div className="px-5 py-10 text-sm text-[var(--muted)]">No projects matched that search yet.</div>
+        ) : (
+          <>
+            <div className="divide-y divide-[#edf1f6] bg-white lg:hidden">
+              {projects.map((project) => {
+                const projectStatus = getProjectStatus(project.phase);
+
+                return (
+                  <article key={`${project.id}-mobile`} className="space-y-4 px-4 py-4 sm:px-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        {canManageBulkActions ? (
+                          <input
+                            checked={selectedIds.includes(project.id)}
+                            className="mt-1.5 shrink-0"
+                            onChange={() => toggleProject(project.id)}
+                            type="checkbox"
+                          />
+                        ) : null}
+                        <ProjectTypeIcon type={project.type || "Others"} />
+                        <div className="min-w-0">
+                          <Link
+                            className="block break-words text-[0.98rem] font-semibold leading-6 text-[var(--ink)] underline-offset-4 hover:underline"
+                            href={`/projects/${project.id}`}
+                          >
+                            {project.name}
+                          </Link>
+                          <p className="mt-0.5 text-[0.82rem] leading-5 text-[var(--muted)]">
+                            {project.type || "Others"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#d8dfeb] bg-white text-sm font-semibold text-[var(--muted)] transition hover:bg-[#f8fafc]"
+                        onClick={() => setOpenProjectId(project.id)}
+                        type="button"
+                      >
+                        ...
+                      </button>
+                    </div>
+
+                    <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                      <div>
+                        <p className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-[#7c8aa0]">Contact</p>
+                        <p className="mt-1 break-words text-[0.84rem] leading-5 text-[var(--ink)]">
+                          {project.contactEmail || project.client}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-[#7c8aa0]">Date</p>
+                        <p className="mt-1 text-[0.84rem] leading-5 text-[var(--ink)]">
+                          {formatProjectDate(project.projectDate)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-[#7c8aa0]">Location</p>
+                        <p className="mt-1 break-words text-[0.84rem] leading-5 text-[var(--ink)]">
+                          {project.location || "TBD"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-[#7c8aa0]">Lead source</p>
+                        <p className="mt-1 break-words text-[0.84rem] leading-5 text-[var(--ink)]">
+                          {project.leadSource || "Direct"}
+                        </p>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <p className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-[#7c8aa0]">Description</p>
+                        <p className="mt-1 break-words text-[0.84rem] leading-5 text-[var(--muted)]">
+                          {project.description || "No description yet."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5 border-t border-[#edf1f6] pt-3">
+                      <button
+                        className={`inline-flex min-w-[8.2rem] items-center justify-between gap-2.5 border px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.14em] transition hover:brightness-[0.98] ${statusTone(projectStatus)}`}
+                        onClick={() => setOpenStatusProjectId(project.id)}
+                        type="button"
+                      >
+                        <span>{projectStatus}</span>
+                        <DoubleChevronDownIcon className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                      </button>
+
+                      <Link
+                        className="inline-flex items-center justify-center border border-[#d8dfeb] px-3.5 py-1.5 text-[0.8rem] font-semibold text-[var(--ink)] transition hover:bg-[#f8fafc]"
+                        href={`/projects/${project.id}`}
+                      >
+                        Open project
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="hidden bg-white lg:block">
+              <div className={`grid ${desktopProjectGrid} gap-x-6 border-b border-[#edf1f6] bg-[#fbfbfb] px-5 py-3 text-[0.7rem] font-medium uppercase tracking-[0.14em] text-[#718096] xl:px-6`}>
+                <div className="flex items-center gap-3">
                   {canManageBulkActions ? (
-                    <label className="flex items-center justify-center">
+                    <label className="flex items-center">
                       <input checked={allVisibleSelected} onChange={toggleAllVisible} type="checkbox" />
                       <span className="sr-only">Select visible projects</span>
                     </label>
                   ) : null}
-                </th>
-                <th className="w-[19%] px-4 py-4 font-semibold">Name</th>
-                <th className="w-[17%] px-4 py-4 font-semibold">Contact</th>
-                <th className="w-[7%] px-4 py-4 font-semibold">Type</th>
-                <th className="w-[11%] px-4 py-4 font-semibold">Date</th>
-                <th className="w-[10%] px-4 py-4 font-semibold">Location</th>
-                <th className="w-[12%] px-4 py-4 font-semibold">Description</th>
-                <th className="w-[9%] px-4 py-4 font-semibold">Lead source</th>
-                <th className="w-[10%] px-4 py-4 font-semibold">Status</th>
-                <th className="w-[5%] px-5 py-4 text-right font-semibold">
-                  <span
-                    aria-hidden="true"
-                    className="inline-flex items-center justify-end text-base tracking-[0.2em] text-[var(--muted)]"
-                  >
-                    ...
-                  </span>
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {projects.length === 0 ? (
-                <tr>
-                  <td className="px-5 py-10 text-sm text-[var(--muted)]" colSpan={10}>
-                    No projects matched that search yet.
-                  </td>
-                </tr>
-              ) : (
-                projects.map((project) => (
-                  <tr key={project.id} className="border-t border-[#edf1f6] transition hover:bg-[#fbfcff]">
-                    <td className="px-3 py-4 text-center align-middle">
+                  <span>Name</span>
+                </div>
+                <div className="flex items-center">Contacts</div>
+                <div className="flex items-center">Type</div>
+                <div className="flex items-center">Date</div>
+                <div className="flex items-center">Location</div>
+                <div className="flex items-center">Description</div>
+                <div className="flex items-center">Lead Source</div>
+                <div className="flex items-center justify-start">Actions</div>
+              </div>
+
+              <div className="divide-y divide-[#edf1f6]">
+                {projects.map((project) => {
+                  const projectStatus = getProjectStatus(project.phase);
+
+                  return (
+                    <article
+                      key={project.id}
+                      className={`grid ${desktopProjectGrid} gap-x-6 px-5 py-4 text-[0.87rem] leading-6 text-[var(--ink)] transition hover:bg-[#fcfcfd] xl:px-6`}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
                         {canManageBulkActions ? (
                           <input
                             checked={selectedIds.includes(project.id)}
@@ -268,81 +360,63 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
                             type="checkbox"
                           />
                         ) : null}
-                    </td>
-                    <td className="min-w-0 px-4 py-4 align-middle">
-                      <div className="flex min-w-0 items-center gap-3">
                         <ProjectTypeIcon type={project.type || "Others"} />
                         <Link
-                          className="block truncate whitespace-nowrap text-[0.86rem] font-semibold leading-5 text-[var(--ink)] underline-offset-4 hover:underline"
+                          className="block min-w-0 break-words font-semibold text-[var(--ink)] underline-offset-4 hover:underline"
                           href={`/projects/${project.id}`}
-                          title={project.name}
                         >
                           {project.name}
                         </Link>
                       </div>
-                    </td>
-                    <td className="px-4 py-4 align-middle text-[0.8rem] text-[var(--ink)]">
-                      <span className="block truncate whitespace-nowrap" title={project.contactEmail || project.client}>
+
+                      <div className="break-words text-[0.84rem] text-[var(--ink)]">
                         {project.contactEmail || project.client}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 align-middle text-[0.82rem] text-[var(--ink)]">
-                      <span className="block truncate whitespace-nowrap" title={project.type || "Others"}>
-                        {project.type || "Others"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 align-middle text-[0.82rem] text-[var(--ink)]">
-                      <span className="block whitespace-nowrap">{formatProjectDate(project.projectDate)}</span>
-                    </td>
-                    <td className="px-4 py-4 align-middle text-[0.82rem] text-[var(--ink)]">
-                      <span className="block truncate whitespace-nowrap" title={project.location || "TBD"}>
-                        {project.location || "TBD"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 align-middle text-[0.8rem] text-[var(--muted)]">
-                      <p
-                        className="max-w-[10rem] truncate whitespace-nowrap leading-5"
-                        title={project.description || "No description yet."}
-                      >
-                        {shortenText(project.description || "No description yet.", 80)}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4 align-middle text-[0.8rem] text-[var(--ink)]">
-                      <span className="block truncate whitespace-nowrap" title={project.leadSource || "Direct"}>
-                        {project.leadSource || "Direct"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 align-middle">
-                      <div className="flex flex-col gap-2">
+                      </div>
+
+                      <div className="text-[0.84rem] text-[var(--ink)]">{project.type || "Others"}</div>
+
+                      <div className="text-[0.84rem] text-[var(--ink)]">{formatProjectDate(project.projectDate)}</div>
+
+                      <div className="break-words text-[0.84rem] text-[var(--ink)]">{project.location || "TBD"}</div>
+
+                      <div className="break-words text-[0.84rem] text-[var(--muted)]">
+                        {project.description || "No description yet."}
+                      </div>
+
+                      <div className="break-words text-[0.84rem] text-[var(--ink)]">{project.leadSource || "Direct"}</div>
+
+                      <div className="flex items-start gap-2.5">
                         <button
-                          className="flex w-fit max-w-full items-center gap-1.5 bg-transparent p-0 text-[0.82rem] font-semibold text-[#5b6f8b] transition hover:text-[var(--ink)]"
+                          className={`inline-flex min-w-[8rem] items-center justify-between gap-2 border px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.14em] transition hover:brightness-[0.98] ${statusTone(projectStatus)}`}
                           onClick={() => setOpenStatusProjectId(project.id)}
                           type="button"
                         >
-                          <span className="truncate whitespace-nowrap" title={project.phase}>
-                            {project.phase}
-                          </span>
-                          <DoubleChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-[var(--muted)]" />
+                          <span>{projectStatus}</span>
+                          <DoubleChevronDownIcon className="h-3.5 w-3.5 shrink-0 opacity-70" />
                         </button>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 align-middle">
-                      <div className="flex items-center justify-end">
+
+                        <Link
+                          className="inline-flex items-center justify-center border border-[#d8dfeb] px-3 py-1.5 text-[0.78rem] font-semibold text-[var(--ink)] transition hover:bg-[#f8fafc]"
+                          href={`/projects/${project.id}`}
+                        >
+                          Open project
+                        </Link>
+
                         <button
-                          className="flex h-9 w-9 items-center justify-center rounded-full border border-[#d8dfeb] bg-white text-sm font-semibold text-[var(--muted)] shadow-[0_6px_16px_rgba(31,27,24,0.04)] transition hover:bg-[#f8fafc]"
+                          className="flex h-8.5 w-8.5 items-center justify-center rounded-full border border-[#d8dfeb] bg-white text-sm font-semibold text-[var(--muted)] transition hover:bg-[#f8fafc]"
                           onClick={() => setOpenProjectId(project.id)}
                           type="button"
                         >
                           ...
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {openProject ? (
@@ -387,18 +461,17 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
               </button>
             </div>
             <div className="mt-4 grid gap-1">
-              {(openStatusProject.phase === "Completed"
-                ? [...activeStages, "Completed"]
-                : activeStages
-              ).map((stage) => (
+              {activeStages.map((stage) => (
                 <form action={updateProjectPipelineAction} key={`${openStatusProject.id}-status-popup-${stage}`}>
                   <input name="projectId" type="hidden" value={openStatusProject.id} />
                   <input name="phase" type="hidden" value={stage} />
                   <button
-                    className={`w-full px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-black/[0.04] ${
-                      stage === openStatusProject.phase
-                        ? "bg-[rgba(47,125,92,0.1)] text-[var(--forest)]"
-                        : "text-[var(--ink)]"
+                    className={`w-full border px-3 py-2.5 text-left text-sm font-semibold uppercase tracking-[0.12em] transition ${
+                      stage === openStatus
+                        ? statusTone(stage)
+                        : stage === "DISMISSED"
+                          ? "border-[rgba(207,114,79,0.12)] text-[#cf724f] hover:bg-[rgba(207,114,79,0.06)]"
+                          : "border-[rgba(47,125,92,0.12)] text-[#2f7d5c] hover:bg-[rgba(47,125,92,0.06)]"
                     }`}
                   >
                     {stage}

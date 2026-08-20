@@ -37,15 +37,11 @@ const coverImages: Record<string, string> = {
   Event: "https://source.unsplash.com/1800x900/?event,conference,stage",
 };
 
-const stageOptions = [
-  "Inquiry",
-  "Follow-up",
-  "Meeting",
-  "Proposal Sent",
-  "Proposal Signed",
-  "Planning",
-  "Completed",
-];
+const stageOptions = ["BOOKED", "DISMISSED"];
+
+function getProjectStatus(phase: string) {
+  return String(phase || "").trim().toUpperCase() === "DISMISSED" ? "DISMISSED" : "BOOKED";
+}
 
 const taskTemplates = {
   wedding: {
@@ -999,7 +995,7 @@ export default async function ProjectClientPage({
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">About this project</p>
                   <h2 className="mt-2 text-lg font-semibold leading-6 text-[var(--ink)]">{project.name}</h2>
                   <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
-                    {project.phase} {project.projectDate ? `| ${shortDate.format(new Date(project.projectDate))}` : ""}
+                    {getProjectStatus(project.phase)} {project.projectDate ? `| ${shortDate.format(new Date(project.projectDate))}` : ""}
                   </p>
                 </div>
                 <span className="shrink-0 rounded-full border border-black/[0.08] bg-white px-3 py-1 text-xs font-semibold text-[var(--muted)]">
@@ -1028,8 +1024,8 @@ export default async function ProjectClientPage({
                     />
                   </label>
                   <label className="grid gap-1.5 text-sm font-semibold text-[var(--ink)]">
-                    Stage
-                    <select className="rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm font-medium" defaultValue={project.phase} name="phase">
+                    Status
+                    <select className="rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm font-medium" defaultValue={getProjectStatus(project.phase)} name="phase">
                       {stageOptions.map((item) => (
                         <option key={item} value={item}>
                           {item}
