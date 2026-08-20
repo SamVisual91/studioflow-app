@@ -4,22 +4,23 @@ function getRequiredEnv(name: string) {
 
 const PROJECT_REPLY_TOKEN_PATTERN = /\[sf:([a-z0-9-]+)\]/i;
 const PROJECT_REPLY_ALIAS_PATTERNS = [
-  /^project-([a-z0-9-]+)@/i,
-  /^[^@]+\+sf-([a-z0-9-]+)@/i,
+  /^project-([a-z0-9-]+)(?:-thread-([a-z0-9-]+))?@/i,
+  /^[^@]+\+sf-([a-z0-9-]+)(?:-thread-([a-z0-9-]+))?@/i,
 ];
 
 export function hasProjectReplyRoutingConfig() {
-  return Boolean(getRequiredEnv("REPLY_INBOX_DOMAIN"));
+  return Boolean(getRequiredEnv("CLIENT_REPLY_TO") || getRequiredEnv("REPLY_INBOX_DOMAIN"));
 }
 
-export function getProjectReplyAddress(projectId: string) {
+export function getProjectReplyAddress(projectId: string, threadId = "") {
   const directReplyAddress = (getRequiredEnv("CLIENT_REPLY_TO") || "contactme@samthao.com").toLowerCase();
+  const threadSegment = threadId ? `-thread-${threadId}` : "";
 
   if (directReplyAddress && projectId) {
     const [localPart, domain] = directReplyAddress.split("@");
 
     if (localPart && domain) {
-      return `${localPart}+sf-${projectId}@${domain}`;
+      return `${localPart}+sf-${projectId}${threadSegment}@${domain}`;
     }
   }
 
@@ -33,7 +34,7 @@ export function getProjectReplyAddress(projectId: string) {
     return undefined;
   }
 
-  return `project-${projectId}@${domain}`;
+  return `project-${projectId}${threadSegment}@${domain}`;
 }
 
 export function getInboundWebhookToken() {
@@ -71,6 +72,22 @@ export function extractProjectIdFromReplyAddress(addresses: string[]) {
 
       if (match?.[1]) {
         return match[1];
+      }
+    }
+  }
+
+  return "";
+}
+
+export function extractThreadIdFromReplyAddress(addresses: string[]) {
+  for (const address of addresses) {
+    const normalized = String(address || "").trim().toLowerCase();
+
+    for (const pattern of PROJECT_REPLY_ALIAS_PATTERNS) {
+      const match = normalized.match(pattern);
+
+      if (match?.[2]) {
+        return match[2];
       }
     }
   }

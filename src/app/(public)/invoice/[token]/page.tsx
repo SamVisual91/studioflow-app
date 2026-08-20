@@ -11,6 +11,7 @@ import { getDb } from "@/lib/db";
 import { currencyFormatter, shortDate } from "@/lib/formatters";
 import { resolveProjectForInvoice } from "@/lib/invoice-project";
 import { getPaymentOptions } from "@/lib/payment-options";
+import { getLatestProjectPackageForProject } from "@/lib/project-packages";
 import { getStripe, hasStripeConfig } from "@/lib/stripe";
 
 type LineItem = {
@@ -280,6 +281,7 @@ export default async function PublicInvoicePage({
         .get(String(client.package_name)) as Record<string, unknown> | undefined) ??
       undefined)
     : undefined;
+  const projectPackage = project?.id ? getLatestProjectPackageForProject(db, String(project.id)) : null;
 
   const lineItems = parseLineItems(invoice.line_items);
   const paymentSchedule = parsePaymentSchedule(invoice.payment_schedule);
@@ -294,6 +296,7 @@ export default async function PublicInvoicePage({
     .reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const remainingAmount = Math.max(grandTotal - paidAmount, 0);
   const heroImage =
+    String(projectPackage?.coverImage || "") ||
     String(packagePreset?.cover_image || "") ||
     "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1400&q=80";
   const paymentOptions = getPaymentOptions();

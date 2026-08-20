@@ -4,6 +4,7 @@ import {
 } from "@/components/package-brochure-preview";
 import { PackageBrochureSelection } from "@/components/package-brochure-selection";
 import { getDb } from "@/lib/db";
+import { getProjectPackagesByIds, getProjectPackagesForProject } from "@/lib/project-packages";
 
 function parseSections(input: string) {
   try {
@@ -45,6 +46,7 @@ export default async function PackageBrochurePage({
     .get(token) as
     | {
         category: string;
+        project_id: string;
         selected_package_ids?: string | null;
         package_overrides?: string | null;
         title?: string | null;
@@ -60,44 +62,6 @@ export default async function PackageBrochurePage({
     notFound();
   }
 
-  const packageCategoryAliases =
-    brochure.category === "Wedding"
-      ? ["Wedding", "Weddings"]
-      : brochure.category === "Business"
-        ? ["Business", "Businesses"]
-        : ["Others", "Other"];
-  const packages = db
-    .prepare(
-      "SELECT id, name, description, amount, sections, line_items, cover_image, cover_position, template_set_cover_image, template_set_cover_position FROM package_presets WHERE category IN (?, ?) ORDER BY amount ASC, created_at ASC"
-    )
-    .all(packageCategoryAliases[0], packageCategoryAliases[1])
-    .map((preset) => {
-      const row = preset as {
-        id: string;
-        name: string;
-        description: string;
-        amount: number;
-        sections: string;
-        line_items: string;
-        cover_image?: string | null;
-        cover_position?: string | null;
-        template_set_cover_image?: string | null;
-        template_set_cover_position?: string | null;
-      };
-
-      return {
-        coverImage: String(row.cover_image || ""),
-        coverPosition: String(row.cover_position || "50% 50%"),
-        templateSetCoverImage: String(row.template_set_cover_image || ""),
-        templateSetCoverPosition: String(row.template_set_cover_position || "50% 50%"),
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        amount: Number(row.amount || 0),
-        sections: parseSections(row.sections),
-        lineItems: parseLineItems(row.line_items),
-      };
-    });
   const selectedPackageIds = (() => {
     try {
       const parsed = JSON.parse(String(brochure.selected_package_ids || "[]")) as string[];
@@ -106,39 +70,47 @@ export default async function PackageBrochurePage({
       return [];
     }
   })();
-  const packageOverrides = (() => {
-    try {
-      return JSON.parse(String(brochure.package_overrides || "{}")) as Record<
-        string,
-        { name?: string; description?: string; amount?: number }
-      >;
-    } catch {
-      return {};
-    }
-  })();
-  const visiblePackages =
+  const projectPackages =
     selectedPackageIds.length > 0
-      ? packages.filter((preset) => selectedPackageIds.includes(preset.id))
-      : packages;
-  const previewPackages = visiblePackages.map((preset) => {
-    const override = packageOverrides[preset.id];
-    return {
-      ...preset,
-      coverImage: preset.coverImage,
-      coverPosition: preset.coverPosition,
-      name: override?.name || preset.name,
-      description: override?.description || preset.description,
-      amount: typeof override?.amount === "number" ? override.amount : preset.amount,
-    };
-  });
-  const templateHeroImage =
-    previewPackages.find((preset) => preset.templateSetCoverImage)?.templateSetCoverImage ||
-    packages.find((preset) => preset.templateSetCoverImage)?.templateSetCoverImage ||
-    "";
-  const templateHeroPosition =
-    previewPackages.find((preset) => preset.templateSetCoverPosition)?.templateSetCoverPosition ||
-    packages.find((preset) => preset.templateSetCoverPosition)?.templateSetCoverPosition ||
-    "50% 50%";
+      ? getProjectPackagesByIds(db, brochure.project_id, selectedPackageIds)
+      : getProjectPackagesForProject(db, brochure.project_id, brochure.category);
+  const previewPackages =
+    projectPackages.length > 0
+      ? projectPackages
+      : db
+          .prepare(
+            `SELECT id, name, description, amount, sections, line_items, cover_image, cover_position
+             FROM package_presets
+             WHERE id IN (${(selectedPackageIds.length > 0 ? selectedPackageIds : [""]).map(() => "?").join(", ")})`
+          )
+          .all(...(selectedPackageIds.length > 0 ? selectedPackageIds : [""]))
+          .map((preset) => {
+            const row = preset as {
+              id: string;
+              name: string;
+              description: string;
+              amount: number;
+              sections: string;
+              line_items: string;
+              cover_image?: string | null;
+              cover_position?: string | null;
+            };
+
+            return {
+              coverImage: String(row.cover_image || ""),
+              coverPosition: String(row.cover_position || "50% 50%"),
+              id: row.id,
+              name: row.name,
+              description: row.description,
+              amount: Number(row.amount || 0),
+              sections: parseSections(row.sections),
+              lineItems: parseLineItems(row.line_items),
+              sourceTemplateId: row.id,
+              status: "DRAFT",
+            };
+          });
+  const templateHeroImage = previewPackages.find((preset) => preset.coverImage)?.coverImage || "";
+  const templateHeroPosition = previewPackages.find((preset) => preset.coverPosition)?.coverPosition || "50% 50%";
 
   if (previewPackages.length === 0) {
     notFound();

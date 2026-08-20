@@ -41,7 +41,7 @@ export function getDefaultPackageBrochureContent({
 }) {
   return {
     title: projectName,
-    intro: `${clientName}, here is the current ${category.toLowerCase()} package brochure. Everything on this page stays synced with the latest package templates, so you are always seeing the current lineup.`,
+    intro: `${clientName}, here is your current ${category.toLowerCase()} package brochure. Each option below is a custom package copy for your project, so any pricing changes stay specific to you.`,
     closingNote:
       "Reply directly to your email thread when you are ready, and I can tailor the right collection around your priorities, timeline, or coverage needs.",
     coverImage: "",

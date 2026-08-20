@@ -516,13 +516,14 @@ export function ProjectFileLauncher({
                     <form className="border-t border-black/[0.08] bg-white px-6 py-4">
                       <input name="projectId" type="hidden" value={projectId} />
                       <input name="category" type="hidden" value={selectedTemplate.category} />
+                      <input name="packageSource" type="hidden" value="master" />
                       <input name="returnPath" type="hidden" value={`/projects/${projectId}`} />
                       <input name="selectionIntent" type="hidden" value="custom" />
                       <input name="title" type="hidden" value={projectName} />
                       <input
                         name="intro"
                         type="hidden"
-                        value={`${clientName}, here is the current ${selectedTemplate.category.toLowerCase()} package brochure. Everything on this page stays synced with the latest package templates, so you are always seeing the current lineup.`}
+                        value={`${clientName}, here is your current ${selectedTemplate.category.toLowerCase()} package brochure. Each option below is a custom package copy for your project, so any pricing changes stay specific to you.`}
                       />
                       <input
                         name="closingNote"

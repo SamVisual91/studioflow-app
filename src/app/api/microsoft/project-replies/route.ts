@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getDb } from "@/lib/db";
 import {
   fetchMicrosoftGraphMessage,
   getMicrosoftGraphMailboxUserId,
@@ -8,7 +7,7 @@ import {
 import { upsertInboundProjectReply } from "@/lib/project-inbox";
 import {
   extractProjectIdFromReplyAddress,
-  extractProjectIdFromSubject,
+  extractThreadIdFromReplyAddress,
   stripProjectReplyToken,
 } from "@/lib/reply-routing";
 
@@ -20,43 +19,6 @@ type GraphNotification = {
     id?: string;
   };
 };
-
-function findProjectIdByReplyAddress(fromAddress: string) {
-  const db = getDb();
-  const normalized = String(fromAddress || "").trim().toLowerCase();
-
-  if (!normalized) {
-    return "";
-  }
-
-  const primaryClientMatch = db
-    .prepare(
-      `SELECT p.id
-       FROM projects p
-       INNER JOIN clients c ON c.name = p.client
-       WHERE lower(trim(c.contact_email)) = ?
-       ORDER BY p.updated_at DESC
-       LIMIT 1`
-    )
-    .get(normalized) as { id?: string } | undefined;
-
-  if (primaryClientMatch?.id) {
-    return primaryClientMatch.id;
-  }
-
-  const projectContactMatch = db
-    .prepare(
-      `SELECT p.id
-       FROM project_contacts pc
-       INNER JOIN projects p ON p.id = pc.project_id
-       WHERE lower(trim(pc.email)) = ?
-       ORDER BY p.updated_at DESC
-       LIMIT 1`
-    )
-    .get(normalized) as { id?: string } | undefined;
-
-  return String(projectContactMatch?.id || "");
-}
 
 async function processNotification(notification: GraphNotification) {
   const expectedClientState = getMicrosoftGraphWebhookClientState();
@@ -77,28 +39,26 @@ async function processNotification(notification: GraphNotification) {
     return;
   }
 
-  const projectId =
-    extractProjectIdFromReplyAddress([
-      ...message.replyToAddresses,
-      ...message.toAddresses,
-      ...message.ccAddresses,
-    ]) ||
-    extractProjectIdFromSubject(message.subject) ||
-    findProjectIdByReplyAddress(message.fromAddress);
+  const routingAddresses = [...message.replyToAddresses, ...message.toAddresses, ...message.ccAddresses];
+  const projectId = extractProjectIdFromReplyAddress(routingAddresses);
+  const threadId = extractThreadIdFromReplyAddress(routingAddresses);
 
   if (!projectId) {
     return;
   }
 
   upsertInboundProjectReply({
+    bodyText: message.previewText,
     externalMessageId: message.externalMessageId,
     fromAddress: message.fromAddress,
     fromName: message.fromName,
     html: message.html,
-    previewText: message.previewText,
+    internetMessageId: message.externalMessageId,
     projectId,
     subject: stripProjectReplyToken(message.subject),
+    threadId,
     timestamp: message.timestamp,
+    toAddresses: message.toAddresses,
   });
 }
 

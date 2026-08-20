@@ -7,6 +7,7 @@ import { PackageBrochureBuilder } from "@/components/package-brochure-builder";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getDb } from "@/lib/db";
+import { getProjectPackagesByIds, getProjectPackagesForProject } from "@/lib/project-packages";
 
 function parseSections(input: string) {
   try {
@@ -81,37 +82,6 @@ export default async function ProjectPackageBrochureBuilderPage({
     .prepare("SELECT email FROM project_contacts WHERE project_id = ? ORDER BY created_at ASC LIMIT 1")
     .get(id) as { email?: string | null } | undefined;
   const recipientEmail = String(clientRecord?.contact_email || projectContact?.email || "").trim();
-
-  const packageCategoryAliases =
-    category === "Wedding"
-      ? ["Wedding", "Weddings"]
-      : category === "Business"
-        ? ["Business", "Businesses"]
-        : ["Others", "Other"];
-  const packages = db
-    .prepare(
-      "SELECT id, name, description, amount, sections, line_items FROM package_presets WHERE category IN (?, ?) ORDER BY amount ASC, created_at ASC"
-    )
-    .all(packageCategoryAliases[0], packageCategoryAliases[1])
-    .map((preset) => {
-      const row = preset as {
-        id: string;
-        name: string;
-        description: string;
-        amount: number;
-        sections: string;
-        line_items: string;
-      };
-
-      return {
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        amount: Number(row.amount || 0),
-        sections: parseSections(row.sections),
-        lineItems: parseLineItems(row.line_items),
-      };
-    });
   const selectedPackageIds = (() => {
     try {
       const parsed = JSON.parse(String(brochure?.selected_package_ids || "[]")) as string[];
@@ -120,16 +90,45 @@ export default async function ProjectPackageBrochureBuilderPage({
       return [];
     }
   })();
-  const packageOverrides = (() => {
-    try {
-      return JSON.parse(String(brochure?.package_overrides || "{}")) as Record<
-        string,
-        { name: string; description: string; amount: number }
-      >;
-    } catch {
-      return {};
-    }
-  })();
+  const projectPackages =
+    selectedPackageIds.length > 0
+      ? getProjectPackagesByIds(db, id, selectedPackageIds)
+      : getProjectPackagesForProject(db, id, category);
+  const usingLegacyPackages = selectedPackageIds.length > 0 && projectPackages.length === 0;
+  const packages = usingLegacyPackages
+    ? db
+        .prepare(
+          `SELECT id, name, description, amount, sections, line_items, cover_image, cover_position
+           FROM package_presets
+           WHERE id IN (${selectedPackageIds.map(() => "?").join(", ")})`
+        )
+        .all(...selectedPackageIds)
+        .map((preset) => {
+          const row = preset as {
+            id: string;
+            name: string;
+            description: string;
+            amount: number;
+            sections: string;
+            line_items: string;
+            cover_image?: string | null;
+            cover_position?: string | null;
+          };
+
+          return {
+            coverImage: String(row.cover_image || ""),
+            coverPosition: String(row.cover_position || "50% 50%"),
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            amount: Number(row.amount || 0),
+            sections: parseSections(row.sections),
+            lineItems: parseLineItems(row.line_items),
+            sourceTemplateId: row.id,
+            status: "DRAFT",
+          };
+        })
+    : projectPackages;
 
   const defaults = getDefaultPackageBrochureContent({
     category,
@@ -214,7 +213,7 @@ export default async function ProjectPackageBrochureBuilderPage({
           initialClosingNote={String(brochure?.closing_note || defaults.closingNote)}
           initialCoverImage={String(brochure?.cover_image || defaults.coverImage)}
           initialIntro={String(brochure?.intro || defaults.intro)}
-          initialPackageOverrides={packageOverrides}
+          initialPackageSource={usingLegacyPackages ? "master" : "project"}
           initialRecipientEmail={recipientEmail}
           initiallySelectedPackageIds={
             selectedPackageIds.length > 0 ? selectedPackageIds : packages.map((item) => item.id)

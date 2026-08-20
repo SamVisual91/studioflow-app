@@ -1,10 +1,38 @@
-import { randomUUID } from "node:crypto";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import { getDb } from "@/lib/db";
+import { upsertInboundProjectReply } from "@/lib/project-inbox";
+import { extractProjectIdFromReplyAddress, extractThreadIdFromReplyAddress } from "@/lib/reply-routing";
 
 function getEnv(name: string) {
   return process.env[name]?.trim() || "";
+}
+
+function normalizeParsedAddresses(value: unknown): string[] {
+  if (!value) {
+    return [] as string[];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => normalizeParsedAddresses(item));
+  }
+
+  if (typeof value === "object" && value !== null) {
+    const candidate = value as
+      | { address?: unknown; value?: Array<{ address?: unknown }> }
+      | { value?: Array<{ address?: unknown }> };
+
+    if (Array.isArray(candidate.value)) {
+      return candidate.value
+        .map((entry) => String(entry.address || "").trim().toLowerCase())
+        .filter(Boolean);
+    }
+
+    const address = "address" in candidate ? candidate.address : "";
+    return [String(address || "").trim().toLowerCase()].filter(Boolean);
+  }
+
+  return [];
 }
 
 export function hasInboxSyncConfig() {
@@ -90,49 +118,46 @@ export async function syncInboxRepliesForProject(projectId: string) {
       const externalMessageId =
         parsed.messageId || `${projectId}:${message.uid}:${parsed.date?.toISOString() || ""}`;
 
-      const existing = db
-        .prepare("SELECT 1 FROM messages WHERE external_message_id = ? LIMIT 1")
-        .get(externalMessageId) as { 1: number } | undefined;
+      const timestamp = parsed.date?.toISOString() || new Date().toISOString();
+      const subject = parsed.subject?.trim() || "Email reply";
+      const toAddresses = [
+        ...normalizeParsedAddresses(parsed.to),
+        ...normalizeParsedAddresses(parsed.cc),
+      ].filter(Boolean);
+      const routedProjectId = extractProjectIdFromReplyAddress(toAddresses);
+      const threadId = extractThreadIdFromReplyAddress(toAddresses);
 
-      if (existing) {
+      if (routedProjectId && routedProjectId !== project.id) {
         skipped += 1;
         continue;
       }
 
-      const timestamp = parsed.date?.toISOString() || new Date().toISOString();
-      const preview = String(parsed.text || parsed.html || "").trim().slice(0, 5000);
-      const subject = parsed.subject?.trim() || "Email reply";
+      if (!routedProjectId && !parsed.inReplyTo && (!parsed.references || parsed.references.length === 0)) {
+        skipped += 1;
+        continue;
+      }
 
-      db.prepare(
-        "INSERT INTO messages (id, sender, client_name, project_id, external_message_id, direction, channel, time, subject, preview, unread, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-      ).run(
-        randomUUID(),
-        project.client,
-        project.client,
-        project.id,
+      const result = upsertInboundProjectReply({
+        bodyText: String(parsed.text || "").trim(),
         externalMessageId,
-        "INBOUND",
-        "Email",
-        timestamp,
+        fromAddress,
+        fromName: String(parsed.from?.value?.[0]?.name || "").trim(),
+        html: typeof parsed.html === "string" ? parsed.html : "",
+        inReplyToMessageId: String(parsed.inReplyTo || "").trim(),
+        internetMessageId: parsed.messageId || externalMessageId,
+        projectId: project.id,
+        references: Array.isArray(parsed.references) ? parsed.references : [],
         subject,
-        preview,
-        1,
+        threadId,
         timestamp,
-        timestamp
-      );
+        toAddresses,
+      });
 
-      db.prepare("UPDATE projects SET recent_activity = ?, updated_at = ? WHERE id = ?").run(
-        `Client emailed you on ${new Date(timestamp).toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        })}`,
-        timestamp,
-        project.id
-      );
-
-      imported += 1;
+      if (result.created) {
+        imported += 1;
+      } else {
+        skipped += 1;
+      }
     }
     return { imported, skipped, error: "" };
   } catch (error) {

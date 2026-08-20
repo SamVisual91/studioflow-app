@@ -8,10 +8,17 @@ export function hasMailerConfig() {
 
 export async function sendProposalEmail(input: {
   to: string | string[];
+  cc?: string | string[];
+  bcc?: string | string[];
   subject: string;
   html: string;
   text: string;
   replyTo?: string;
+  attachments?: Array<{
+    filename: string;
+    content: string;
+    contentType?: string;
+  }>;
 }) {
   if (!hasMailerConfig()) {
     throw new Error("SMTP_NOT_CONFIGURED");
@@ -26,10 +33,13 @@ export async function sendProposalEmail(input: {
     body: JSON.stringify({
       from: getRequired("EMAIL_FROM"),
       to: Array.isArray(input.to) ? input.to : [input.to],
+      cc: input.cc ? (Array.isArray(input.cc) ? input.cc : [input.cc]) : undefined,
+      bcc: input.bcc ? (Array.isArray(input.bcc) ? input.bcc : [input.bcc]) : undefined,
       reply_to: input.replyTo,
       subject: input.subject,
       html: input.html,
       text: input.text,
+      attachments: input.attachments,
     }),
   });
 
@@ -37,4 +47,6 @@ export async function sendProposalEmail(input: {
     const errorText = await response.text();
     throw new Error(`RESEND_SEND_FAILED: ${response.status} ${errorText}`);
   }
+
+  return (await response.json()) as { id?: string };
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   extractProjectIdFromReplyAddress,
+  extractThreadIdFromReplyAddress,
   getInboundWebhookToken,
   normalizeEmailAddresses,
 } from "@/lib/reply-routing";
@@ -14,6 +15,17 @@ function getRequired(name: string) {
 
 function getHeaderValue(headers: Headers, key: string) {
   return headers.get(key) || headers.get(key.toLowerCase()) || "";
+}
+
+function normalizeReferenceHeader(value: unknown) {
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return value
+    .match(/<[^>]+>|[^\s,]+/g)
+    ?.map((part) => part.trim())
+    .filter(Boolean) || [];
 }
 
 async function fetchReceivedEmail(emailId: string) {
@@ -59,7 +71,10 @@ export async function POST(request: Request) {
   const source = (receivedEmail?.email || receivedEmail || payload) as Record<string, unknown>;
 
   const toAddresses = normalizeEmailAddresses(source.to || payload.to);
+  const ccAddresses = normalizeEmailAddresses(source.cc || payload.cc);
+  const routingAddresses = [...toAddresses, ...ccAddresses];
   const projectId = extractProjectIdFromReplyAddress(toAddresses);
+  const threadId = extractThreadIdFromReplyAddress(routingAddresses);
 
   if (!projectId) {
     return NextResponse.json({ received: true, skipped: "NO_PROJECT_REPLY_ADDRESS" });
@@ -78,21 +93,31 @@ export async function POST(request: Request) {
   const html =
     String(source.html || source.html_body || payload.html || payload.html_body || "").trim();
   const timestamp = String(source.created_at || payload.created_at || new Date().toISOString());
+  const inReplyToMessageId = String(
+    source.in_reply_to || payload.in_reply_to || source.inReplyTo || payload.inReplyTo || ""
+  ).trim();
+  const references = normalizeReferenceHeader(
+    source.references || payload.references || source.headers || payload.headers
+  );
   const externalMessageId =
     String(source.message_id || payload.message_id || source.id || payload.id || emailId || "").trim() ||
     `${projectId}:${timestamp}:${fromAddress}`;
 
   const result = upsertInboundProjectReply({
+    bodyText: text,
     externalMessageId,
     fromAddress,
     fromName,
     html,
-    previewText: text,
+    inReplyToMessageId,
+    internetMessageId: externalMessageId,
     projectId,
+    references,
     subject,
+    threadId,
     timestamp,
+    toAddresses,
   });
 
   return NextResponse.json({ received: true, projectId, result });
 }
-

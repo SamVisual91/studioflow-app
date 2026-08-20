@@ -10,13 +10,16 @@ type BrochurePackage = {
   description: string;
   amount: number;
   sections: string[];
-  lineItems: Array<{ title?: string; description?: string; amount?: number }>;
-};
-
-type PackageOverride = {
-  name: string;
-  description: string;
-  amount: number;
+  lineItems: Array<{ id?: string; title?: string; description?: string; amount?: number; quantity?: number; unitAmount?: number }>;
+  coverImage?: string;
+  coverPosition?: string;
+  emailBody?: string;
+  emailSubject?: string;
+  projectId?: string;
+  proposalTitle?: string;
+  sourceTemplateId?: string;
+  status?: string;
+  subtitle?: string;
 };
 
 export function PackageBrochureBuilder({
@@ -30,8 +33,8 @@ export function PackageBrochureBuilder({
   initialClosingNote,
   initialCoverImage,
   initialRecipientEmail,
+  initialPackageSource = "project",
   initiallySelectedPackageIds,
-  initialPackageOverrides,
   packages,
 }: {
   category: string;
@@ -44,8 +47,8 @@ export function PackageBrochureBuilder({
   initialClosingNote: string;
   initialCoverImage: string;
   initialRecipientEmail: string;
+  initialPackageSource?: string;
   initiallySelectedPackageIds: string[];
-  initialPackageOverrides: Record<string, PackageOverride>;
   packages: BrochurePackage[];
 }) {
   const [title, setTitle] = useState(initialTitle);
@@ -53,27 +56,22 @@ export function PackageBrochureBuilder({
   const [closingNote, setClosingNote] = useState(initialClosingNote);
   const [coverImage, setCoverImage] = useState(initialCoverImage);
   const [recipientEmail, setRecipientEmail] = useState(initialRecipientEmail);
+  const [packageSource] = useState(initialPackageSource);
   const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>(
     initiallySelectedPackageIds.length > 0 ? initiallySelectedPackageIds : packages.map((item) => item.id)
   );
-  const [packageOverrides, setPackageOverrides] =
-    useState<Record<string, PackageOverride>>(initialPackageOverrides);
+  const [packageDrafts, setPackageDrafts] = useState<BrochurePackage[]>(packages);
   const [isEditingCover, setIsEditingCover] = useState(false);
 
   const previewPackages = useMemo(
     () =>
-      packages
+      packageDrafts
         .filter((item) => selectedPackageIds.includes(item.id))
-        .map((item) => {
-          const override = packageOverrides[item.id];
-          return {
-            ...item,
-            name: override?.name || item.name,
-            description: override?.description || item.description,
-            amount: typeof override?.amount === "number" ? override.amount : item.amount,
-          };
-        }),
-    [packageOverrides, packages, selectedPackageIds]
+        .map((item) => ({
+          ...item,
+          amount: Number(item.amount || 0),
+        })),
+    [packageDrafts, selectedPackageIds]
   );
 
   const startingAt =
@@ -86,24 +84,17 @@ export function PackageBrochureBuilder({
         backgroundImage: "linear-gradient(135deg,rgba(26,22,19,0.92),rgba(68,52,43,0.82))",
       };
 
-  function updatePackageOverride(packageId: string, next: Partial<PackageOverride>) {
-    setPackageOverrides((current) => ({
-      ...current,
-      [packageId]: {
-        name: next.name ?? current[packageId]?.name ?? packages.find((item) => item.id === packageId)?.name ?? "",
-        description:
-          next.description ??
-          current[packageId]?.description ??
-          packages.find((item) => item.id === packageId)?.description ??
-          "",
-        amount:
-          typeof next.amount === "number"
-            ? next.amount
-            : current[packageId]?.amount ??
-              packages.find((item) => item.id === packageId)?.amount ??
-              0,
-      },
-    }));
+  function updatePackageDraft(packageId: string, next: Partial<BrochurePackage>) {
+    setPackageDrafts((current) =>
+      current.map((item) =>
+        item.id === packageId
+          ? {
+              ...item,
+              ...next,
+            }
+          : item
+      )
+    );
   }
 
   function togglePackage(packageId: string) {
@@ -118,12 +109,13 @@ export function PackageBrochureBuilder({
       <input name="category" type="hidden" value={category} />
       <input name="returnPath" type="hidden" value={returnPath} />
       <input name="selectionIntent" type="hidden" value="custom" />
+      <input name="packageSource" type="hidden" value={packageSource} />
       <input name="title" type="hidden" value={title} />
       <input name="intro" type="hidden" value={intro} />
       <input name="closingNote" type="hidden" value={closingNote} />
       <input name="coverImage" type="hidden" value={coverImage} />
       <input name="recipientEmail" type="hidden" value={recipientEmail} />
-      <input name="packageOverrides" type="hidden" value={JSON.stringify(packageOverrides)} />
+      <input name="packageDrafts" type="hidden" value={JSON.stringify(packageDrafts)} />
       {selectedPackageIds.map((packageId) => (
         <input key={packageId} name="selectedPackageIds" type="hidden" value={packageId} />
       ))}
@@ -263,20 +255,20 @@ export function PackageBrochureBuilder({
             </div>
           ) : (
             <div className="flex flex-wrap gap-3">
-              {packages.map((preset) => {
-                const isIncluded = selectedPackageIds.includes(preset.id);
+              {packageDrafts.map((pkg) => {
+                const isIncluded = selectedPackageIds.includes(pkg.id);
                 return (
                   <button
-                    key={`quick-toggle-${preset.id}`}
+                    key={`quick-toggle-${pkg.id}`}
                     className={`px-4 py-3 text-left text-sm font-semibold transition ${
                       isIncluded
                         ? "bg-[var(--forest)] text-white"
                         : "border border-black/[0.08] bg-[rgba(247,241,232,0.42)] text-[var(--ink)] hover:border-[var(--forest)]"
                     }`}
-                    onClick={() => togglePackage(preset.id)}
+                    onClick={() => togglePackage(pkg.id)}
                     type="button"
                   >
-                    {preset.name}
+                    {pkg.name}
                   </button>
                 );
               })}
@@ -284,17 +276,15 @@ export function PackageBrochureBuilder({
           )}
         </section>
 
-        {packages.map((preset, index) => {
-          const isIncluded = selectedPackageIds.includes(preset.id);
-          const override = packageOverrides[preset.id];
-          const displayName = override?.name || preset.name;
-          const displayDescription = override?.description || preset.description;
-          const displayAmount =
-            typeof override?.amount === "number" ? override.amount : Number(preset.amount || 0);
+        {packageDrafts.map((pkg, index) => {
+          const isIncluded = selectedPackageIds.includes(pkg.id);
+          const displayName = pkg.name;
+          const displayDescription = pkg.description;
+          const displayAmount = Number(pkg.amount || 0);
 
           return (
             <article
-              key={preset.id}
+              key={pkg.id}
               className={`overflow-hidden border shadow-[0_20px_60px_rgba(36,24,14,0.08)] transition ${
                 isIncluded
                   ? "border-black/[0.08] bg-white"
@@ -309,7 +299,7 @@ export function PackageBrochureBuilder({
                         ? "bg-[var(--forest)] text-white"
                         : "border border-black/[0.08] bg-white text-[var(--ink)]"
                     }`}
-                    onClick={() => togglePackage(preset.id)}
+                    onClick={() => togglePackage(pkg.id)}
                     type="button"
                   >
                     {isIncluded ? "Included" : "Hidden"}
@@ -328,15 +318,13 @@ export function PackageBrochureBuilder({
                   <input
                     className="border-0 bg-transparent p-0 text-3xl font-semibold outline-none"
                     disabled={!isIncluded}
-                    onChange={(event) => updatePackageOverride(preset.id, { name: event.target.value })}
+                    onChange={(event) => updatePackageDraft(pkg.id, { name: event.target.value })}
                     value={displayName}
                   />
                   <textarea
                     className="min-h-24 resize-none border-0 bg-transparent p-0 text-sm leading-7 text-[var(--muted)] outline-none"
                     disabled={!isIncluded}
-                    onChange={(event) =>
-                      updatePackageOverride(preset.id, { description: event.target.value })
-                    }
+                    onChange={(event) => updatePackageDraft(pkg.id, { description: event.target.value })}
                     value={displayDescription}
                   />
                 </div>
@@ -349,9 +337,7 @@ export function PackageBrochureBuilder({
                       className="w-full border-0 bg-transparent p-0 text-3xl font-semibold text-[var(--accent)] outline-none"
                       disabled={!isIncluded}
                       min="0"
-                      onChange={(event) =>
-                        updatePackageOverride(preset.id, { amount: Number(event.target.value || 0) })
-                      }
+                      onChange={(event) => updatePackageDraft(pkg.id, { amount: Number(event.target.value || 0) })}
                       type="number"
                       value={displayAmount}
                     />
@@ -368,8 +354,8 @@ export function PackageBrochureBuilder({
                     <div>
                       <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">What&apos;s included</p>
                       <div className="mt-4 grid gap-3">
-                        {preset.sections.length > 0 ? (
-                          preset.sections.map((section) => (
+                        {pkg.sections.length > 0 ? (
+                          pkg.sections.map((section) => (
                             <div
                               key={section}
                               className="border border-black/[0.06] bg-[rgba(247,241,232,0.54)] px-4 py-3 text-sm font-medium leading-6"
@@ -396,10 +382,10 @@ export function PackageBrochureBuilder({
                           </tr>
                         </thead>
                         <tbody>
-                          {preset.lineItems.length > 0 ? (
-                            preset.lineItems.map((item) => (
+                          {pkg.lineItems.length > 0 ? (
+                            pkg.lineItems.map((item) => (
                               <tr
-                                key={`${preset.id}-${item.title}-${item.amount}`}
+                                key={`${pkg.id}-${item.title}-${item.amount}`}
                                 className="border-t border-black/[0.06]"
                               >
                                 <td className="px-4 py-4 text-sm font-semibold">{item.title || "Line item"}</td>

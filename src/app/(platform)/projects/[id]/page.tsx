@@ -5,6 +5,7 @@ import {
   deleteProjectFileAction,
   logClientReplyAction,
   sendProjectMessageAction,
+  updateProjectInfoAction,
   updateAdditionalProjectContactAction,
   updateProjectContactAction,
   updateProjectDetailsAction,
@@ -13,9 +14,11 @@ import {
   updateProjectTasksAction,
   updateUserAvatarAction,
 } from "@/app/actions";
-import { MessageAiAssistant } from "@/components/message-ai-assistant";
+import { ProjectActivityTimeline } from "@/components/project-activity-timeline";
 import { ProjectContactControls } from "@/components/project-contact-controls";
+import { ProjectCommunicationThreadCard } from "@/components/project-communication-thread";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { ProjectEmailComposerFields } from "@/components/project-email-composer-fields";
 import { ProjectFileLauncher } from "@/components/project-file-launcher";
 import { ProjectHeroBannerEditor } from "@/components/project-hero-banner-editor";
 import { ProjectReplyLogger } from "@/components/project-reply-logger";
@@ -24,9 +27,11 @@ import { UserAvatarUploader } from "@/components/user-avatar-uploader";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getDb } from "@/lib/db";
 import { ensureProjectDeliverablesTable, type ProjectDeliverable } from "@/lib/deliverables";
-import { currencyFormatter, dateTime, shortDate } from "@/lib/formatters";
+import { currencyFormatter, dateTime, formatStoredShortDate, shortDate } from "@/lib/formatters";
 import { syncInboxRepliesForProject } from "@/lib/inbox-sync";
 import { hasMicrosoftGraphReplySyncConfig } from "@/lib/microsoft-graph-mail";
+import { getProjectCommunicationThreads, getProjectTimelineEvents } from "@/lib/project-activity";
+import { getLatestProjectPackageForProject } from "@/lib/project-packages";
 import { hasProjectReplyRoutingConfig } from "@/lib/reply-routing";
 import { canManageProjectFiles, canViewProjectFinancials } from "@/lib/roles";
 
@@ -119,7 +124,7 @@ const taskTemplates = {
   },
 } as const;
 
-const projectTabs = ["activity", "files", "tasks", "financials", "details", "deliverables"] as const;
+const projectTabs = ["activity", "info", "files", "tasks", "financials", "details", "deliverables"] as const;
 
 type ProjectTab = (typeof projectTabs)[number];
 type TaskTemplateKey = keyof typeof taskTemplates;
@@ -188,6 +193,7 @@ export default async function ProjectClientPage({
     avatarUpdated?: string;
     invoice?: string;
     details?: string;
+    info?: string;
     updated?: string;
     error?: string;
     tab?: string;
@@ -237,6 +243,37 @@ export default async function ProjectClientPage({
   const additionalContacts = db
     .prepare("SELECT * FROM project_contacts WHERE project_id = ? ORDER BY created_at ASC")
     .all(project.id) as Array<{ id: string; name: string; email: string }>;
+  const projectMeta = db
+    .prepare(
+      `SELECT
+        created_at,
+        booked_at,
+        info_package_name,
+        info_package_value,
+        info_add_ons,
+        info_total_amount,
+        info_retainer_received,
+        info_remaining_balance,
+        info_payment_count,
+        info_payment_types
+       FROM projects
+       WHERE id = ?
+       LIMIT 1`
+    )
+    .get(project.id) as
+    | {
+        booked_at?: string | null;
+        created_at?: string | null;
+        info_add_ons?: string | null;
+        info_package_name?: string | null;
+        info_package_value?: number | null;
+        info_payment_count?: number | null;
+        info_payment_types?: string | null;
+        info_remaining_balance?: number | null;
+        info_retainer_received?: number | null;
+        info_total_amount?: number | null;
+      }
+    | undefined;
   const projectFiles = db
     .prepare("SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC")
     .all(project.id) as unknown as Array<{
@@ -262,6 +299,10 @@ export default async function ProjectClientPage({
       )?.count ?? 0
     ) || 0;
   const canUseLegacyClientScope = siblingProjectCount <= 1;
+  const latestProjectPackage = getLatestProjectPackageForProject(db, project.id);
+  const addOnVideoRows = db
+    .prepare("SELECT title, price, status FROM video_paywalls WHERE project_id = ? ORDER BY created_at ASC")
+    .all(project.id) as Array<{ price?: number | null; status?: string | null; title?: string | null }>;
   const videoDeliverables = deliverables.filter((item) => item.media_type === "VIDEO");
   const photoDeliverables = deliverables.filter((item) => item.media_type === "PHOTO");
   const projectProposals = data.proposals.filter(
@@ -355,6 +396,66 @@ export default async function ProjectClientPage({
     ? `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}${projectPortalPath}`
     : "#";
   const primaryContactEmail = client?.contactEmail || "";
+  const dateBooked = String(projectMeta?.booked_at || projectMeta?.created_at || "");
+  const participantEmails = Array.from(
+    new Set(
+      [primaryContactEmail, ...additionalContacts.map((contact) => String(contact.email || "").trim().toLowerCase())]
+        .filter(Boolean)
+    )
+  );
+  const communicationThreads = getProjectCommunicationThreads(db, project.id);
+  const activityEvents = getProjectTimelineEvents(db, project.id);
+  const unreadReplyCount = communicationThreads.reduce((sum, thread) => sum + thread.unreadCount, 0);
+  const communicationMessageCount = communicationThreads.reduce((sum, thread) => sum + thread.messages.length, 0);
+  const hasAutomaticReplyRouting = hasProjectReplyRoutingConfig() || hasMicrosoftGraphReplySyncConfig();
+  const packageNameSummary =
+    String(projectMeta?.info_package_name || "").trim() ||
+    latestProjectPackage?.name ||
+    client?.packageName ||
+    "Not set";
+  const packageValueSummary = Number(
+    projectMeta?.info_package_value ?? latestProjectPackage?.amount ?? client?.totalValue ?? totalInvoiceAmount ?? 0
+  );
+  const totalAmountSummary = Number(projectMeta?.info_total_amount ?? totalInvoiceAmount ?? packageValueSummary ?? 0);
+  const paymentScheduleEntries = invoices.flatMap((invoice) =>
+    invoice.paymentSchedule.map((payment) => ({
+      ...payment,
+      method: invoice.method,
+    }))
+  );
+  const paidPayments = paymentScheduleEntries.filter((payment) => payment.status === "PAID");
+  const derivedRetainerAmountReceived = Number(
+    paidPayments
+      .slice()
+      .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())[0]?.amount || 0
+  );
+  const retainerAmountReceived = Number(projectMeta?.info_retainer_received ?? derivedRetainerAmountReceived ?? 0);
+  const paymentTypesSummary = Array.from(
+    new Set(
+      invoices
+        .map((invoice) => String(invoice.method || "").trim())
+        .filter(Boolean)
+    )
+  );
+  const derivedAddOns = [
+    ...(latestProjectPackage?.items
+      .filter((item) => item.optional || !item.included)
+      .map((item) => `${item.title}${item.amount > 0 ? ` - ${currencyFormatter.format(item.amount)}` : ""}`) || []),
+    ...addOnVideoRows.map((item) => {
+      const title = String(item.title || "Video add-on");
+      const price = Number(item.price || 0);
+      return `${title}${price > 0 ? ` - ${currencyFormatter.format(price)}` : ""}`;
+    }),
+  ];
+  const packageAddOns = String(projectMeta?.info_add_ons || "").trim()
+    ? String(projectMeta?.info_add_ons || "")
+        .split(/\r?\n|,/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : derivedAddOns;
+  const remainingBalanceSummary = Number(projectMeta?.info_remaining_balance ?? outstandingInvoiceAmount ?? 0);
+  const paymentCountSummary = Number(projectMeta?.info_payment_count ?? paymentScheduleEntries.length ?? invoices.length ?? 0);
+  const paymentTypesValue = String(projectMeta?.info_payment_types || "").trim() || paymentTypesSummary.join(", ");
   const successMessage = query.email
     ? "Email sent and added to the client activity feed."
     : query.portal
@@ -381,6 +482,8 @@ export default async function ProjectClientPage({
         ? "File notes updated successfully."
         : query.tasks
           ? "Tasks updated successfully."
+          : query.info
+            ? "Project info updated successfully."
           : query.invoice
             ? "Invoice created successfully."
             : query.details
@@ -412,8 +515,10 @@ export default async function ProjectClientPage({
             ? "Choose an image before saving your avatar."
             : query.error === "avatar-invalid"
               ? "Choose an image file for your avatar."
-          : query.error === "reply-invalid"
-            ? "Add both a subject and message when logging a client reply."
+            : query.error === "reply-invalid"
+              ? "Add both a subject and message when logging a client reply."
+              : query.error === "info-invalid"
+                ? "Fill in the project info fields before saving this summary."
             : query.error === "project-meta-invalid"
               ? "Add a project name, description, stage, and lead source before saving project details."
               : query.error === "smart-file-invalid"
@@ -456,7 +561,7 @@ export default async function ProjectClientPage({
           fallbackCover={getCoverImage(project.type)}
           initialCoverImage={project.projectCover}
           initialCoverPosition={project.projectCoverPosition}
-          projectDateLabel={project.projectDate ? shortDate.format(new Date(project.projectDate)) : ""}
+          projectDateLabel={project.projectDate ? formatStoredShortDate(project.projectDate) : ""}
           projectId={project.id}
           projectType={project.type || "Project"}
         />
@@ -563,26 +668,52 @@ export default async function ProjectClientPage({
           <div className="grid gap-6">
             {activeTab === "activity" ? (
               <>
-                <div className="grid gap-4">
+                <div className="grid gap-5">
                   <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
-                        <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Reply</p>
-                        <h2 className="mt-2 text-xl font-semibold">Client communication</h2>
+                        <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Project mailbox</p>
+                        <h2 className="mt-2 text-2xl font-semibold">Activity and communication</h2>
                         <p className="mt-1 text-sm text-[var(--muted)]">
-                          Send a new email or log a client reply so the whole conversation stays on this project.
+                          Send real emails from this project, keep replies in the right thread, and track the important project moments beside the conversation.
                         </p>
                       </div>
-                      <ProjectReplyLogger action={logClientReplyAction} clientName={project.client} projectId={project.id} />
+                      <ProjectReplyLogger
+                        action={logClientReplyAction}
+                        buttonLabel="Manual entry"
+                        clientName={project.client}
+                        projectId={project.id}
+                      />
                     </div>
 
-                    <details className="mt-5 rounded-[1.5rem] border border-black/[0.08] bg-[rgba(247,241,232,0.54)]" id="email-composer">
+                    <div className="mt-5 grid gap-3 md:grid-cols-4">
+                      <div className="rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] px-4 py-4">
+                        <p className="text-[0.68rem] uppercase tracking-[0.22em] text-[var(--muted)]">Participants</p>
+                        <p className="mt-2 text-3xl font-semibold text-[var(--ink)]">{1 + additionalContacts.length}</p>
+                      </div>
+                      <div className="rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] px-4 py-4">
+                        <p className="text-[0.68rem] uppercase tracking-[0.22em] text-[var(--muted)]">Threads</p>
+                        <p className="mt-2 text-3xl font-semibold text-[var(--ink)]">{communicationThreads.length}</p>
+                      </div>
+                      <div className="rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] px-4 py-4">
+                        <p className="text-[0.68rem] uppercase tracking-[0.22em] text-[var(--muted)]">Unread replies</p>
+                        <p className="mt-2 text-3xl font-semibold text-[var(--ink)]">{unreadReplyCount}</p>
+                      </div>
+                      <div className="rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] px-4 py-4">
+                        <p className="text-[0.68rem] uppercase tracking-[0.22em] text-[var(--muted)]">Timeline events</p>
+                        <p className="mt-2 text-3xl font-semibold text-[var(--ink)]">{activityEvents.length}</p>
+                      </div>
+                    </div>
+
+                    <details className="mt-5 rounded-[1.5rem] border border-black/[0.08] bg-[rgba(247,241,232,0.54)]" id="email-composer" open>
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5">
                         <div>
-                          <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Outbound</p>
-                          <h3 className="mt-2 text-lg font-semibold">Email {project.client}</h3>
+                          <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">New message</p>
+                          <h3 className="mt-2 text-lg font-semibold">Email project participants</h3>
                           <p className="mt-1 text-sm text-[var(--muted)]">
-                            Open to compose a live email from this project.
+                            {hasAutomaticReplyRouting
+                              ? "Replies route back into this project automatically."
+                              : "Reply routing is limited right now, so automatic syncing depends on your current inbox setup."}
                           </p>
                         </div>
                         <span className="text-base font-semibold leading-none text-[var(--muted)]" aria-hidden="true">
@@ -597,48 +728,249 @@ export default async function ProjectClientPage({
                         <input name="projectId" type="hidden" value={project.id} />
                         <input name="clientName" type="hidden" value={project.client} />
                         <input name="recipientEmail" type="hidden" value={primaryContactEmail} />
-                        <MessageAiAssistant clientName={project.client} />
-                        <button className="mt-5 rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-                          Send email
-                        </button>
+                        <ProjectEmailComposerFields
+                          clientName={project.client}
+                          defaultTo={participantEmails.join(", ")}
+                        />
+                        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                          <p className="text-sm text-[var(--muted)]">
+                            {!participantEmails.length
+                              ? "Add a client email or participant before sending."
+                              : `Default recipients: ${participantEmails.join(", ")}`}
+                          </p>
+                          <button className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+                            Send email
+                          </button>
+                        </div>
                       </form>
                     </details>
                   </div>
                 </div>
 
-                <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Recent activity</p>
-                      <h2 className="mt-3 text-2xl font-semibold">Client thread</h2>
-                    </div>
-                    <p className="text-sm text-[var(--muted)]">{messages.length} message(s)</p>
-                  </div>
-
-                  <div className="mt-5 grid gap-4">
-                    {messages.length === 0 ? (
-                      <div className="rounded-[1.5rem] border border-dashed border-black/[0.12] px-5 py-8 text-sm text-[var(--muted)]">
-                        No email activity is linked to this client yet.
+                <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
+                  <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Threads</p>
+                        <h2 className="mt-3 text-2xl font-semibold">Client conversations</h2>
                       </div>
-                    ) : (
-                      messages.map((message) => (
-                        <ProjectThreadMessage
-                          key={message.id}
-                          dateLabel={dateTime.format(new Date(message.time))}
-                          direction={message.direction}
-                          from={message.from}
-                          messageId={message.id}
-                          preview={message.preview}
+                      <p className="text-sm text-[var(--muted)]">{communicationMessageCount} captured message(s)</p>
+                    </div>
+
+                    <div className="mt-5 grid gap-4">
+                      {communicationThreads.length === 0 && messages.length === 0 ? (
+                        <div className="rounded-[1.5rem] border border-dashed border-black/[0.12] px-5 py-8 text-sm text-[var(--muted)]">
+                          No activity yet. Send the first message from this project to start its communication history.
+                        </div>
+                      ) : null}
+
+                      {communicationThreads.map((thread) => (
+                        <ProjectCommunicationThreadCard
+                          key={thread.id}
+                          clientName={project.client}
+                          primaryContactEmail={primaryContactEmail}
                           projectId={project.id}
-                          subject={message.subject}
-                          unread={message.unread}
+                          thread={thread}
                           userAvatar={user.avatar_image || ""}
                         />
-                      ))
-                    )}
+                      ))}
+
+                      {communicationThreads.length === 0 && messages.length > 0 ? (
+                        <div className="grid gap-4">
+                          <div className="rounded-[1.3rem] border border-dashed border-black/[0.12] px-4 py-4 text-sm text-[var(--muted)]">
+                            Older activity was saved before threaded email tracking was added. It is still available below while new messages use the upgraded project mailbox.
+                          </div>
+                          {messages.map((message) => (
+                            <ProjectThreadMessage
+                              key={message.id}
+                              dateLabel={dateTime.format(new Date(message.time))}
+                              direction={message.direction}
+                              from={message.from}
+                              messageId={message.id}
+                              preview={message.preview}
+                              projectId={project.id}
+                              subject={message.subject}
+                              unread={message.unread}
+                              userAvatar={user.avatar_image || ""}
+                            />
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Timeline</p>
+                        <h2 className="mt-3 text-2xl font-semibold">Project activity</h2>
+                      </div>
+                      <p className="text-sm text-[var(--muted)]">{activityEvents.length} event(s)</p>
+                    </div>
+
+                    <div className="mt-5">
+                      <ProjectActivityTimeline events={activityEvents} />
+                    </div>
                   </div>
                 </div>
               </>
+            ) : null}
+
+            {activeTab === "info" ? (
+              <form action={updateProjectInfoAction} className="grid gap-5">
+                <input name="projectId" type="hidden" value={project.id} />
+                <input name="previousProjectName" type="hidden" value={project.name} />
+                <input name="previousClientName" type="hidden" value={project.client} />
+
+                <section className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Client summary</p>
+                      <h2 className="mt-3 text-2xl font-semibold">Quick info</h2>
+                      <p className="mt-1 text-sm text-[var(--muted)]">
+                        This page starts from the live project, client, package, and invoice records, and you can also save quick edits here when you need to tighten up the summary fast.
+                      </p>
+                    </div>
+                    <button className="rounded-full bg-[var(--forest)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+                      Save info
+                    </button>
+                  </div>
+
+                  <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <label className="grid gap-2 rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] p-4 text-sm font-medium text-[var(--ink)]">
+                      <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Date booked</p>
+                      <input
+                        className="mt-2 rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                        defaultValue={dateBooked ? String(dateBooked).slice(0, 10) : ""}
+                        name="bookedAt"
+                        type="date"
+                      />
+                    </label>
+                    <label className="grid gap-2 rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] p-4 text-sm font-medium text-[var(--ink)]">
+                      <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Client / event names</p>
+                      <input
+                        className="mt-2 rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                        defaultValue={project.client}
+                        name="clientName"
+                      />
+                      <input
+                        className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                        defaultValue={project.name}
+                        name="eventName"
+                      />
+                    </label>
+                    <label className="grid gap-2 rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] p-4 text-sm font-medium text-[var(--ink)]">
+                      <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Wedding / event date</p>
+                      <input
+                        className="mt-2 rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                        defaultValue={project.projectDate}
+                        name="projectDate"
+                        type="date"
+                      />
+                    </label>
+                    <label className="grid gap-2 rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] p-4 text-sm font-medium text-[var(--ink)] md:col-span-2 xl:col-span-1">
+                      <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Wedding / event location</p>
+                      <input
+                        className="mt-2 rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                        defaultValue={project.location}
+                        name="location"
+                      />
+                    </label>
+                    <label className="grid gap-2 rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] p-4 text-sm font-medium text-[var(--ink)]">
+                      <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Package name / value</p>
+                      <input
+                        className="mt-2 rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                        defaultValue={packageNameSummary}
+                        name="packageName"
+                      />
+                      <input
+                        className="rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                        defaultValue={String(packageValueSummary)}
+                        inputMode="decimal"
+                        name="packageValue"
+                      />
+                    </label>
+                    <label className="grid gap-2 rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] p-4 text-sm font-medium text-[var(--ink)]">
+                      <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Add-ons</p>
+                      <textarea
+                        className="mt-2 min-h-28 rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                        defaultValue={packageAddOns.join("\n")}
+                        name="addOns"
+                        placeholder={"Super 8 coverage\nExtra hour of coverage"}
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)]">
+                  <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
+                    <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Payment snapshot</p>
+                    <h2 className="mt-3 text-2xl font-semibold">Money overview</h2>
+                    <div className="mt-6 grid gap-4 md:grid-cols-2">
+                      <label className="grid gap-2 rounded-[1.35rem] bg-[rgba(247,241,232,0.52)] p-4 text-sm font-medium text-[var(--ink)]">
+                        <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Total amount</p>
+                        <input
+                          className="mt-2 rounded-2xl border border-black/[0.08] bg-white px-4 py-3 text-lg font-semibold"
+                          defaultValue={String(totalAmountSummary)}
+                          inputMode="decimal"
+                          name="totalAmount"
+                        />
+                      </label>
+                      <label className="grid gap-2 rounded-[1.35rem] bg-[rgba(247,241,232,0.52)] p-4 text-sm font-medium text-[var(--ink)]">
+                        <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Retainer amount received</p>
+                        <input
+                          className="mt-2 rounded-2xl border border-black/[0.08] bg-white px-4 py-3 text-lg font-semibold"
+                          defaultValue={String(retainerAmountReceived)}
+                          inputMode="decimal"
+                          name="retainerAmountReceived"
+                        />
+                      </label>
+                      <label className="grid gap-2 rounded-[1.35rem] bg-[rgba(247,241,232,0.52)] p-4 text-sm font-medium text-[var(--ink)]">
+                        <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Remaining balance</p>
+                        <input
+                          className="mt-2 rounded-2xl border border-black/[0.08] bg-white px-4 py-3 text-lg font-semibold"
+                          defaultValue={String(remainingBalanceSummary)}
+                          inputMode="decimal"
+                          name="remainingBalance"
+                        />
+                      </label>
+                      <label className="grid gap-2 rounded-[1.35rem] bg-[rgba(247,241,232,0.52)] p-4 text-sm font-medium text-[var(--ink)]">
+                        <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]"># of payments</p>
+                        <input
+                          className="mt-2 rounded-2xl border border-black/[0.08] bg-white px-4 py-3 text-lg font-semibold"
+                          defaultValue={String(paymentCountSummary)}
+                          min="0"
+                          name="paymentCount"
+                          type="number"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
+                    <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Payment types</p>
+                    <h2 className="mt-3 text-2xl font-semibold">Collection setup</h2>
+                    <div className="mt-5 grid gap-4">
+                      <label className="grid gap-2 rounded-[1.35rem] bg-[rgba(247,241,232,0.52)] p-4 text-sm font-medium text-[var(--ink)]">
+                        <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Type of payments</p>
+                        <input
+                          className="mt-2 rounded-2xl border border-black/[0.08] bg-white px-4 py-3"
+                          defaultValue={paymentTypesValue}
+                          name="paymentTypes"
+                          placeholder="Card, Cash, Check, Bank transfer"
+                        />
+                      </label>
+
+                      <article className="rounded-[1.35rem] bg-[rgba(247,241,232,0.52)] p-4">
+                        <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Live source fields</p>
+                        <p className="mt-2 text-sm leading-7 text-[var(--muted)]">
+                          This summary still starts from the project details tab, selected package data, invoice totals, and payment schedule records. Saving here lets you refine the quick-reference version without hunting through multiple tabs.
+                        </p>
+                      </article>
+                    </div>
+                  </div>
+                </section>
+              </form>
             ) : null}
 
             {activeTab === "files" ? (
@@ -995,7 +1327,7 @@ export default async function ProjectClientPage({
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">About this project</p>
                   <h2 className="mt-2 text-lg font-semibold leading-6 text-[var(--ink)]">{project.name}</h2>
                   <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
-                    {getProjectStatus(project.phase)} {project.projectDate ? `| ${shortDate.format(new Date(project.projectDate))}` : ""}
+                    {getProjectStatus(project.phase)} {project.projectDate ? `| ${formatStoredShortDate(project.projectDate)}` : ""}
                   </p>
                 </div>
                 <span className="shrink-0 rounded-full border border-black/[0.08] bg-white px-3 py-1 text-xs font-semibold text-[var(--muted)]">
@@ -1040,7 +1372,7 @@ export default async function ProjectClientPage({
                   <div className="rounded-[1rem] bg-[rgba(247,241,232,0.62)] p-3 text-sm leading-6 text-[var(--muted)]">
                     <p>Location: {project.location || "TBD"}</p>
                     <p className="mt-1">
-                      Date: {project.projectDate ? shortDate.format(new Date(project.projectDate)) : "TBD"}
+                      Date: {project.projectDate ? formatStoredShortDate(project.projectDate) : "TBD"}
                     </p>
                     <p className="mt-1">Package: {client?.packageName || "Not set"}</p>
                   </div>

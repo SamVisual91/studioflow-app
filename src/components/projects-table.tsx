@@ -9,6 +9,7 @@ import {
 } from "@/app/actions";
 import { DoubleChevronDownIcon } from "@/components/double-chevron-down-icon";
 import { NewProjectModal } from "@/components/new-project-modal";
+import { formatStoredShortDateWithYear } from "@/lib/formatters";
 import { canManageProjectBulkActions, type UserRole } from "@/lib/roles";
 
 type ProjectRow = {
@@ -127,11 +128,7 @@ function formatProjectDate(value: string) {
     return "TBD";
   }
 
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
+  return formatStoredShortDateWithYear(value);
 }
 
 export function ProjectsTable({ projects, activeStages, unavailableDates, userRole }: Props) {

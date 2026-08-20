@@ -288,6 +288,92 @@ function createSchema(db: DatabaseSync) {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS email_threads (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      normalized_subject TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'OPEN',
+      unread_count INTEGER NOT NULL DEFAULT 0,
+      last_message_at TEXT,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS email_messages (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      thread_id TEXT NOT NULL,
+      legacy_message_id TEXT,
+      direction TEXT NOT NULL,
+      sender_name TEXT,
+      sender_email TEXT,
+      subject TEXT NOT NULL,
+      body_text TEXT,
+      body_html TEXT,
+      external_message_id TEXT,
+      provider_message_id TEXT,
+      internet_message_id TEXT,
+      in_reply_to_message_id TEXT,
+      references_header TEXT,
+      status TEXT NOT NULL DEFAULT 'SENT',
+      is_read INTEGER NOT NULL DEFAULT 0,
+      sent_at TEXT,
+      received_at TEXT,
+      delivered_at TEXT,
+      failed_at TEXT,
+      scheduled_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS email_message_recipients (
+      id TEXT PRIMARY KEY,
+      message_id TEXT NOT NULL,
+      recipient_type TEXT NOT NULL,
+      email TEXT NOT NULL,
+      name TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS email_attachments (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      file_name TEXT NOT NULL,
+      mime_type TEXT,
+      file_size INTEGER,
+      storage_path TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS project_activity_events (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      actor_name TEXT,
+      actor_type TEXT,
+      metadata TEXT,
+      occurred_at TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_email_messages_external_message_id
+    ON email_messages(external_message_id)
+    WHERE external_message_id IS NOT NULL AND external_message_id != '';
+
+    CREATE INDEX IF NOT EXISTS idx_email_threads_project_id
+    ON email_threads(project_id, updated_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_email_messages_thread_id
+    ON email_messages(thread_id, created_at ASC);
+
+    CREATE INDEX IF NOT EXISTS idx_project_activity_events_project_id
+    ON project_activity_events(project_id, occurred_at DESC);
+
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -401,6 +487,45 @@ function createSchema(db: DatabaseSync) {
       cover_position TEXT,
       email_subject TEXT NOT NULL,
       email_body TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS project_packages (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      source_template_id TEXT,
+      category TEXT NOT NULL,
+      name TEXT NOT NULL,
+      subtitle TEXT,
+      description TEXT,
+      proposal_title TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      sections TEXT NOT NULL,
+      cover_image TEXT,
+      cover_position TEXT,
+      email_subject TEXT,
+      email_body TEXT,
+      status TEXT NOT NULL DEFAULT 'DRAFT',
+      selected_at TEXT,
+      selected_by TEXT,
+      archived_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS project_package_items (
+      id TEXT PRIMARY KEY,
+      project_package_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      source_template_item_id TEXT,
+      title TEXT NOT NULL,
+      description TEXT,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      unit_amount INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      optional INTEGER NOT NULL DEFAULT 0,
+      included INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -586,6 +711,15 @@ function createSchema(db: DatabaseSync) {
   ensureColumn(db, "projects", "client_portal_cover", "TEXT");
   ensureColumn(db, "projects", "stage_moved_at", "TEXT");
   ensureColumn(db, "projects", "recent_activity", "TEXT");
+  ensureColumn(db, "projects", "booked_at", "TEXT");
+  ensureColumn(db, "projects", "info_package_name", "TEXT");
+  ensureColumn(db, "projects", "info_package_value", "INTEGER");
+  ensureColumn(db, "projects", "info_add_ons", "TEXT");
+  ensureColumn(db, "projects", "info_total_amount", "INTEGER");
+  ensureColumn(db, "projects", "info_retainer_received", "INTEGER");
+  ensureColumn(db, "projects", "info_remaining_balance", "INTEGER");
+  ensureColumn(db, "projects", "info_payment_count", "INTEGER");
+  ensureColumn(db, "projects", "info_payment_types", "TEXT");
   ensureColumn(db, "package_presets", "category", "TEXT");
   ensureColumn(db, "package_presets", "subtitle", "TEXT");
   ensureColumn(db, "package_presets", "cover_image", "TEXT");

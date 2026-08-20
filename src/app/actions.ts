@@ -34,6 +34,13 @@ import {
 } from "@/lib/ledger";
 import { sendProposalEmail } from "@/lib/mailer";
 import { type MileageTripType } from "@/lib/mileage";
+import {
+  createProjectActivityEvent,
+  getOrCreateProjectEmailThread,
+  logOutboundProjectEmail,
+  markProjectCommunicationMessageRead,
+  upsertInboundProjectReply as upsertInboundProjectActivityReply,
+} from "@/lib/project-activity";
 import { getProjectFileTemplate } from "@/lib/project-files";
 import { getProjectReplyAddress, stripProjectReplyToken, withProjectReplyToken } from "@/lib/reply-routing";
 import { canCreateProjects, getDefaultAppPath, normalizeUserRole, type UserRole } from "@/lib/roles";
@@ -44,6 +51,16 @@ import {
   getUploadStorageDir,
   resolveUploadStoragePath,
 } from "@/lib/storage";
+import {
+  createProjectPackagesFromTemplateIds,
+  getLatestProjectPackageForProject,
+  getProjectPackagesByIds,
+  getProjectPackagesForProject,
+  parseProjectPackageDraftsInput,
+  saveProjectPackageDrafts,
+  type ProjectPackage,
+  type ProjectPackageDraft,
+} from "@/lib/project-packages";
 import { createVideoPaywallToken, ensureVideoPaywallsTable } from "@/lib/video-paywalls";
 
 function getString(formData: FormData, key: string) {
@@ -265,6 +282,8 @@ function deleteProjectRecords(
   db.prepare("DELETE FROM video_paywalls WHERE project_id = ?").run(project.id);
   db.prepare("DELETE FROM package_brochures WHERE project_id = ?").run(project.id);
   db.prepare("DELETE FROM package_brochure_responses WHERE project_id = ?").run(project.id);
+  db.prepare("DELETE FROM project_package_items WHERE project_id = ?").run(project.id);
+  db.prepare("DELETE FROM project_packages WHERE project_id = ?").run(project.id);
   db.prepare("DELETE FROM project_files WHERE project_id = ?").run(project.id);
   if (canDeleteLegacyClientScopedRecords) {
     db.prepare("DELETE FROM messages WHERE project_id = ? OR client_name = ?").run(project.id, project.client);
@@ -297,34 +316,26 @@ function getSelectedValues(formData: FormData, key: string) {
     .filter(Boolean);
 }
 
-function parsePackageOverridesInput(input: string) {
-  if (!input) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(input) as Record<
-      string,
-      {
-        name?: string;
-        description?: string;
-        amount?: number | string;
+function parseRecipientList(input: string) {
+  return input
+    .split(/[,\n;]/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => {
+      const match = value.match(/^(.*)<([^>]+)>$/);
+      if (match) {
+        return {
+          email: match[2].trim().toLowerCase(),
+          name: match[1].trim().replace(/^"|"$/g, ""),
+        };
       }
-    >;
 
-    return Object.fromEntries(
-      Object.entries(parsed).map(([key, value]) => [
-        key,
-        {
-          name: String(value?.name || "").trim(),
-          description: String(value?.description || "").trim(),
-          amount: Number(value?.amount || 0),
-        },
-      ])
-    );
-  } catch {
-    return {};
-  }
+      return {
+        email: value.toLowerCase(),
+        name: "",
+      };
+    })
+    .filter((recipient) => recipient.email.includes("@"));
 }
 
 async function savePackageCover(file: File) {
@@ -343,6 +354,29 @@ async function savePackageCover(file: File) {
   await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
 
   return getUploadPublicPath("package-covers", fileName);
+}
+
+async function saveEmailAttachment(file: File) {
+  const safeBaseName = file.name
+    .replace(/\.[^.]+$/, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "email-attachment";
+  const extension = file.name.split(".").pop()?.toLowerCase() || "bin";
+  const fileName = `${safeBaseName}-${randomUUID()}.${extension}`;
+  const publicDir = getUploadStorageDir("email-attachments");
+  const filePath = join(publicDir, fileName);
+
+  await mkdir(publicDir, { recursive: true });
+  await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
+
+  return {
+    fileName: file.name,
+    fileSize: file.size,
+    mimeType: file.type,
+    publicPath: getUploadPublicPath("email-attachments", fileName),
+  };
 }
 
 async function saveClientUploadImage(file: File) {
@@ -533,10 +567,11 @@ function logProjectMessage(db: ReturnType<typeof getDb>, input: {
   preview: string;
   unread: number;
 }) {
+  const legacyMessageId = randomUUID();
   db.prepare(
     "INSERT INTO messages (id, sender, client_name, project_id, direction, channel, time, subject, preview, unread, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run(
-    randomUUID(),
+    legacyMessageId,
     input.sender,
     input.clientName,
     input.projectId,
@@ -549,6 +584,76 @@ function logProjectMessage(db: ReturnType<typeof getDb>, input: {
     input.time,
     input.time
   );
+
+  if (String(input.channel || "").toLowerCase() === "email") {
+    const threadId = getOrCreateProjectEmailThread(db, {
+      createdBy: input.sender,
+      projectId: input.projectId,
+      reuseExistingBySubject: true,
+      subject: input.subject,
+    });
+
+    db.prepare(
+      `INSERT INTO email_messages (
+        id,
+        project_id,
+        thread_id,
+        legacy_message_id,
+        direction,
+        sender_name,
+        sender_email,
+        subject,
+        body_text,
+        body_html,
+        external_message_id,
+        provider_message_id,
+        internet_message_id,
+        in_reply_to_message_id,
+        references_header,
+        status,
+        is_read,
+        sent_at,
+        received_at,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      randomUUID(),
+      input.projectId,
+      threadId,
+      legacyMessageId,
+      input.direction,
+      input.sender,
+      "",
+      stripProjectReplyToken(input.subject),
+      input.preview,
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      input.direction === "INBOUND" ? "RECEIVED" : "SENT",
+      input.direction === "OUTBOUND" ? 1 : 0,
+      input.direction === "OUTBOUND" ? input.time : "",
+      input.direction === "INBOUND" ? input.time : "",
+      input.time,
+      input.time
+    );
+    db.prepare(
+      `UPDATE email_threads
+       SET unread_count = (
+         SELECT COUNT(*)
+         FROM email_messages
+         WHERE thread_id = email_threads.id
+           AND direction = 'INBOUND'
+           AND is_read = 0
+       ),
+       last_message_at = ?,
+       updated_at = ?
+       WHERE id = ?`
+    ).run(input.time, input.time, threadId);
+  }
 }
 
 function updateProjectRecentActivity(
@@ -562,6 +667,17 @@ function updateProjectRecentActivity(
     timestamp,
     projectId
   );
+  if (recentActivity) {
+    createProjectActivityEvent(db, {
+      actorName: "StudioFlow",
+      actorType: "SYSTEM",
+      description: recentActivity,
+      eventType: "PROJECT_ACTIVITY",
+      occurredAt: timestamp,
+      projectId,
+      title: recentActivity,
+    });
+  }
 }
 
 function normalizePackageBrochureCoverImage(input: string) {
@@ -593,18 +709,265 @@ function normalizePackageCategoryValue(input: string) {
   return "Others";
 }
 
-function getPackageCategoryAliases(category: string) {
-  const normalized = normalizePackageCategoryValue(category);
+function getDefaultPackageBrochureIntro(clientName: string, category: string) {
+  return `${clientName}, here is your current ${category.toLowerCase()} package brochure. Each option below is a custom package copy for your project, so any pricing changes stay specific to you.`;
+}
 
-  if (normalized === "Wedding") {
-    return ["Wedding", "Weddings"];
+function getDefaultPackageBrochureClosingNote() {
+  return "Reply directly to your email thread when you are ready, and I can tailor the right collection around your priorities, timeline, or coverage needs.";
+}
+
+function mapProjectPackageToDraft(pkg: ProjectPackage): ProjectPackageDraft {
+  return {
+    amount: Number(pkg.amount || 0),
+    coverImage: pkg.coverImage || "",
+    coverPosition: pkg.coverPosition || "50% 50%",
+    description: pkg.description || "",
+    emailBody: pkg.emailBody || "",
+    emailSubject: pkg.emailSubject || "",
+    id: pkg.id,
+    lineItems: pkg.lineItems.map((item) => ({
+      amount: Number(item.amount || 0),
+      description: item.description || "",
+      id: item.id,
+      quantity: Number(item.quantity || 1),
+      title: item.title || "",
+      unitAmount: Number(item.unitAmount || item.amount || 0),
+    })),
+    name: pkg.name || "",
+    projectId: pkg.projectId,
+    proposalTitle: pkg.proposalTitle || pkg.name || "",
+    sections: pkg.sections || [],
+    sourceTemplateId: pkg.sourceTemplateId || "",
+    status: pkg.status || "DRAFT",
+    subtitle: pkg.subtitle || "",
+  };
+}
+
+function fetchLegacyPackagePresetsByIds(
+  db: ReturnType<typeof getDb>,
+  packageIds: string[]
+) {
+  const normalizedIds = Array.from(new Set(packageIds.map((id) => String(id || "").trim()).filter(Boolean)));
+  if (normalizedIds.length === 0) {
+    return [];
   }
 
-  if (normalized === "Business") {
-    return ["Business", "Businesses"];
+  return db
+    .prepare(
+      `SELECT
+        id,
+        category,
+        name,
+        subtitle,
+        description,
+        proposal_title,
+        amount,
+        sections,
+        line_items,
+        cover_image,
+        cover_position,
+        email_subject,
+        email_body
+       FROM package_presets
+       WHERE id IN (${normalizedIds.map(() => "?").join(", ")})`
+    )
+    .all(...normalizedIds) as Array<{
+      amount: number;
+      category?: string | null;
+      cover_image?: string | null;
+      cover_position?: string | null;
+      description?: string | null;
+      email_body?: string | null;
+      email_subject?: string | null;
+      id: string;
+      line_items?: string | null;
+      name: string;
+      proposal_title?: string | null;
+      sections?: string | null;
+      subtitle?: string | null;
+    }>;
+}
+
+function mapLegacyPresetRowToDraft(
+  preset: {
+    amount: number;
+    cover_image?: string | null;
+    cover_position?: string | null;
+    description?: string | null;
+    email_body?: string | null;
+    email_subject?: string | null;
+    id: string;
+    line_items?: string | null;
+    name: string;
+    proposal_title?: string | null;
+    sections?: string | null;
+    subtitle?: string | null;
+  }
+): ProjectPackageDraft {
+  return {
+    amount: Number(preset.amount || 0),
+    coverImage: String(preset.cover_image || ""),
+    coverPosition: String(preset.cover_position || "50% 50%"),
+    description: String(preset.description || ""),
+    emailBody: String(preset.email_body || ""),
+    emailSubject: String(preset.email_subject || ""),
+    id: preset.id,
+    lineItems: parseInvoiceLineItems(String(preset.line_items || "[]")).map((item, index) => ({
+      amount: Number(item.amount || 0),
+      description: item.description || "",
+      id: `${preset.id}-legacy-line-${index}`,
+      quantity: 1,
+      title: item.title || "",
+      unitAmount: Number(item.amount || 0),
+    })),
+    name: String(preset.name || ""),
+    proposalTitle: String(preset.proposal_title || preset.name || ""),
+    sections: (() => {
+      try {
+        return JSON.parse(String(preset.sections || "[]")) as string[];
+      } catch {
+        return [];
+      }
+    })()
+      .map((section) => String(section || "").trim())
+      .filter(Boolean),
+    sourceTemplateId: preset.id,
+    status: "DRAFT",
+    subtitle: String(preset.subtitle || ""),
+  };
+}
+
+function resolveProjectPackagesForBrochure(
+  db: ReturnType<typeof getDb>,
+  input: {
+    category: string;
+    packageDrafts: ProjectPackageDraft[];
+    packageSource: string;
+    projectId: string;
+    selectedPackageIds: string[];
+  }
+) {
+  const selectedPackageIds = Array.from(
+    new Set(input.selectedPackageIds.map((id) => String(id || "").trim()).filter(Boolean))
+  );
+
+  const existingProjectPackages = getProjectPackagesByIds(db, input.projectId, selectedPackageIds);
+  const existingById = new Map(existingProjectPackages.map((pkg) => [pkg.id, pkg]));
+  const missingIds = selectedPackageIds.filter((id) => !existingById.has(id));
+
+  let createdFromTemplates: ProjectPackage[] = [];
+  if (input.packageSource === "master" || missingIds.length > 0) {
+    createdFromTemplates = createProjectPackagesFromTemplateIds(db, {
+      category: input.category,
+      projectId: input.projectId,
+      templateIds: input.packageSource === "master" ? selectedPackageIds : missingIds,
+    });
   }
 
-  return ["Others", "Other"];
+  const combinedPackages = [
+    ...existingProjectPackages,
+    ...createdFromTemplates.filter((pkg) => !existingById.has(pkg.id)),
+  ];
+  const combinedById = new Map(combinedPackages.map((pkg) => [pkg.id, pkg]));
+  const combinedBySourceTemplateId = new Map(
+    combinedPackages.filter((pkg) => pkg.sourceTemplateId).map((pkg) => [pkg.sourceTemplateId, pkg])
+  );
+  const legacyPresetById = new Map(
+    fetchLegacyPackagePresetsByIds(db, selectedPackageIds).map((preset) => [preset.id, preset])
+  );
+  const incomingDraftById = new Map(input.packageDrafts.map((draft) => [draft.id, draft]));
+
+  const normalizedDrafts = selectedPackageIds.flatMap((selectedId) => {
+      const resolvedProjectPackage =
+        combinedById.get(selectedId) ||
+        combinedBySourceTemplateId.get(selectedId) ||
+        combinedPackages.find((pkg) => pkg.id === selectedId || pkg.sourceTemplateId === selectedId);
+
+      if (!resolvedProjectPackage) {
+        return [];
+      }
+
+      const incomingDraft =
+        incomingDraftById.get(resolvedProjectPackage.id) ||
+        incomingDraftById.get(resolvedProjectPackage.sourceTemplateId) ||
+        incomingDraftById.get(selectedId);
+      const fallbackDraft =
+        legacyPresetById.get(selectedId) || legacyPresetById.get(resolvedProjectPackage.sourceTemplateId)
+          ? mapLegacyPresetRowToDraft(
+              legacyPresetById.get(selectedId) || legacyPresetById.get(resolvedProjectPackage.sourceTemplateId)!
+            )
+          : mapProjectPackageToDraft(resolvedProjectPackage);
+
+      return [
+        {
+          ...fallbackDraft,
+          ...incomingDraft,
+          amount:
+            typeof incomingDraft?.amount === "number"
+              ? incomingDraft.amount
+              : Number(fallbackDraft.amount || resolvedProjectPackage.amount || 0),
+          coverImage:
+            typeof incomingDraft?.coverImage === "string"
+              ? incomingDraft.coverImage
+              : fallbackDraft.coverImage || resolvedProjectPackage.coverImage || "",
+          coverPosition:
+            typeof incomingDraft?.coverPosition === "string"
+              ? incomingDraft.coverPosition
+              : fallbackDraft.coverPosition || resolvedProjectPackage.coverPosition || "50% 50%",
+          description:
+            typeof incomingDraft?.description === "string"
+              ? incomingDraft.description
+              : fallbackDraft.description || resolvedProjectPackage.description || "",
+          emailBody:
+            typeof incomingDraft?.emailBody === "string"
+              ? incomingDraft.emailBody
+              : fallbackDraft.emailBody || resolvedProjectPackage.emailBody || "",
+          emailSubject:
+            typeof incomingDraft?.emailSubject === "string"
+              ? incomingDraft.emailSubject
+              : fallbackDraft.emailSubject || resolvedProjectPackage.emailSubject || "",
+          id: resolvedProjectPackage.id,
+          lineItems:
+            incomingDraft?.lineItems && incomingDraft.lineItems.length > 0
+              ? incomingDraft.lineItems
+              : fallbackDraft.lineItems,
+          name:
+            typeof incomingDraft?.name === "string"
+              ? incomingDraft.name
+              : fallbackDraft.name || resolvedProjectPackage.name || "",
+          projectId: input.projectId,
+          proposalTitle:
+            typeof incomingDraft?.proposalTitle === "string"
+              ? incomingDraft.proposalTitle
+              : fallbackDraft.proposalTitle || resolvedProjectPackage.proposalTitle || resolvedProjectPackage.name,
+          sections:
+            incomingDraft?.sections && incomingDraft.sections.length > 0
+              ? incomingDraft.sections
+              : fallbackDraft.sections,
+          sourceTemplateId: resolvedProjectPackage.sourceTemplateId || incomingDraft?.sourceTemplateId || selectedId,
+          status:
+            typeof incomingDraft?.status === "string" && incomingDraft.status
+              ? incomingDraft.status
+              : resolvedProjectPackage.status || "DRAFT",
+          subtitle:
+            typeof incomingDraft?.subtitle === "string"
+              ? incomingDraft.subtitle
+              : fallbackDraft.subtitle || resolvedProjectPackage.subtitle || "",
+        } satisfies ProjectPackageDraft,
+      ];
+    });
+
+  const savedPackages = saveProjectPackageDrafts(db, {
+    drafts: normalizedDrafts,
+    projectId: input.projectId,
+  });
+
+  return {
+    createdFromTemplates,
+    savedPackages,
+    selectedProjectPackageIds: savedPackages.map((pkg) => pkg.id),
+  };
 }
 
 function upsertPackageBrochureSettings(
@@ -2219,24 +2582,104 @@ export async function sendProjectMessageAction(formData: FormData) {
 
   const projectId = getString(formData, "projectId");
   const clientName = getString(formData, "clientName");
-  const recipientEmail = getString(formData, "recipientEmail").toLowerCase();
+  const threadId = getString(formData, "threadId");
+  const toInput = getString(formData, "to");
+  const ccInput = getString(formData, "cc");
+  const bccInput = getString(formData, "bcc");
+  const fallbackRecipientEmail = getString(formData, "recipientEmail").toLowerCase();
   const subject = withProjectReplyToken(getString(formData, "subject"), projectId);
   const body = getString(formData, "body");
+  const attachmentFiles = getUploadFiles(formData, "attachments");
+  const toRecipients = parseRecipientList(toInput || fallbackRecipientEmail).map((recipient) => ({
+    ...recipient,
+    type: "TO" as const,
+  }));
+  const ccRecipients = parseRecipientList(ccInput).map((recipient) => ({
+    ...recipient,
+    type: "CC" as const,
+  }));
+  const bccRecipients = parseRecipientList(bccInput).map((recipient) => ({
+    ...recipient,
+    type: "BCC" as const,
+  }));
+  const allRecipients = [...toRecipients, ...ccRecipients, ...bccRecipients];
 
-  if (!projectId || !clientName || !recipientEmail || !subject || !body) {
+  if (!projectId || !clientName || toRecipients.length === 0 || !subject || !body) {
     redirect(`/projects/${projectId || ""}?tab=activity&error=message-invalid`);
   }
 
-  const replyToAddress = getProjectReplyAddress(projectId);
+  const db = getDb();
+  const resolvedThreadId =
+    threadId ||
+    getOrCreateProjectEmailThread(db, {
+      createdBy: "Sam Visual",
+      projectId,
+      reuseExistingBySubject: false,
+      subject,
+    });
+  const replyToAddress = getProjectReplyAddress(projectId, resolvedThreadId);
+  const htmlBody = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f1b18;">${body
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br />")}</div>`;
+  const attachments = await Promise.all(
+    attachmentFiles.map(async (file) => {
+      const saved = await saveEmailAttachment(file);
+      return {
+        filename: saved.fileName,
+        content: Buffer.from(await file.arrayBuffer()).toString("base64"),
+        contentType: file.type,
+        saved,
+      };
+    })
+  );
 
   try {
-    await sendProposalEmail({
-      to: recipientEmail,
+    const response = await sendProposalEmail({
+      to: toRecipients.map((recipient) => recipient.email),
+      cc: ccRecipients.map((recipient) => recipient.email),
+      bcc: bccRecipients.map((recipient) => recipient.email),
       replyTo: replyToAddress,
       subject,
       text: body,
-      html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f1b18;">${body.replace(/\n/g, "<br />")}</div>`,
+      html: htmlBody,
+      attachments: attachments.map((attachment) => ({
+        filename: attachment.filename,
+        content: attachment.content,
+        contentType: attachment.contentType,
+      })),
     });
+    const timestamp = new Date().toISOString();
+    logOutboundProjectEmail(db, {
+      attachments: attachments.map((attachment) => ({
+        fileName: attachment.saved.fileName,
+        fileSize: attachment.saved.fileSize,
+        mimeType: attachment.saved.mimeType,
+        storagePath: attachment.saved.publicPath,
+      })),
+      bodyHtml: htmlBody,
+      bodyText: body,
+      projectId,
+      providerMessageId: String(response?.id || ""),
+      recipients: allRecipients,
+      senderEmail: process.env.EMAIL_FROM || "",
+      senderName: "Sam Visual",
+      sentAt: timestamp,
+      status: "SENT",
+      subject,
+      threadId: resolvedThreadId,
+    });
+    updateProjectRecentActivity(
+      db,
+      projectId,
+      createRecentActivity("You emailed the client", timestamp),
+      timestamp
+    );
+
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath("/messages");
+    redirect(`/projects/${projectId}?tab=activity&email=1`);
   } catch (error) {
     const reason =
       error instanceof Error && error.message === "SMTP_NOT_CONFIGURED"
@@ -2244,30 +2687,6 @@ export async function sendProjectMessageAction(formData: FormData) {
         : "message-send-failed";
     redirect(`/projects/${projectId}?tab=activity&error=${reason}`);
   }
-
-  const db = getDb();
-  const timestamp = new Date().toISOString();
-  logProjectMessage(db, {
-    sender: "Sam Visual",
-    clientName,
-    projectId,
-    direction: "OUTBOUND",
-    channel: "Email",
-    time: timestamp,
-    subject,
-    preview: body,
-    unread: 0,
-  });
-  updateProjectRecentActivity(
-    db,
-    projectId,
-    createRecentActivity("You emailed the client", timestamp),
-    timestamp
-  );
-
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath("/messages");
-  redirect(`/projects/${projectId}?tab=activity&email=1`);
 }
 
 export async function scheduleZoomMeetingAction(formData: FormData) {
@@ -2752,7 +3171,8 @@ export async function sendPackageBrochureAction(formData: FormData) {
   const requestedRecipientEmail = getString(formData, "recipientEmail").toLowerCase();
   const selectedPackageIds = getSelectedValues(formData, "selectedPackageIds");
   const selectionIntent = getString(formData, "selectionIntent");
-  const packageOverrides = parsePackageOverridesInput(getString(formData, "packageOverrides"));
+  const packageDrafts = parseProjectPackageDraftsInput(getString(formData, "packageDrafts"));
+  const packageSource = getString(formData, "packageSource") || "project";
   const coverImage = normalizePackageBrochureCoverImage(getString(formData, "coverImage"));
   const safeReturnPath =
     projectId && returnPath.startsWith(`/projects/${projectId}`)
@@ -2781,34 +3201,19 @@ export async function sendPackageBrochureAction(formData: FormData) {
   const projectName = projectRecord.name;
   const clientName = projectRecord.client;
 
-  const packageCategoryAliases = getPackageCategoryAliases(category);
-  const packagePresets = db
-    .prepare(
-      "SELECT id, name, description, amount, sections, line_items FROM package_presets WHERE category IN (?, ?) ORDER BY amount ASC, created_at ASC"
-    )
-    .all(packageCategoryAliases[0], packageCategoryAliases[1]) as Array<{
-      id: string;
-      name: string;
-      description: string;
-      amount: number;
-      sections: string;
-      line_items: string;
-    }>;
-
-  if (packagePresets.length === 0) {
-    redirectWithStatus("error", "package-brochure-empty");
-  }
-
   if (selectionIntent === "custom" && selectedPackageIds.length === 0) {
     redirectWithStatus("error", "package-brochure-selection-missing");
   }
 
-  const chosenPackageIds = selectedPackageIds.length > 0 ? new Set(selectedPackageIds) : null;
-  const filteredPackagePresets = chosenPackageIds
-    ? packagePresets.filter((preset) => chosenPackageIds.has(preset.id))
-    : packagePresets;
+  const { selectedProjectPackageIds, savedPackages } = resolveProjectPackagesForBrochure(db, {
+    category,
+    packageDrafts,
+    packageSource,
+    projectId,
+    selectedPackageIds,
+  });
 
-  if (filteredPackagePresets.length === 0) {
+  if (savedPackages.length === 0) {
     redirectWithStatus("error", "package-brochure-empty");
   }
 
@@ -2828,17 +3233,16 @@ export async function sendPackageBrochureAction(formData: FormData) {
     redirectWithStatus("error", "package-brochure-email-missing");
   }
 
-  const fallbackIntro = `${clientName}, here is the current ${category.toLowerCase()} package brochure. Everything on this page stays synced with the latest package templates, so you are always seeing the current lineup.`;
-  const fallbackClosingNote =
-    "Reply directly to your email thread when you are ready, and I can tailor the right collection around your priorities, timeline, or coverage needs.";
+  const fallbackIntro = getDefaultPackageBrochureIntro(clientName, category);
+  const fallbackClosingNote = getDefaultPackageBrochureClosingNote();
   const brochureTitleText = title || projectName;
   const brochureIntroText = intro || fallbackIntro;
   const brochureClosingNote = closingNote || fallbackClosingNote;
   const token = upsertPackageBrochureSettings(db, {
     projectId,
     category,
-    selectedPackageIds: filteredPackagePresets.map((preset) => preset.id),
-    packageOverrides,
+    selectedPackageIds: selectedProjectPackageIds,
+    packageOverrides: {},
     title: brochureTitleText,
     intro: brochureIntroText,
     closingNote: brochureClosingNote,
@@ -2864,7 +3268,7 @@ export async function sendPackageBrochureAction(formData: FormData) {
     "",
     "Inside you'll see the full package lineup, what's included in each collection, and the current pricing.",
     "",
-    ...filteredPackagePresets.map((preset) => `- ${preset.name}: ${currencyFormatter.format(Number(preset.amount || 0))}`),
+    ...savedPackages.map((pkg) => `- ${pkg.name}: ${currencyFormatter.format(Number(pkg.amount || 0))}`),
     "",
     `Open your brochure: ${brochureUrl}`,
     "",
@@ -2883,19 +3287,19 @@ export async function sendPackageBrochureAction(formData: FormData) {
         </p>
 
         <div style="display:grid; gap:12px; margin:0 0 28px;">
-          ${filteredPackagePresets
+          ${savedPackages
             .map(
-              (preset) => `
+              (pkg) => `
                 <div style="border:1px solid rgba(31,27,24,0.08); background:#ffffff; padding:16px 18px;">
                   <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start;">
                     <div>
-                      <p style="margin:0; font-size:18px; font-weight:700;">${preset.name}</p>
+                      <p style="margin:0; font-size:18px; font-weight:700;">${pkg.name}</p>
                       <p style="margin:8px 0 0; font-size:14px; line-height:1.7; color:#6f655d;">${
-                        preset.description || "Review the full brochure for package details."
+                        pkg.description || "Review the full brochure for package details."
                       }</p>
                     </div>
                     <p style="margin:0; font-size:15px; font-weight:700; color:#cf724f;">${currencyFormatter.format(
-                      Number(preset.amount || 0)
+                      Number(pkg.amount || 0)
                     )}</p>
                   </div>
                 </div>
@@ -2933,11 +3337,11 @@ export async function sendPackageBrochureAction(formData: FormData) {
 
   const timestamp = new Date().toISOString();
   const brochurePath = `/package-brochure/${token}`;
-  const summary = `Shared ${category.toLowerCase()} package brochure with ${filteredPackagePresets.length} package option${
-    filteredPackagePresets.length === 1 ? "" : "s"
+  const summary = `Shared ${category.toLowerCase()} package brochure with ${savedPackages.length} package option${
+    savedPackages.length === 1 ? "" : "s"
   }.`;
-  const body = filteredPackagePresets
-    .map((preset) => `${preset.name} - ${currencyFormatter.format(Number(preset.amount || 0))}`)
+  const body = savedPackages
+    .map((pkg) => `${pkg.name} - ${currencyFormatter.format(Number(pkg.amount || 0))}`)
     .join("\n");
   const existingProjectFile = db
     .prepare("SELECT id FROM project_files WHERE project_id = ? AND type = 'PACKAGES' AND linked_path = ? LIMIT 1")
@@ -2990,7 +3394,8 @@ export async function savePackageBrochureAction(formData: FormData) {
   const recipientEmail = getString(formData, "recipientEmail").toLowerCase();
   const selectedPackageIds = getSelectedValues(formData, "selectedPackageIds");
   const selectionIntent = getString(formData, "selectionIntent");
-  const packageOverrides = parsePackageOverridesInput(getString(formData, "packageOverrides"));
+  const packageDrafts = parseProjectPackageDraftsInput(getString(formData, "packageDrafts"));
+  const packageSource = getString(formData, "packageSource") || "project";
   const coverImage = normalizePackageBrochureCoverImage(getString(formData, "coverImage"));
 
   if (!projectId || !["Wedding", "Business", "Others"].includes(category) || !returnPath) {
@@ -3010,18 +3415,26 @@ export async function savePackageBrochureAction(formData: FormData) {
     redirect(`${returnPath}${returnPath.includes("?") ? "&" : "?"}error=package-brochure-selection-missing`);
   }
 
+  const { selectedProjectPackageIds, savedPackages } = resolveProjectPackagesForBrochure(db, {
+    category,
+    packageDrafts,
+    packageSource,
+    projectId,
+    selectedPackageIds,
+  });
+
+  if (savedPackages.length === 0) {
+    redirect(`${returnPath}${returnPath.includes("?") ? "&" : "?"}error=package-brochure-empty`);
+  }
+
   upsertPackageBrochureSettings(db, {
     projectId,
     category,
-    selectedPackageIds,
-    packageOverrides,
+    selectedPackageIds: selectedProjectPackageIds,
+    packageOverrides: {},
     title: title || project.name,
-    intro:
-      intro ||
-      `${project.client}, here is the current ${category.toLowerCase()} package brochure. Everything on this page stays synced with the latest package templates, so you are always seeing the current lineup.`,
-    closingNote:
-      closingNote ||
-      "Reply directly to your email thread when you are ready, and I can tailor the right collection around your priorities, timeline, or coverage needs.",
+    intro: intro || getDefaultPackageBrochureIntro(project.client, category),
+    closingNote: closingNote || getDefaultPackageBrochureClosingNote(),
     coverImage,
   });
 
@@ -3071,6 +3484,10 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
         category: string;
         selected_package_ids?: string | null;
         package_overrides?: string | null;
+        title?: string | null;
+        intro?: string | null;
+        closing_note?: string | null;
+        cover_image?: string | null;
         project_name: string;
         project_client: string;
       }
@@ -3081,18 +3498,6 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
   }
 
   const resolvedBrochure = brochure!;
-  const packageCategoryAliases = getPackageCategoryAliases(resolvedBrochure.category);
-  const packagePresets = db
-    .prepare(
-      "SELECT id, name, description, amount FROM package_presets WHERE category IN (?, ?) ORDER BY amount ASC, created_at ASC"
-    )
-    .all(packageCategoryAliases[0], packageCategoryAliases[1]) as Array<{
-      id: string;
-      name: string;
-      description: string;
-      amount: number;
-    }>;
-
   const selectedPackageIds = (() => {
     try {
       const parsed = JSON.parse(String(resolvedBrochure.selected_package_ids || "[]")) as string[];
@@ -3102,33 +3507,56 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
     }
   })();
 
-  const packageOverrides = (() => {
-    try {
-      return JSON.parse(String(resolvedBrochure.package_overrides || "{}")) as Record<
-        string,
-        { name?: string; description?: string; amount?: number }
-      >;
-    } catch {
-      return {};
-    }
-  })();
-
-  const allowedPackages =
+  let allowedPackages =
     selectedPackageIds.length > 0
-      ? packagePresets.filter((preset) => selectedPackageIds.includes(preset.id))
-      : packagePresets;
-  const selectedPackage = allowedPackages.find((preset) => preset.id === packageId);
+      ? getProjectPackagesByIds(db, resolvedBrochure.project_id, selectedPackageIds)
+      : getProjectPackagesForProject(db, resolvedBrochure.project_id, resolvedBrochure.category);
+
+  if (selectedPackageIds.length > 0 && allowedPackages.length === 0) {
+    const migratedPackages = resolveProjectPackagesForBrochure(db, {
+      category: resolvedBrochure.category,
+      packageDrafts: [],
+      packageSource: "master",
+      projectId: resolvedBrochure.project_id,
+      selectedPackageIds,
+    });
+
+    if (migratedPackages.savedPackages.length > 0) {
+      upsertPackageBrochureSettings(db, {
+        category: resolvedBrochure.category,
+        closingNote: String(resolvedBrochure.closing_note || ""),
+        coverImage: String(resolvedBrochure.cover_image || ""),
+        intro: String(resolvedBrochure.intro || ""),
+        packageOverrides: {},
+        projectId: resolvedBrochure.project_id,
+        selectedPackageIds: migratedPackages.selectedProjectPackageIds,
+        title: String(resolvedBrochure.title || resolvedBrochure.project_name),
+      });
+      allowedPackages = migratedPackages.savedPackages;
+    }
+  }
+
+  if (!allowedPackages.some((pkg) => pkg.id === packageId || pkg.sourceTemplateId === packageId)) {
+    const resolvedPackages = resolveProjectPackagesForBrochure(db, {
+      category: resolvedBrochure.category,
+      packageDrafts: [],
+      packageSource: "master",
+      projectId: resolvedBrochure.project_id,
+      selectedPackageIds: [packageId],
+    });
+
+    allowedPackages = [...allowedPackages, ...resolvedPackages.savedPackages];
+  }
+
+  const selectedPackage = allowedPackages.find((pkg) => pkg.id === packageId || pkg.sourceTemplateId === packageId);
 
   if (!selectedPackage) {
     redirectWithStatus("error", "package-selection-invalid");
   }
 
   const resolvedSelectedPackage = selectedPackage!;
-  const selectedPackageName = packageOverrides[resolvedSelectedPackage.id]?.name || resolvedSelectedPackage.name;
-  const selectedPackageAmount =
-    typeof packageOverrides[resolvedSelectedPackage.id]?.amount === "number"
-      ? Number(packageOverrides[resolvedSelectedPackage.id]?.amount || 0)
-      : Number(resolvedSelectedPackage.amount || 0);
+  const selectedPackageName = resolvedSelectedPackage.name;
+  const selectedPackageAmount = Number(resolvedSelectedPackage.amount || 0);
 
   const notificationRecipient = String(getProjectReplyAddress(resolvedBrochure.project_id) || "").trim();
 
@@ -3207,6 +3635,14 @@ export async function submitPackageBrochureSelectionAction(formData: FormData) {
     timestamp,
     timestamp
   );
+  db.prepare(
+    `UPDATE project_packages
+     SET status = ?, selected_at = ?, selected_by = ?, updated_at = ?
+     WHERE id = ? AND project_id = ?`
+  ).run("SELECTED", timestamp, clientName, timestamp, resolvedSelectedPackage.id, resolvedBrochure.project_id);
+  db.prepare(
+    "UPDATE clients SET package_name = ?, total_value = ?, updated_at = ? WHERE name = ?"
+  ).run(selectedPackageName, selectedPackageAmount, timestamp, resolvedBrochure.project_client);
 
   logProjectMessage(db, {
     sender: clientName,
@@ -3957,6 +4393,8 @@ export async function logClientReplyAction(formData: FormData) {
 
   const projectId = getString(formData, "projectId");
   const clientName = getString(formData, "clientName");
+  const threadId = getString(formData, "threadId");
+  const fromAddress = getString(formData, "fromAddress").toLowerCase();
   const subject = getString(formData, "subject");
   const body = getString(formData, "body");
 
@@ -3966,23 +4404,16 @@ export async function logClientReplyAction(formData: FormData) {
 
   const db = getDb();
   const timestamp = new Date().toISOString();
-  logProjectMessage(db, {
-    sender: clientName,
-    clientName,
+  upsertInboundProjectActivityReply(db, {
+    bodyText: body,
+    externalMessageId: `manual-${randomUUID()}`,
+    fromAddress,
+    fromName: clientName,
     projectId,
-    direction: "INBOUND",
-    channel: "Email",
-    time: timestamp,
     subject,
-    preview: body,
-    unread: 1,
+    threadId,
+    timestamp,
   });
-  updateProjectRecentActivity(
-    db,
-    projectId,
-    createRecentActivity("Client emailed you", timestamp),
-    timestamp
-  );
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/messages");
@@ -4059,6 +4490,7 @@ export async function openNotificationMessageAction(formData: FormData) {
       messageId,
       projectId
     );
+    markProjectCommunicationMessageRead(db, { messageId, projectId });
   } else {
     db.prepare("UPDATE messages SET unread = 0, updated_at = ? WHERE id = ?").run(timestamp, messageId);
   }
@@ -4125,6 +4557,7 @@ export async function markProjectMessageReadAction(formData: FormData) {
   ) {
     const timestamp = new Date().toISOString();
     db.prepare("UPDATE messages SET unread = 0, updated_at = ? WHERE id = ?").run(timestamp, messageId);
+    markProjectCommunicationMessageRead(db, { messageId, projectId });
   }
 
   revalidatePath(`/projects/${projectId}`);
@@ -4920,6 +5353,147 @@ export async function updateProjectDetailsAction(formData: FormData) {
   revalidatePath("/projects");
   revalidatePath("/crm");
   redirect(`/projects/${projectId}?tab=details&details=1`);
+}
+
+function parseCurrencyInputValue(value: string) {
+  const normalized = String(value || "")
+    .replaceAll("$", "")
+    .replaceAll(",", "")
+    .trim();
+
+  if (!normalized) {
+    return 0;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isNaN(parsed) ? NaN : parsed;
+}
+
+export async function updateProjectInfoAction(formData: FormData) {
+  await requireUser();
+
+  const projectId = getString(formData, "projectId");
+  const previousProjectName = getString(formData, "previousProjectName");
+  const previousClientName = getString(formData, "previousClientName");
+  const clientName = getString(formData, "clientName");
+  const eventName = getString(formData, "eventName");
+  const bookedAt = getString(formData, "bookedAt");
+  const projectDate = getString(formData, "projectDate");
+  const location = getString(formData, "location");
+  const packageName = getString(formData, "packageName");
+  const addOns = getString(formData, "addOns");
+  const paymentTypes = getString(formData, "paymentTypes");
+  const paymentCount = Number(getString(formData, "paymentCount") || "0");
+  const packageValue = parseCurrencyInputValue(getString(formData, "packageValue"));
+  const totalAmount = parseCurrencyInputValue(getString(formData, "totalAmount"));
+  const retainerAmountReceived = parseCurrencyInputValue(getString(formData, "retainerAmountReceived"));
+  const remainingBalance = parseCurrencyInputValue(getString(formData, "remainingBalance"));
+
+  if (
+    !projectId ||
+    !previousProjectName ||
+    !previousClientName ||
+    !clientName ||
+    !eventName ||
+    !projectDate ||
+    !location ||
+    !packageName ||
+    Number.isNaN(packageValue) ||
+    Number.isNaN(totalAmount) ||
+    Number.isNaN(retainerAmountReceived) ||
+    Number.isNaN(remainingBalance) ||
+    Number.isNaN(paymentCount)
+  ) {
+    redirect(`/projects/${projectId || ""}?tab=info&error=info-invalid`);
+  }
+
+  const db = getDb();
+  const timestamp = new Date().toISOString();
+  const siblingProjectCount = Number(
+    (
+      (db.prepare("SELECT COUNT(*) AS count FROM projects WHERE client = ?").get(previousClientName) as
+        | { count?: number }
+        | undefined) ?? { count: 0 }
+    ).count ?? 0
+  );
+  const canUseLegacyClientScope = siblingProjectCount === 1;
+
+  db.prepare(
+    `UPDATE projects
+     SET client = ?,
+         name = ?,
+         project_date = ?,
+         location = ?,
+         booked_at = ?,
+         info_package_name = ?,
+         info_package_value = ?,
+         info_add_ons = ?,
+         info_total_amount = ?,
+         info_retainer_received = ?,
+         info_remaining_balance = ?,
+         info_payment_count = ?,
+         info_payment_types = ?,
+         updated_at = ?
+     WHERE id = ?`
+  ).run(
+    clientName,
+    eventName,
+    projectDate,
+    location,
+    bookedAt || "",
+    packageName,
+    Math.round(packageValue),
+    addOns,
+    Math.round(totalAmount),
+    Math.round(retainerAmountReceived),
+    Math.round(remainingBalance),
+    Math.max(0, paymentCount),
+    paymentTypes,
+    timestamp,
+    projectId
+  );
+
+  db.prepare(
+    `UPDATE clients
+     SET name = ?,
+         category = COALESCE(NULLIF(category, ''), 'Wedding'),
+         project = ?,
+         package_name = ?,
+         total_value = ?,
+         balance = ?,
+         updated_at = ?
+     WHERE project = ? OR (? = 1 AND name = ?)`
+  ).run(
+    clientName,
+    eventName,
+    packageName,
+    Math.round(packageValue),
+    Math.round(remainingBalance),
+    timestamp,
+    previousProjectName,
+    canUseLegacyClientScope ? 1 : 0,
+    previousClientName
+  );
+
+  const latestProjectPackage = getLatestProjectPackageForProject(db, projectId);
+  if (latestProjectPackage?.id) {
+    db.prepare(
+      "UPDATE project_packages SET name = ?, amount = ?, updated_at = ? WHERE id = ? AND project_id = ?"
+    ).run(packageName, Math.round(packageValue), timestamp, latestProjectPackage.id, projectId);
+  }
+
+  updateProjectRecentActivity(
+    db,
+    projectId,
+    createRecentActivity("Project info updated", timestamp),
+    timestamp
+  );
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+  revalidatePath("/crm");
+  revalidatePath("/overview");
+  redirect(`/projects/${projectId}?tab=info&info=1`);
 }
 
 export async function updateProjectHeroBannerAction(formData: FormData) {
