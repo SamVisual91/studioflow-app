@@ -254,18 +254,6 @@ export function recordInvoicePaymentToLedger(opts: {
     .get(opts.invoiceId, paymentSourceId) as { id?: string } | undefined;
 
   if (existingPaymentRecord?.id) {
-    const timestamp = new Date().toISOString();
-    db.prepare(
-      "UPDATE ledger_transactions SET transaction_date = ?, amount = ?, description = ?, payment_method = ?, counterparty = ?, updated_at = ? WHERE id = ?"
-    ).run(
-      opts.paymentDate || timestamp,
-      toMoney(Number(opts.paymentAmount || 0)),
-      `${opts.invoiceLabel || "Invoice payment"} ${opts.invoiceNumber ? `(${opts.invoiceNumber})` : ""}`.trim(),
-      opts.paymentMethod || "",
-      opts.clientName || "",
-      timestamp,
-      existingPaymentRecord.id
-    );
     return existingPaymentRecord.id;
   }
 
@@ -539,10 +527,11 @@ export function backfillLedgerInvoiceTransactions() {
 
     if (paymentSchedule.length > 0) {
       const paymentSourceLookup = db.prepare(
-        "SELECT created_at FROM ledger_transactions WHERE invoice_id = ? AND source_id = ? AND direction = 'INCOME' LIMIT 1"
+        "SELECT id, created_at FROM ledger_transactions WHERE invoice_id = ? AND source_id = ? AND direction = 'INCOME' LIMIT 1"
       );
       const recordedAt = new Date().toISOString();
       let shouldSaveSchedule = false;
+      const legacyLedgerUpdates: Array<{ id: string; amount: number; paidAt: string }> = [];
       const scheduleWithPaidDates = paymentSchedule.map((payment) => {
         if (payment.status !== "PAID" || payment.paidAt) {
           return payment;
@@ -551,13 +540,22 @@ export function backfillLedgerInvoiceTransactions() {
         const existingLedgerEntry = paymentSourceLookup.get(
           String(invoice.id),
           `${String(invoice.id)}:${payment.id}`
-        ) as { created_at?: string } | undefined;
+        ) as { id?: string; created_at?: string } | undefined;
+        const paidAt = existingLedgerEntry?.created_at || recordedAt;
         shouldSaveSchedule = true;
+
+        if (existingLedgerEntry?.id) {
+          legacyLedgerUpdates.push({
+            id: existingLedgerEntry.id,
+            amount: Number(payment.amount || 0),
+            paidAt,
+          });
+        }
 
         return {
           ...payment,
           // Old entries did not store a receipt date. The ledger record's creation time is the best available payment date.
-          paidAt: existingLedgerEntry?.created_at || recordedAt,
+          paidAt,
         };
       });
 
@@ -567,6 +565,18 @@ export function backfillLedgerInvoiceTransactions() {
           recordedAt,
           String(invoice.id)
         );
+
+        const updateLegacyLedgerEntry = db.prepare(
+          "UPDATE ledger_transactions SET transaction_date = ?, amount = ?, updated_at = ? WHERE id = ?"
+        );
+        legacyLedgerUpdates.forEach((entry) => {
+          updateLegacyLedgerEntry.run(
+            normalizeLedgerDate(entry.paidAt),
+            toMoney(entry.amount),
+            recordedAt,
+            entry.id
+          );
+        });
       }
 
       scheduleWithPaidDates

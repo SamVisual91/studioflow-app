@@ -9,6 +9,7 @@ type PaymentScheduleItem = {
   amount: number;
   dueDate: string;
   status: string;
+  paidAt?: string;
   invoiceNumber: string;
 };
 
@@ -97,7 +98,7 @@ export function updateInvoiceAutopaySetup(invoiceId: string, customerId: string,
 export function markInvoicePaymentPaid(
   invoiceId: string,
   paymentId: string,
-  opts?: { channel?: string; preview?: string; activity?: string }
+  opts?: { channel?: string; preview?: string; activity?: string; paidAt?: string }
 ) {
   const db = getDb();
   const invoice = db
@@ -109,7 +110,7 @@ export function markInvoicePaymentPaid(
   }
 
   const paymentSchedule = parsePaymentSchedule(invoice.payment_schedule);
-  const timestamp = new Date().toISOString();
+  const timestamp = opts?.paidAt || new Date().toISOString();
   const nextSchedule = paymentSchedule.map((item) =>
     item.id === paymentId
       ? {

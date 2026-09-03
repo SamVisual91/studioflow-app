@@ -74,8 +74,11 @@ export async function POST(request: Request) {
           channel: "Stripe webhook",
           preview: `Stripe confirmed payment for ${paymentId}.`,
           activity: "Stripe payment received",
+          paidAt: new Date(event.created * 1000).toISOString(),
         });
         revalidatePath("/ledger");
+        revalidatePath("/overview");
+        revalidatePath("/invoices");
       }
 
       if (mode === "payment" && productType === "video-paywall" && paywallId) {
@@ -109,8 +112,11 @@ export async function POST(request: Request) {
           channel: "Auto-pay",
           preview: `Auto-pay processed ${paymentId} successfully.`,
           activity: "Auto-pay charge received",
+          paidAt: new Date(event.created * 1000).toISOString(),
         });
         revalidatePath("/ledger");
+        revalidatePath("/overview");
+        revalidatePath("/invoices");
       }
 
       return NextResponse.json({ received: true });

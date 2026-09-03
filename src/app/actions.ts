@@ -1869,6 +1869,7 @@ export async function createLedgerTransactionAction(formData: FormData) {
   revalidatePath("/ledger");
   revalidatePath("/ledger/transactions");
   revalidatePath("/ledger/reports");
+  revalidatePath("/overview");
   redirect("/ledger/transactions?saved=1");
 }
 
@@ -1888,6 +1889,7 @@ export async function reconcileLedgerTransactionAction(formData: FormData) {
   ).run(new Date().toISOString(), reconciliationNote, new Date().toISOString(), transactionId);
 
   revalidatePath("/ledger");
+  revalidatePath("/overview");
   redirect("/ledger?reconciled=1");
 }
 
@@ -1914,6 +1916,7 @@ export async function deleteLedgerTransactionsAction(formData: FormData) {
   revalidatePath("/ledger/transactions");
   revalidatePath("/ledger/reports");
   revalidatePath("/ledger/reconciliation");
+  revalidatePath("/overview");
   redirect("/ledger/transactions?deleted=1");
 }
 
@@ -1977,6 +1980,7 @@ export async function updateLedgerTransactionAction(formData: FormData) {
   revalidatePath("/ledger/transactions");
   revalidatePath("/ledger/reports");
   revalidatePath("/ledger/reconciliation");
+  revalidatePath("/overview");
   redirect("/ledger/transactions?updated=1");
 }
 
