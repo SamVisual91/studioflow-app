@@ -539,6 +539,61 @@ export function createProjectPackagesFromTemplateIds(
   return getProjectPackagesByIds(db, input.projectId, createdIds);
 }
 
+export function createProjectPackageFromScratch(
+  db: DatabaseSync,
+  input: {
+    category?: string;
+    projectId: string;
+  }
+) {
+  const timestamp = new Date().toISOString();
+  const id = randomUUID();
+  const category = normalizePackageCategoryValue(input.category || "");
+  const name = `Custom ${category} package`;
+
+  db.prepare(
+    `INSERT INTO project_packages (
+      id,
+      project_id,
+      source_template_id,
+      category,
+      name,
+      subtitle,
+      description,
+      proposal_title,
+      amount,
+      sections,
+      cover_image,
+      cover_position,
+      email_subject,
+      email_body,
+      status,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    input.projectId,
+    null,
+    category,
+    name,
+    "",
+    "A custom package created for this client.",
+    name,
+    0,
+    "[]",
+    "",
+    "50% 50%",
+    "",
+    "",
+    "DRAFT",
+    timestamp,
+    timestamp
+  );
+
+  return getProjectPackagesByIds(db, input.projectId, [id])[0] || null;
+}
+
 export function saveProjectPackageDrafts(
   db: DatabaseSync,
   input: {

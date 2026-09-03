@@ -35,6 +35,7 @@ export default async function ProjectPackageBrochureBuilderPage({
     saved?: string;
     brochureSent?: string;
     error?: string;
+    packageIds?: string;
   }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
@@ -90,6 +91,10 @@ export default async function ProjectPackageBrochureBuilderPage({
       return [];
     }
   })();
+  const requestedPackageIds = String(query.packageIds || "")
+    .split(",")
+    .map((packageId) => packageId.trim())
+    .filter(Boolean);
   const projectPackages =
     selectedPackageIds.length > 0
       ? getProjectPackagesByIds(db, id, selectedPackageIds)
@@ -216,7 +221,11 @@ export default async function ProjectPackageBrochureBuilderPage({
           initialPackageSource={usingLegacyPackages ? "master" : "project"}
           initialRecipientEmail={recipientEmail}
           initiallySelectedPackageIds={
-            selectedPackageIds.length > 0 ? selectedPackageIds : packages.map((item) => item.id)
+            requestedPackageIds.length > 0
+              ? requestedPackageIds
+              : selectedPackageIds.length > 0
+                ? selectedPackageIds
+                : packages.map((item) => item.id)
           }
           initialTitle={String(brochure?.title || defaults.title)}
           packages={packages}

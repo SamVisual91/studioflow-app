@@ -639,7 +639,6 @@ export default async function ProjectClientPage({
             ) : null}
             <ProjectFileLauncher
               buttonLabel="New file"
-              clientName={project.client}
               packagePresets={data.packagePresets}
               projectId={project.id}
               projectName={project.name}

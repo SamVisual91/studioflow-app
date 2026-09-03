@@ -52,6 +52,7 @@ import {
   resolveUploadStoragePath,
 } from "@/lib/storage";
 import {
+  createProjectPackageFromScratch,
   createProjectPackagesFromTemplateIds,
   getLatestProjectPackageForProject,
   getProjectPackagesByIds,
@@ -3157,6 +3158,87 @@ export async function sendVideoPaywallToClientAction(formData: FormData) {
   revalidatePath(`/video-paywall/${resolvedPaywall.public_token}`);
   revalidatePath("/messages");
   redirectWithStatus("paywallSent", "1");
+}
+
+export async function startProjectPackagesFromTemplateAction(formData: FormData) {
+  await requireProjectFileManagement();
+
+  const projectId = getString(formData, "projectId");
+  const category = normalizePackageCategoryValue(getString(formData, "category"));
+  const templateIds = getSelectedValues(formData, "templateIds");
+
+  if (!projectId || templateIds.length === 0) {
+    redirect(`/projects/${projectId || ""}?error=package-brochure-invalid`);
+  }
+
+  const db = getDb();
+  const project = db
+    .prepare("SELECT id FROM projects WHERE id = ? LIMIT 1")
+    .get(projectId) as { id?: string } | undefined;
+
+  if (!project?.id) {
+    redirect(`/projects/${projectId}?error=package-brochure-invalid`);
+  }
+
+  const packages = createProjectPackagesFromTemplateIds(db, {
+    category,
+    projectId,
+    templateIds,
+  });
+
+  if (packages.length === 0) {
+    redirect(`/projects/${projectId}?error=package-brochure-empty`);
+  }
+
+  const timestamp = new Date().toISOString();
+  updateProjectRecentActivity(
+    db,
+    projectId,
+    createRecentActivity(`${packages.length} client package option${packages.length === 1 ? "" : "s"} created`, timestamp),
+    timestamp
+  );
+
+  revalidatePath(`/projects/${projectId}`);
+  redirect(
+    `/projects/${projectId}/package-brochure?category=${encodeURIComponent(category)}&packageIds=${encodeURIComponent(
+      packages.map((pkg) => pkg.id).join(",")
+    )}`
+  );
+}
+
+export async function createProjectPackageFromScratchAction(formData: FormData) {
+  await requireProjectFileManagement();
+
+  const projectId = getString(formData, "projectId");
+  const category = normalizePackageCategoryValue(getString(formData, "category"));
+
+  if (!projectId) {
+    redirect("/projects?error=package-brochure-invalid");
+  }
+
+  const db = getDb();
+  const project = db
+    .prepare("SELECT id FROM projects WHERE id = ? LIMIT 1")
+    .get(projectId) as { id?: string } | undefined;
+
+  if (!project?.id) {
+    redirect(`/projects/${projectId}?error=package-brochure-invalid`);
+  }
+
+  const packageCopy = createProjectPackageFromScratch(db, { category, projectId });
+  if (!packageCopy) {
+    redirect(`/projects/${projectId}?error=package-brochure-invalid`);
+  }
+
+  const timestamp = new Date().toISOString();
+  updateProjectRecentActivity(db, projectId, createRecentActivity("Custom client package created", timestamp), timestamp);
+
+  revalidatePath(`/projects/${projectId}`);
+  redirect(
+    `/projects/${projectId}/package-brochure?category=${encodeURIComponent(category)}&packageIds=${encodeURIComponent(
+      packageCopy.id
+    )}`
+  );
 }
 
 export async function sendPackageBrochureAction(formData: FormData) {

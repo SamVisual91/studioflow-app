@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { sendPackageBrochureAction } from "@/app/actions";
+import {
+  createProjectPackageFromScratchAction,
+  startProjectPackagesFromTemplateAction,
+} from "@/app/actions";
 import { smartFileTypes } from "@/lib/project-files";
 
 type PackagePreset = {
@@ -66,7 +69,6 @@ function normalizePackagePresetCategory(category: string) {
 export function ProjectFileLauncher({
   buttonClassName,
   buttonLabel = "New file",
-  clientName,
   packagePresets,
   projectId,
   projectName,
@@ -74,7 +76,6 @@ export function ProjectFileLauncher({
 }: {
   buttonClassName?: string;
   buttonLabel?: string;
-  clientName: string;
   packagePresets: PackagePreset[];
   projectId: string;
   projectName: string;
@@ -226,19 +227,6 @@ export function ProjectFileLauncher({
     });
   }
 
-  function openTemplateStudio() {
-    if (!selectedTemplate) {
-      return;
-    }
-
-    trackTemplateUsage(selectedTemplate.templateSetId || selectedTemplate.groupId);
-    window.open(
-      `/packages/new?category=${encodeURIComponent(selectedTemplate.category)}&templateSetId=${encodeURIComponent(selectedTemplate.templateSetId || "")}&presetId=${encodeURIComponent(selectedTemplate.presetId)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  }
-
   function openBuilder(fileType: string) {
     const params = new URLSearchParams({ type: fileType });
     if (fileType === "PACKAGES") {
@@ -306,7 +294,7 @@ export function ProjectFileLauncher({
           <div className="flex max-h-[88vh] w-full max-w-7xl flex-col overflow-hidden border border-black/[0.08] bg-white shadow-[0_24px_70px_rgba(36,24,14,0.18)]">
             <div className="flex items-center justify-between gap-4 border-b border-black/[0.08] px-6 py-4">
               <p className="text-base font-medium text-[var(--ink)]">
-                Create package brochure in {projectName}
+                Build a client package for {projectName}
               </p>
               <button
                 aria-label="Close package chooser"
@@ -464,13 +452,6 @@ export function ProjectFileLauncher({
                           {selectedTemplate.setName}
                         </h3>
                       </div>
-                      <button
-                        className="border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
-                        onClick={openTemplateStudio}
-                        type="button"
-                      >
-                        Edit template
-                      </button>
                     </div>
 
                     <div className="grid min-h-0 flex-1 content-start gap-5 px-6 py-6">
@@ -516,43 +497,35 @@ export function ProjectFileLauncher({
                     <form className="border-t border-black/[0.08] bg-white px-6 py-4">
                       <input name="projectId" type="hidden" value={projectId} />
                       <input name="category" type="hidden" value={selectedTemplate.category} />
-                      <input name="packageSource" type="hidden" value="master" />
-                      <input name="returnPath" type="hidden" value={`/projects/${projectId}`} />
-                      <input name="selectionIntent" type="hidden" value="custom" />
-                      <input name="title" type="hidden" value={projectName} />
-                      <input
-                        name="intro"
-                        type="hidden"
-                        value={`${clientName}, here is your current ${selectedTemplate.category.toLowerCase()} package brochure. Each option below is a custom package copy for your project, so any pricing changes stay specific to you.`}
-                      />
-                      <input
-                        name="closingNote"
-                        type="hidden"
-                        value="Reply directly to your email thread when you are ready, and I can tailor the right collection around your priorities, timeline, or coverage needs."
-                      />
-                      <input name="coverImage" type="hidden" value={selectedTemplate.previewImage || ""} />
                       {selectedTemplate.packages.map((preset) => (
-                        <input key={preset.id} name="selectedPackageIds" type="hidden" value={preset.id} />
+                        <input key={preset.id} name="templateIds" type="hidden" value={preset.id} />
                       ))}
                       <div className="flex items-center justify-between gap-4">
-                        <p className="text-sm text-[var(--muted)]">Send this template lineup directly to {clientName}.</p>
+                        <p className="max-w-md text-sm leading-6 text-[var(--muted)]">
+                          This creates a private copy for this client. You can safely adjust every detail before it is sent.
+                        </p>
                         <div className="flex items-center gap-3">
                           <button
-                            className="border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
-                            onClick={openTemplateStudio}
-                            type="button"
-                          >
-                            Edit template
-                          </button>
-                          <button
                             className="bg-[var(--sidebar)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
-                            formAction={sendPackageBrochureAction}
+                            formAction={startProjectPackagesFromTemplateAction}
                             type="submit"
                           >
-                            Send to client
+                            Customize for this client
                           </button>
                         </div>
                       </div>
+                    </form>
+                    <form className="flex flex-wrap items-center justify-between gap-4 border-t border-black/[0.08] bg-[rgba(247,241,232,0.5)] px-6 py-4">
+                      <input name="projectId" type="hidden" value={projectId} />
+                      <input name="category" type="hidden" value={selectedTemplate.category} />
+                      <p className="text-sm text-[var(--muted)]">Need something unique? Start with a blank client package instead.</p>
+                      <button
+                        className="border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
+                        formAction={createProjectPackageFromScratchAction}
+                        type="submit"
+                      >
+                        Create from scratch
+                      </button>
                     </form>
                   </>
                 ) : (
