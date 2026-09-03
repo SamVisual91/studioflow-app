@@ -13,17 +13,9 @@ export function hasProjectReplyRoutingConfig() {
 }
 
 export function getProjectReplyAddress(projectId: string, threadId = "") {
-  const directReplyAddress = (getRequiredEnv("CLIENT_REPLY_TO") || "contactme@samthao.com").toLowerCase();
-  const threadSegment = threadId ? `-thread-${threadId}` : "";
+  const directReplyAddress = (getRequiredEnv("CLIENT_REPLY_TO") || getRequiredEnv("SMTP_USER")).toLowerCase();
 
-  if (directReplyAddress && projectId) {
-    const [localPart, domain] = directReplyAddress.split("@");
-
-    if (localPart && domain) {
-      return `${localPart}+sf-${projectId}${threadSegment}@${domain}`;
-    }
-  }
-
+  // Gmail replies are threaded by the standard email headers, so clients can reply to one clear inbox address.
   if (directReplyAddress) {
     return directReplyAddress;
   }
@@ -34,6 +26,7 @@ export function getProjectReplyAddress(projectId: string, threadId = "") {
     return undefined;
   }
 
+  const threadSegment = threadId ? `-thread-${threadId}` : "";
   return `project-${projectId}${threadSegment}@${domain}`;
 }
 

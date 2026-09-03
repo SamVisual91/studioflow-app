@@ -26,11 +26,10 @@ import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getDb } from "@/lib/db";
 import { ensureProjectDeliverablesTable, type ProjectDeliverable } from "@/lib/deliverables";
 import { currencyFormatter, dateTime, formatStoredShortDate, shortDate } from "@/lib/formatters";
-import { syncInboxRepliesForProject } from "@/lib/inbox-sync";
+import { hasInboxSyncConfig, syncInboxRepliesForProject } from "@/lib/inbox-sync";
 import { hasMicrosoftGraphReplySyncConfig } from "@/lib/microsoft-graph-mail";
 import { getProjectCommunicationThreads, getProjectTimelineEvents } from "@/lib/project-activity";
 import { getLatestProjectPackageForProject } from "@/lib/project-packages";
-import { hasProjectReplyRoutingConfig } from "@/lib/reply-routing";
 import { canManageProjectFiles, canViewProjectFinancials } from "@/lib/roles";
 
 const coverImages: Record<string, string> = {
@@ -136,11 +135,7 @@ export default async function ProjectClientPage({
         : "activity";
 
   let syncResult: { imported: number; skipped: number; error: string } | null = null;
-  if (
-    activeTab === "activity" &&
-    !hasProjectReplyRoutingConfig() &&
-    !hasMicrosoftGraphReplySyncConfig()
-  ) {
+  if (activeTab === "activity" && !hasMicrosoftGraphReplySyncConfig()) {
     syncResult = await syncInboxRepliesForProject(id);
     if (syncResult.imported > 0) {
       data = (await getDashboardPageData()).data;
@@ -323,7 +318,7 @@ export default async function ProjectClientPage({
   const activityEvents = getProjectTimelineEvents(db, project.id);
   const unreadReplyCount = communicationThreads.reduce((sum, thread) => sum + thread.unreadCount, 0);
   const communicationMessageCount = communicationThreads.reduce((sum, thread) => sum + thread.messages.length, 0);
-  const hasAutomaticReplyRouting = hasProjectReplyRoutingConfig() || hasMicrosoftGraphReplySyncConfig();
+  const hasAutomaticReplyRouting = hasInboxSyncConfig() || hasMicrosoftGraphReplySyncConfig();
   const packageNameSummary =
     String(projectMeta?.info_package_name || "").trim() ||
     latestProjectPackage?.name ||
