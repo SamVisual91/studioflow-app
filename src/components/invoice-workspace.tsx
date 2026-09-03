@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
 type InvoiceLineItem = {
   title: string;
@@ -77,6 +77,68 @@ function splitAmounts(total: number, percentages: number[]) {
     allocated += portion;
     return portion / 100;
   });
+}
+
+function formatCurrencyInput(value: number) {
+  return Number(value || 0).toFixed(2);
+}
+
+function CurrencyInput({
+  className,
+  onValueChange,
+  value,
+}: {
+  className: string;
+  onValueChange: (value: number) => void;
+  value: number;
+}) {
+  const [draft, setDraft] = useState(() => formatCurrencyInput(value));
+  const [isFocused, setIsFocused] = useState(false);
+
+  const syncDraftFromValue = useEffectEvent((nextValue: number) => {
+    if (!isFocused) {
+      setDraft(formatCurrencyInput(nextValue));
+    }
+  });
+
+  useEffect(() => {
+    syncDraftFromValue(value);
+  }, [value]);
+
+  function handleChange(nextValue: string) {
+    const normalized = nextValue.replace(/[$,\s]/g, "");
+
+    if (!/^\d*(?:\.\d{0,2})?$/.test(normalized)) {
+      return;
+    }
+
+    setDraft(normalized);
+    onValueChange(normalized === "" || normalized === "." ? 0 : Number(normalized));
+  }
+
+  function handleBlur() {
+    setIsFocused(false);
+    const normalized = draft.replace(/[$,\s]/g, "");
+    const nextValue = Number(normalized || 0);
+
+    onValueChange(Number.isFinite(nextValue) ? nextValue : 0);
+    setDraft(formatCurrencyInput(Number.isFinite(nextValue) ? nextValue : 0));
+  }
+
+  return (
+    <input
+      className={className}
+      inputMode="decimal"
+      onBlur={handleBlur}
+      onChange={(event) => handleChange(event.target.value)}
+      onFocus={() => {
+        setIsFocused(true);
+        setDraft(String(value));
+      }}
+      type="text"
+      value={draft}
+    />
+  );
 }
 
 export function InvoiceWorkspace({
@@ -494,14 +556,14 @@ export function InvoiceWorkspace({
                   </div>
                 </div>
                 <p className="text-sm font-medium">1</p>
-                <input
-                  className="bg-transparent px-0 py-1 text-sm font-medium outline-none"
-                  min="0"
-                  onChange={(e) => updateLineItem(index, "amount", e.target.value)}
-                  step="0.01"
-                  type="number"
-                  value={String(item.amount)}
-                />
+                <div className="flex items-center gap-1 text-sm font-medium">
+                  <span className="text-[var(--muted)]">$</span>
+                  <CurrencyInput
+                    className="min-w-0 flex-1 bg-transparent px-0 py-1 outline-none"
+                    onValueChange={(value) => updateLineItem(index, "amount", String(value))}
+                    value={Number(item.amount || 0)}
+                  />
+                </div>
                 <p className="text-base font-semibold">${Number(item.amount || 0).toLocaleString()}</p>
                 <div className="flex justify-end">
                   <button className="rounded-full border border-[rgba(207,114,79,0.24)] bg-[rgba(207,114,79,0.08)] px-4 py-3 text-sm font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.14)]" onClick={() => removeLineItem(index)} type="button">
@@ -539,13 +601,10 @@ export function InvoiceWorkspace({
               <span>Grand Total</span>
               <div className="flex items-center gap-1">
                 <span>$</span>
-                <input
+                <CurrencyInput
                   className="w-28 bg-transparent text-right outline-none"
-                  min="0"
-                  onChange={(e) => updateGrandTotal(e.target.value)}
-                  step="0.01"
-                  type="number"
-                  value={String(Math.round(grandTotal * 100) / 100)}
+                  onValueChange={(value) => updateGrandTotal(String(value))}
+                  value={Math.round(grandTotal * 100) / 100}
                 />
               </div>
             </div>
@@ -627,14 +686,14 @@ export function InvoiceWorkspace({
         <div className="grid gap-3 pt-5">
           {normalizedPaymentSchedule.map((item, index) => (
             <div key={item.id} className="grid gap-3 border-b border-black/[0.08] pb-3 md:grid-cols-[0.75fr_0.95fr_1fr_0.8fr_auto] md:items-center">
-              <input
-                className="bg-transparent px-0 py-1 text-sm outline-none"
-                min="0"
-                onChange={(e) => updateScheduleItem(index, "amount", e.target.value)}
-                step="0.01"
-                type="number"
-                value={String(item.amount)}
-              />
+              <div className="flex items-center gap-1 text-sm">
+                <span className="text-[var(--muted)]">$</span>
+                <CurrencyInput
+                  className="min-w-0 flex-1 bg-transparent px-0 py-1 outline-none"
+                  onValueChange={(value) => updateScheduleItem(index, "amount", String(value))}
+                  value={Number(item.amount || 0)}
+                />
+              </div>
               <input
                 className="bg-transparent px-0 py-1 text-sm outline-none"
                 onChange={(e) => updateScheduleItem(index, "dueDate", e.target.value)}
