@@ -109,11 +109,13 @@ export function markInvoicePaymentPaid(
   }
 
   const paymentSchedule = parsePaymentSchedule(invoice.payment_schedule);
+  const timestamp = new Date().toISOString();
   const nextSchedule = paymentSchedule.map((item) =>
     item.id === paymentId
       ? {
           ...item,
           status: "PAID",
+          paidAt: timestamp,
         }
       : item
   );
@@ -122,7 +124,6 @@ export function markInvoicePaymentPaid(
     return;
   }
 
-  const timestamp = new Date().toISOString();
   db.prepare("UPDATE invoices SET status = ?, payment_schedule = ?, updated_at = ? WHERE id = ?").run(
     getNextInvoiceStatus(nextSchedule),
     JSON.stringify(nextSchedule),

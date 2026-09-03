@@ -27,6 +27,7 @@ type PaymentScheduleItem = {
   amount: number;
   dueDate: string;
   status: string;
+  paidAt?: string;
   invoiceNumber: string;
 };
 
@@ -102,6 +103,7 @@ function parsePaymentSchedule(value: unknown): PaymentScheduleItem[] {
             : due && !Number.isNaN(due.getTime()) && due.getTime() < today.getTime()
               ? "OVERDUE"
               : "UPCOMING",
+        paidAt: rawStatus === "PAID" ? String(item.paidAt || "").trim() : "",
       };
     });
   } catch {
@@ -242,11 +244,13 @@ export default async function PublicInvoicePage({
 
       if (session.payment_status === "paid" && sessionPaymentId) {
         const paymentSchedule = parsePaymentSchedule(invoice.payment_schedule);
+        const paidAt = new Date().toISOString();
         const nextPaymentSchedule = paymentSchedule.map((item) =>
           item.id === sessionPaymentId
             ? {
                 ...item,
                 status: "PAID",
+                paidAt,
               }
             : item
         );
@@ -254,7 +258,7 @@ export default async function PublicInvoicePage({
         db.prepare("UPDATE invoices SET status = ?, payment_schedule = ?, updated_at = ? WHERE id = ?").run(
           getNextInvoiceStatus(nextPaymentSchedule),
           JSON.stringify(nextPaymentSchedule),
-          new Date().toISOString(),
+          paidAt,
           String(invoice.id)
         );
 

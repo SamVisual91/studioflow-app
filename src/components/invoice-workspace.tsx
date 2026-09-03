@@ -15,6 +15,7 @@ type PaymentScheduleItem = {
   amount: number;
   dueDate: string;
   status: string;
+  paidAt?: string;
   invoiceNumber: string;
 };
 
@@ -459,8 +460,15 @@ export function InvoiceWorkspace({
   function updateScheduleStatus(index: number, value: string) {
     markAutosaveDirty();
     setPaymentSchedule((current) => {
+      const nextStatus = value === "PAID" ? "PAID" : "UPCOMING";
       const next = current.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, status: value === "PAID" ? "PAID" : "UPCOMING" } : item
+        itemIndex === index
+          ? {
+              ...item,
+              status: nextStatus,
+              paidAt: nextStatus === "PAID" ? item.paidAt || new Date().toISOString() : "",
+            }
+          : item
       );
 
       return rebalancePaymentSchedule(next, grandTotal);

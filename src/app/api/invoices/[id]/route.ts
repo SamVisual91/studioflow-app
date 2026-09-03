@@ -17,6 +17,7 @@ type PaymentScheduleItem = {
   amount: number;
   dueDate: string;
   status: string;
+  paidAt?: string;
   invoiceNumber: string;
 };
 
@@ -48,6 +49,7 @@ function parsePaymentSchedule(input: unknown) {
       amount: Number((item as PaymentScheduleItem).amount || 0),
       dueDate: String((item as PaymentScheduleItem).dueDate || "").trim(),
       status: String((item as PaymentScheduleItem).status || "UPCOMING").trim(),
+      paidAt: String((item as PaymentScheduleItem).paidAt || "").trim(),
       invoiceNumber: String((item as PaymentScheduleItem).invoiceNumber || "").trim(),
     }))
     .filter((item) => item.id && item.dueDate && !Number.isNaN(item.amount));

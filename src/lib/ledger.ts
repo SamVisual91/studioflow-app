@@ -254,6 +254,18 @@ export function recordInvoicePaymentToLedger(opts: {
     .get(opts.invoiceId, paymentSourceId) as { id?: string } | undefined;
 
   if (existingPaymentRecord?.id) {
+    const timestamp = new Date().toISOString();
+    db.prepare(
+      "UPDATE ledger_transactions SET transaction_date = ?, amount = ?, description = ?, payment_method = ?, counterparty = ?, updated_at = ? WHERE id = ?"
+    ).run(
+      opts.paymentDate || timestamp,
+      toMoney(Number(opts.paymentAmount || 0)),
+      `${opts.invoiceLabel || "Invoice payment"} ${opts.invoiceNumber ? `(${opts.invoiceNumber})` : ""}`.trim(),
+      opts.paymentMethod || "",
+      opts.clientName || "",
+      timestamp,
+      existingPaymentRecord.id
+    );
     return existingPaymentRecord.id;
   }
 
@@ -506,7 +518,7 @@ export function suggestLedgerImportMatch(input: {
 export function backfillLedgerInvoiceTransactions() {
   const db = getDb();
   const invoices = db
-    .prepare("SELECT id, client, label, method, status, amount, due_date, payment_schedule FROM invoices")
+    .prepare("SELECT id, client, label, method, status, amount, due_date, payment_schedule, updated_at FROM invoices")
     .all() as Array<Record<string, unknown>>;
 
   for (const invoice of invoices) {
@@ -517,6 +529,7 @@ export function backfillLedgerInvoiceTransactions() {
           amount: number;
           dueDate: string;
           status: string;
+          paidAt?: string;
           invoiceNumber: string;
         }>;
       } catch {
@@ -525,14 +538,45 @@ export function backfillLedgerInvoiceTransactions() {
     })();
 
     if (paymentSchedule.length > 0) {
-      paymentSchedule
+      const paymentSourceLookup = db.prepare(
+        "SELECT created_at FROM ledger_transactions WHERE invoice_id = ? AND source_id = ? AND direction = 'INCOME' LIMIT 1"
+      );
+      const recordedAt = new Date().toISOString();
+      let shouldSaveSchedule = false;
+      const scheduleWithPaidDates = paymentSchedule.map((payment) => {
+        if (payment.status !== "PAID" || payment.paidAt) {
+          return payment;
+        }
+
+        const existingLedgerEntry = paymentSourceLookup.get(
+          String(invoice.id),
+          `${String(invoice.id)}:${payment.id}`
+        ) as { created_at?: string } | undefined;
+        shouldSaveSchedule = true;
+
+        return {
+          ...payment,
+          // Old entries did not store a receipt date. The ledger record's creation time is the best available payment date.
+          paidAt: existingLedgerEntry?.created_at || recordedAt,
+        };
+      });
+
+      if (shouldSaveSchedule) {
+        db.prepare("UPDATE invoices SET payment_schedule = ?, updated_at = ? WHERE id = ?").run(
+          JSON.stringify(scheduleWithPaidDates),
+          recordedAt,
+          String(invoice.id)
+        );
+      }
+
+      scheduleWithPaidDates
         .filter((payment) => payment.status === "PAID")
         .forEach((payment) => {
           recordInvoicePaymentToLedger({
             invoiceId: String(invoice.id),
             paymentId: payment.id,
             paymentAmount: Number(payment.amount || 0),
-            paymentDate: payment.dueDate ? normalizeLedgerDate(payment.dueDate) : normalizeLedgerDate(String(invoice.due_date)),
+            paymentDate: normalizeLedgerDate(payment.paidAt || payment.dueDate || String(invoice.due_date)),
             paymentMethod: String(invoice.method || ""),
             invoiceLabel: String(invoice.label || ""),
             invoiceNumber: String(payment.invoiceNumber || ""),
@@ -548,7 +592,7 @@ export function backfillLedgerInvoiceTransactions() {
         invoiceId: String(invoice.id),
         paymentId: "paid-in-full",
         paymentAmount: Number(invoice.amount || 0),
-        paymentDate: normalizeLedgerDate(String(invoice.due_date || new Date().toISOString())),
+        paymentDate: normalizeLedgerDate(String(invoice.updated_at || invoice.due_date || new Date().toISOString())),
         paymentMethod: String(invoice.method || ""),
         invoiceLabel: String(invoice.label || ""),
         invoiceNumber: "Paid in full",

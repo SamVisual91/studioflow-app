@@ -121,6 +121,7 @@ function parsePaymentSchedule(input: string) {
           amount: Number(item.amount || 0),
           dueDate,
           status,
+          paidAt: status === "PAID" ? String(item.paidAt || "").trim() : "",
           invoiceNumber:
             String(item.invoiceNumber || "").trim() ||
             `#${String(item.id || "draft").slice(0, 6).toUpperCase()}-${String(index + 1).padStart(2, "0")}`,
@@ -4041,11 +4042,13 @@ export async function payClientInvoiceAction(formData: FormData) {
   }
 
   const paymentSchedule = parsePaymentSchedule(String(invoice.payment_schedule ?? "[]"));
+  const timestamp = new Date().toISOString();
   const nextPaymentSchedule = paymentSchedule.map((item) =>
     item.id === paymentId
         ? {
             ...item,
             status: "PAID",
+            paidAt: timestamp,
           }
       : item
   );
@@ -4055,7 +4058,6 @@ export async function payClientInvoiceAction(formData: FormData) {
   }
 
   const nextStatus = getInvoiceStatusFromSchedule(nextPaymentSchedule);
-  const timestamp = new Date().toISOString();
   db.prepare(
     "UPDATE invoices SET status = ?, payment_schedule = ?, updated_at = ? WHERE id = ?"
   ).run(nextStatus, JSON.stringify(nextPaymentSchedule), timestamp, String(invoice.id));
@@ -4107,11 +4109,13 @@ export async function submitClientExternalPaymentAction(formData: FormData) {
   }
 
   const paymentSchedule = parsePaymentSchedule(String(invoice.payment_schedule ?? "[]"));
+  const timestamp = new Date().toISOString();
   const nextPaymentSchedule = paymentSchedule.map((item) =>
     item.id === paymentId
         ? {
             ...item,
             status: "PAID",
+            paidAt: timestamp,
           }
         : item
   );
@@ -4120,7 +4124,6 @@ export async function submitClientExternalPaymentAction(formData: FormData) {
     redirect(`/invoice/${token}?error=payment-invalid`);
   }
 
-  const timestamp = new Date().toISOString();
   const nextStatus = getInvoiceStatusFromSchedule(nextPaymentSchedule);
   db.prepare("UPDATE invoices SET status = ?, payment_schedule = ?, updated_at = ? WHERE id = ?").run(
     nextStatus,
