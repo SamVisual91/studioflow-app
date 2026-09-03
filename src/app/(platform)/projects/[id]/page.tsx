@@ -58,6 +58,10 @@ function getProjectTabLabel(tab: ProjectTab) {
     return "Deliverables";
   }
 
+  if (tab === "financials") {
+    return "Invoice";
+  }
+
   return tab;
 }
 
