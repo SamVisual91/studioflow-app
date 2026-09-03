@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { savePackageBrochureAction, sendPackageBrochureAction } from "@/app/actions";
-import { currencyFormatter } from "@/lib/formatters";
+import { PackageBrochurePreview } from "@/components/package-brochure-preview";
 
 type BrochurePackage = {
   id: string;
@@ -56,44 +56,19 @@ export function PackageBrochureBuilder({
   const [closingNote, setClosingNote] = useState(initialClosingNote);
   const [coverImage, setCoverImage] = useState(initialCoverImage);
   const [recipientEmail, setRecipientEmail] = useState(initialRecipientEmail);
-  const [packageSource] = useState(initialPackageSource);
   const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>(
     initiallySelectedPackageIds.length > 0 ? initiallySelectedPackageIds : packages.map((item) => item.id)
   );
   const [packageDrafts, setPackageDrafts] = useState<BrochurePackage[]>(packages);
-  const [isEditingCover, setIsEditingCover] = useState(false);
 
   const previewPackages = useMemo(
-    () =>
-      packageDrafts
-        .filter((item) => selectedPackageIds.includes(item.id))
-        .map((item) => ({
-          ...item,
-          amount: Number(item.amount || 0),
-        })),
+    () => packageDrafts.filter((item) => selectedPackageIds.includes(item.id)),
     [packageDrafts, selectedPackageIds]
   );
 
-  const startingAt =
-    previewPackages.length > 0 ? Math.min(...previewPackages.map((item) => Number(item.amount || 0))) : 0;
-  const heroStyle = coverImage
-    ? {
-        backgroundImage: `linear-gradient(135deg, rgba(26,22,19,0.82), rgba(68,52,43,0.72)), url(${coverImage})`,
-      }
-    : {
-        backgroundImage: "linear-gradient(135deg,rgba(26,22,19,0.92),rgba(68,52,43,0.82))",
-      };
-
   function updatePackageDraft(packageId: string, next: Partial<BrochurePackage>) {
     setPackageDrafts((current) =>
-      current.map((item) =>
-        item.id === packageId
-          ? {
-              ...item,
-              ...next,
-            }
-          : item
-      )
+      current.map((item) => (item.id === packageId ? { ...item, ...next } : item))
     );
   }
 
@@ -109,310 +84,101 @@ export function PackageBrochureBuilder({
       <input name="category" type="hidden" value={category} />
       <input name="returnPath" type="hidden" value={returnPath} />
       <input name="selectionIntent" type="hidden" value="custom" />
-      <input name="packageSource" type="hidden" value={packageSource} />
+      <input name="packageSource" type="hidden" value={initialPackageSource} />
       <input name="title" type="hidden" value={title} />
       <input name="intro" type="hidden" value={intro} />
       <input name="closingNote" type="hidden" value={closingNote} />
       <input name="coverImage" type="hidden" value={coverImage} />
       <input name="recipientEmail" type="hidden" value={recipientEmail} />
       <input name="packageDrafts" type="hidden" value={JSON.stringify(packageDrafts)} />
-      {selectedPackageIds.map((packageId) => (
-        <input key={packageId} name="selectedPackageIds" type="hidden" value={packageId} />
-      ))}
+      {selectedPackageIds.map((packageId) => <input key={packageId} name="selectedPackageIds" type="hidden" value={packageId} />)}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Live brochure preview</p>
-          <h2 className="mt-2 text-xl font-semibold">Click directly on the brochure to edit it</h2>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            className="border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
-            formAction={savePackageBrochureAction}
-          >
-            Save brochure
-          </button>
-          <button
-            className="bg-[var(--sidebar)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
-            formAction={sendPackageBrochureAction}
-          >
-            Send brochure to client
-          </button>
-        </div>
-      </div>
-
-      <div className="grid gap-3 rounded-[1.35rem] border border-black/[0.08] bg-white/84 p-5 shadow-[0_14px_36px_rgba(59,36,17,0.06)]">
-        <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Delivery email</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            This is the inbox the package brochure will be sent to. Double-check it before you click send.
+          <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Client package studio</p>
+          <h2 className="mt-2 text-2xl font-semibold text-[var(--ink)]">Edit the details. See the client view live.</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+            Everything here belongs only to {clientName}&apos;s project package. Your master templates are never changed.
           </p>
         </div>
-        <label className="grid gap-2 text-sm font-semibold text-[var(--ink)]">
-          Client email
-          <input
-            className="rounded-xl border border-black/[0.08] bg-white px-4 py-3 text-sm"
-            onChange={(event) => setRecipientEmail(event.target.value)}
-            placeholder="client@email.com"
-            type="email"
-            value={recipientEmail}
-          />
-        </label>
-      </div>
-
-      <div
-        className="overflow-hidden border border-black/[0.08] bg-cover bg-center text-white shadow-[0_30px_80px_rgba(36,24,14,0.16)]"
-        style={heroStyle}
-      >
-        <div className="grid gap-8 px-8 py-10 lg:grid-cols-[1.2fr_0.8fr] lg:px-10 lg:py-12">
-          <div className="grid gap-5">
-            <p className="text-xs uppercase tracking-[0.32em] text-white/66">{category} brochure</p>
-            <input
-              className="border-0 bg-transparent p-0 font-display text-[clamp(2.8rem,6vw,5.25rem)] leading-[0.96] text-white outline-none placeholder:text-white/80"
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder={`${projectName}`}
-              value={title}
-            />
-            <textarea
-              className="min-h-24 max-w-2xl resize-none border-0 bg-transparent p-0 text-base leading-8 text-white/76 outline-none placeholder:text-white/64 sm:text-lg"
-              onChange={(event) => setIntro(event.target.value)}
-              placeholder={`Introduce the ${category.toLowerCase()} brochure here.`}
-              value={intro}
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                className="border border-white/16 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/16"
-                onClick={() => setIsEditingCover((value) => !value)}
-                type="button"
-              >
-                {coverImage ? "Change banner" : "Add banner"}
-              </button>
-              <span className="text-xs uppercase tracking-[0.18em] text-white/58">
-                {clientName} brochure preview
-              </span>
-            </div>
-            {isEditingCover ? (
-              <input
-                className="max-w-xl border border-white/16 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/58"
-                onChange={(event) => setCoverImage(event.target.value)}
-                placeholder="Paste banner image URL"
-                value={coverImage}
-              />
-            ) : null}
-          </div>
-
-          <div className="grid content-start gap-4 border border-white/10 bg-white/8 p-6">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-white/58">Included collections</p>
-              <p className="mt-3 text-4xl font-semibold">{previewPackages.length}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-white/58">Starting at</p>
-              <p className="mt-3 text-2xl font-semibold">
-                {previewPackages.length > 0 ? currencyFormatter.format(startingAt) : "Select packages"}
-              </p>
-            </div>
-            <textarea
-              className="min-h-28 resize-none border-0 bg-transparent p-0 text-sm leading-7 text-white/68 outline-none placeholder:text-white/56"
-              onChange={(event) => setClosingNote(event.target.value)}
-              placeholder="Add a short note that appears in the hero panel."
-              value={closingNote}
-            />
-            <div className="grid gap-2 border-t border-white/10 pt-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-white/58">Send to</p>
-              <input
-                className="border border-white/12 bg-white/10 px-3 py-2 text-sm text-white outline-none placeholder:text-white/56"
-                onChange={(event) => setRecipientEmail(event.target.value)}
-                placeholder="client@example.com"
-                type="email"
-                value={recipientEmail}
-              />
-            </div>
-          </div>
+        <div className="flex flex-wrap gap-3">
+          <button className="border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]" formAction={savePackageBrochureAction}>
+            Save draft
+          </button>
+          <button className="bg-[var(--sidebar)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110" formAction={sendPackageBrochureAction}>
+            Send to client
+          </button>
         </div>
       </div>
 
-      <div className="grid gap-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Included packages</p>
-            <h3 className="mt-2 text-xl font-semibold">Toggle packages on or off right here</h3>
-          </div>
-          <p className="text-sm text-[var(--muted)]">{previewPackages.length} selected</p>
+      <div className="grid items-start gap-6 xl:grid-cols-[21rem_minmax(0,1fr)]">
+        <aside className="grid gap-5 xl:sticky xl:top-6">
+          <section className="grid gap-4 border border-black/[0.08] bg-white p-5 shadow-[0_14px_36px_rgba(59,36,17,0.06)]">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Brochure details</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">These fields update the client preview immediately.</p>
+            </div>
+            <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">Title<input className="border border-black/[0.08] px-3 py-2.5 text-sm" onChange={(event) => setTitle(event.target.value)} value={title} /></label>
+            <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">Welcome message<textarea className="min-h-28 resize-y border border-black/[0.08] px-3 py-2.5 text-sm leading-6" onChange={(event) => setIntro(event.target.value)} value={intro} /></label>
+            <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">Closing note<textarea className="min-h-24 resize-y border border-black/[0.08] px-3 py-2.5 text-sm leading-6" onChange={(event) => setClosingNote(event.target.value)} value={closingNote} /></label>
+            <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">Banner image URL<input className="border border-black/[0.08] px-3 py-2.5 text-sm" onChange={(event) => setCoverImage(event.target.value)} placeholder="https://..." value={coverImage} /></label>
+          </section>
+
+          <section className="grid gap-4 border border-black/[0.08] bg-white p-5 shadow-[0_14px_36px_rgba(59,36,17,0.06)]">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Delivery</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">The email address used when you send this package.</p>
+            </div>
+            <label className="grid gap-2 text-sm font-medium text-[var(--ink)]">Client email<input className="border border-black/[0.08] px-3 py-2.5 text-sm" onChange={(event) => setRecipientEmail(event.target.value)} placeholder="client@email.com" type="email" value={recipientEmail} /></label>
+          </section>
+
+          <section className="grid gap-3 border border-black/[0.08] bg-white p-5 shadow-[0_14px_36px_rgba(59,36,17,0.06)]">
+            <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Collections shown</p>
+            {packageDrafts.map((pkg) => {
+              const isIncluded = selectedPackageIds.includes(pkg.id);
+              return (
+                <button key={pkg.id} className={`flex items-center justify-between gap-3 border px-3 py-3 text-left text-sm transition ${isIncluded ? "border-[rgba(47,125,92,0.28)] bg-[rgba(47,125,92,0.08)] text-[var(--forest)]" : "border-black/[0.08] bg-white text-[var(--muted)]"}`} onClick={() => togglePackage(pkg.id)} type="button">
+                  <span className="min-w-0 truncate font-semibold">{pkg.name || "Untitled package"}</span>
+                  <span className="shrink-0 text-xs uppercase tracking-[0.14em]">{isIncluded ? "Shown" : "Hidden"}</span>
+                </button>
+              );
+            })}
+          </section>
+        </aside>
+
+        <div className="grid gap-6">
+          <section className="overflow-hidden border border-black/[0.10] bg-[linear-gradient(180deg,#f8f3ed_0%,#f3ece3_42%,#ffffff_100%)] p-4 shadow-[0_20px_60px_rgba(59,36,17,0.10)] sm:p-6">
+            <div className="mb-5 flex items-center justify-between gap-4 border-b border-black/[0.08] pb-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Live client preview</p>
+                <p className="mt-1 text-sm text-[var(--muted)]">This is the same brochure layout your client receives.</p>
+              </div>
+              <span className="border border-[rgba(47,125,92,0.22)] bg-[rgba(47,125,92,0.08)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--forest)]">Private draft</span>
+            </div>
+            {previewPackages.length > 0 ? (
+              <PackageBrochurePreview category={category} clientName={clientName} closingNote={closingNote} coverImage={coverImage} coverPosition={previewPackages[0]?.coverPosition || "50% 50%"} intro={intro} packages={previewPackages} projectName={projectName} title={title} />
+            ) : (
+              <div className="grid min-h-80 place-items-center bg-white px-6 text-center text-sm leading-7 text-[var(--muted)]">Choose at least one collection from the left to preview the client brochure.</div>
+            )}
+          </section>
+
+          <section className="grid gap-4 border border-black/[0.08] bg-white p-5 shadow-[0_14px_36px_rgba(59,36,17,0.06)]">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Client package details</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Edit each project-owned collection without changing the master library.</p>
+            </div>
+            {packageDrafts.map((pkg) => (
+              <article key={pkg.id} className="grid gap-4 border border-black/[0.08] bg-[rgba(247,241,232,0.42)] p-4 lg:grid-cols-[minmax(0,1fr)_9rem]">
+                <div className="grid gap-3">
+                  <input className="border border-black/[0.08] bg-white px-3 py-2.5 text-base font-semibold" onChange={(event) => updatePackageDraft(pkg.id, { name: event.target.value })} value={pkg.name} />
+                  <textarea className="min-h-20 resize-y border border-black/[0.08] bg-white px-3 py-2.5 text-sm leading-6" onChange={(event) => updatePackageDraft(pkg.id, { description: event.target.value })} value={pkg.description} />
+                  <textarea className="min-h-24 resize-y border border-black/[0.08] bg-white px-3 py-2.5 text-sm leading-6" onChange={(event) => updatePackageDraft(pkg.id, { sections: event.target.value.split("\n").map((item) => item.trim()).filter(Boolean) })} placeholder="One included item per line" value={pkg.sections.join("\n")} />
+                </div>
+                <label className="grid content-start gap-2 text-sm font-medium text-[var(--ink)]">Price<div className="flex items-center border border-black/[0.08] bg-white px-3"><span className="text-[var(--muted)]">$</span><input className="w-full bg-transparent py-2.5 pl-1 text-base font-semibold outline-none" min="0" onChange={(event) => updatePackageDraft(pkg.id, { amount: Number(event.target.value || 0) })} type="number" value={Number(pkg.amount || 0)} /></div></label>
+              </article>
+            ))}
+          </section>
         </div>
-
-        <section className="grid gap-4 border border-black/[0.08] bg-white p-5 shadow-[0_16px_34px_rgba(59,36,17,0.07)]">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Choose packages for this brochure</p>
-            <p className="mt-2 text-sm leading-7 text-[var(--muted)]">
-              Click a package below to include or hide it from the final brochure.
-            </p>
-          </div>
-
-          {packages.length === 0 ? (
-            <div className="border border-dashed border-black/[0.12] bg-[rgba(247,241,232,0.42)] px-4 py-5 text-sm leading-7 text-[var(--muted)]">
-              No packages were found for this category yet. Add packages in the package manager first, then come back here.
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-3">
-              {packageDrafts.map((pkg) => {
-                const isIncluded = selectedPackageIds.includes(pkg.id);
-                return (
-                  <button
-                    key={`quick-toggle-${pkg.id}`}
-                    className={`px-4 py-3 text-left text-sm font-semibold transition ${
-                      isIncluded
-                        ? "bg-[var(--forest)] text-white"
-                        : "border border-black/[0.08] bg-[rgba(247,241,232,0.42)] text-[var(--ink)] hover:border-[var(--forest)]"
-                    }`}
-                    onClick={() => togglePackage(pkg.id)}
-                    type="button"
-                  >
-                    {pkg.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {packageDrafts.map((pkg, index) => {
-          const isIncluded = selectedPackageIds.includes(pkg.id);
-          const displayName = pkg.name;
-          const displayDescription = pkg.description;
-          const displayAmount = Number(pkg.amount || 0);
-
-          return (
-            <article
-              key={pkg.id}
-              className={`overflow-hidden border shadow-[0_20px_60px_rgba(36,24,14,0.08)] transition ${
-                isIncluded
-                  ? "border-black/[0.08] bg-white"
-                  : "border-black/[0.06] bg-[rgba(247,241,232,0.34)] opacity-65"
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.06] px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <button
-                    className={`px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
-                      isIncluded
-                        ? "bg-[var(--forest)] text-white"
-                        : "border border-black/[0.08] bg-white text-[var(--ink)]"
-                    }`}
-                    onClick={() => togglePackage(pkg.id)}
-                    type="button"
-                  >
-                    {isIncluded ? "Included" : "Hidden"}
-                  </button>
-                  <p className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                    Collection {String(index + 1).padStart(2, "0")}
-                  </p>
-                </div>
-                <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-                  Click the text below to edit
-                </p>
-              </div>
-
-              <div className="grid gap-6 px-6 py-6 lg:grid-cols-[0.9fr_0.55fr] lg:px-8">
-                <div className="grid gap-4">
-                  <input
-                    className="border-0 bg-transparent p-0 text-3xl font-semibold outline-none"
-                    disabled={!isIncluded}
-                    onChange={(event) => updatePackageDraft(pkg.id, { name: event.target.value })}
-                    value={displayName}
-                  />
-                  <textarea
-                    className="min-h-24 resize-none border-0 bg-transparent p-0 text-sm leading-7 text-[var(--muted)] outline-none"
-                    disabled={!isIncluded}
-                    onChange={(event) => updatePackageDraft(pkg.id, { description: event.target.value })}
-                    value={displayDescription}
-                  />
-                </div>
-
-                <div className="grid content-start gap-2 border border-black/[0.06] bg-[rgba(247,241,232,0.62)] p-5">
-                  <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Investment</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-3xl font-semibold text-[var(--accent)]">$</span>
-                    <input
-                      className="w-full border-0 bg-transparent p-0 text-3xl font-semibold text-[var(--accent)] outline-none"
-                      disabled={!isIncluded}
-                      min="0"
-                      onChange={(event) => updatePackageDraft(pkg.id, { amount: Number(event.target.value || 0) })}
-                      type="number"
-                      value={displayAmount}
-                    />
-                  </div>
-                  <p className="text-sm leading-7 text-[var(--muted)]">
-                    Final package customizations can always be adjusted before booking.
-                  </p>
-                </div>
-              </div>
-
-              {isIncluded ? (
-                <div className="grid gap-8 border-t border-black/[0.06] px-6 py-6 lg:grid-cols-[0.78fr_1.22fr] lg:px-8">
-                  <div className="grid gap-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">What&apos;s included</p>
-                      <div className="mt-4 grid gap-3">
-                        {pkg.sections.length > 0 ? (
-                          pkg.sections.map((section) => (
-                            <div
-                              key={section}
-                              className="border border-black/[0.06] bg-[rgba(247,241,232,0.54)] px-4 py-3 text-sm font-medium leading-6"
-                            >
-                              {section}
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm leading-7 text-[var(--muted)]">No package sections added yet.</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">Package breakdown</p>
-                    <div className="mt-4 overflow-hidden border border-black/[0.06]">
-                      <table className="min-w-full border-collapse text-left">
-                        <thead className="bg-[rgba(247,241,232,0.62)] text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-                          <tr>
-                            <th className="px-4 py-3 font-semibold">Item</th>
-                            <th className="px-4 py-3 font-semibold">Description</th>
-                            <th className="px-4 py-3 text-right font-semibold">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pkg.lineItems.length > 0 ? (
-                            pkg.lineItems.map((item) => (
-                              <tr
-                                key={`${pkg.id}-${item.title}-${item.amount}`}
-                                className="border-t border-black/[0.06]"
-                              >
-                                <td className="px-4 py-4 text-sm font-semibold">{item.title || "Line item"}</td>
-                                <td className="px-4 py-4 text-sm leading-7 text-[var(--muted)]">
-                                  {item.description || "Package detail"}
-                                </td>
-                                <td className="px-4 py-4 text-right text-sm font-semibold">
-                                  {currencyFormatter.format(Number(item.amount || 0))}
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr className="border-t border-black/[0.06]">
-                              <td className="px-4 py-4 text-sm text-[var(--muted)]" colSpan={3}>
-                                No line items added yet.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </article>
-          );
-        })}
       </div>
     </form>
   );
