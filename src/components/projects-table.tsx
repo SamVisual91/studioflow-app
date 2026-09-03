@@ -45,13 +45,29 @@ const desktopProjectGrid =
   "grid-cols-[minmax(16rem,18rem)_minmax(12rem,14rem)_7rem_9rem_9rem_minmax(16rem,1fr)_9rem_auto]";
 
 function getProjectStatus(phase: string) {
-  return String(phase || "").trim().toUpperCase() === "DISMISSED" ? "DISMISSED" : "BOOKED";
+  const normalizedPhase = String(phase || "").trim().toUpperCase();
+
+  if (normalizedPhase === "DISMISSED") {
+    return "DISMISSED";
+  }
+
+  if (["POTENTIAL", "INQUIRY", "LEAD", "FOLLOW_UP", "PROPOSAL"].includes(normalizedPhase)) {
+    return "POTENTIAL";
+  }
+
+  return "BOOKED";
 }
 
 function statusTone(status: string) {
-  return status === "DISMISSED"
-    ? "border-[rgba(207,114,79,0.2)] bg-[rgba(207,114,79,0.12)] text-[#cf724f]"
-    : "border-[rgba(47,125,92,0.2)] bg-[rgba(47,125,92,0.12)] text-[#2f7d5c]";
+  if (status === "DISMISSED") {
+    return "border-[rgba(207,114,79,0.2)] bg-[rgba(207,114,79,0.12)] text-[#cf724f]";
+  }
+
+  if (status === "POTENTIAL") {
+    return "border-[rgba(59,130,246,0.2)] bg-[rgba(59,130,246,0.10)] text-[#2563eb]";
+  }
+
+  return "border-[rgba(47,125,92,0.2)] bg-[rgba(47,125,92,0.12)] text-[#2f7d5c]";
 }
 
 function ProjectTypeIcon({ type }: { type: string }) {
@@ -468,6 +484,8 @@ export function ProjectsTable({ projects, activeStages, unavailableDates, userRo
                         ? statusTone(stage)
                         : stage === "DISMISSED"
                           ? "border-[rgba(207,114,79,0.12)] text-[#cf724f] hover:bg-[rgba(207,114,79,0.06)]"
+                          : stage === "POTENTIAL"
+                            ? "border-[rgba(59,130,246,0.12)] text-[#2563eb] hover:bg-[rgba(59,130,246,0.06)]"
                           : "border-[rgba(47,125,92,0.12)] text-[#2f7d5c] hover:bg-[rgba(47,125,92,0.06)]"
                     }`}
                   >

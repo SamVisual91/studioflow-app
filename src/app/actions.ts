@@ -2476,7 +2476,7 @@ export async function createProjectClientAction(formData: FormData) {
     projectName,
     resolvedClientName,
     0,
-    "Inquiry",
+    "POTENTIAL",
     publicPortalToken,
     category,
     projectDate,
@@ -4684,13 +4684,19 @@ export async function updateProjectPipelineAction(formData: FormData) {
   const projectId = getString(formData, "projectId");
   const phase = getString(formData, "phase");
 
-  if (!projectId || !phase) {
+  const validPhases = ["POTENTIAL", "BOOKED", "DISMISSED"];
+  if (!projectId || !validPhases.includes(phase)) {
     redirect("/projects?error=project-phase-invalid");
   }
 
   const db = getDb();
   const timestamp = new Date().toISOString();
-  const recentLabel = phase === "DISMISSED" ? "Project marked dismissed" : "Project marked booked";
+  const recentLabel =
+    phase === "DISMISSED"
+      ? "Project marked dismissed"
+      : phase === "POTENTIAL"
+        ? "Project marked potential"
+        : "Project marked booked";
 
   db.prepare(
     "UPDATE projects SET phase = ?, stage_moved_at = ?, recent_activity = ?, updated_at = ? WHERE id = ?"

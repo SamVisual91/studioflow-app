@@ -5,7 +5,7 @@ import { ProjectsTable } from "@/components/projects-table";
 import { getDashboardPageData } from "@/lib/dashboard-page";
 import { canCreateProjects } from "@/lib/roles";
 
-const stageOrder = ["BOOKED", "DISMISSED"];
+const stageOrder = ["POTENTIAL", "BOOKED", "DISMISSED"];
 const activeStages = [...stageOrder];
 const sortOptions = {
   recent: "Recently updated",
@@ -15,6 +15,7 @@ const sortOptions = {
   stage: "Status",
 } as const;
 const viewOptions = [
+  { value: "potential", label: "POTENTIAL" },
   { value: "booked", label: "BOOKED" },
   { value: "dismissed", label: "DISMISSED" },
   { value: "archived", label: "Archived" },
@@ -28,6 +29,15 @@ const stageCardStyles: Record<
     icon: React.ReactNode;
   }
 > = {
+  POTENTIAL: {
+    accent: "bg-[rgba(59,130,246,0.14)] text-[#2563eb]",
+    icon: (
+      <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 8v4l2.5 2.5" />
+      </svg>
+    ),
+  },
   BOOKED: {
     accent: "bg-[rgba(47,125,92,0.16)] text-[#2f7d5c]",
     icon: (
@@ -50,7 +60,17 @@ const stageCardStyles: Record<
 };
 
 function getProjectStatus(phase: string) {
-  return String(phase || "").trim().toUpperCase() === "DISMISSED" ? "DISMISSED" : "BOOKED";
+  const normalizedPhase = String(phase || "").trim().toUpperCase();
+
+  if (normalizedPhase === "DISMISSED") {
+    return "DISMISSED";
+  }
+
+  if (["POTENTIAL", "INQUIRY", "LEAD", "FOLLOW_UP", "PROPOSAL"].includes(normalizedPhase)) {
+    return "POTENTIAL";
+  }
+
+  return "BOOKED";
 }
 
 function matchesSearch(value: string, query: string) {
@@ -89,7 +109,7 @@ export default async function ProjectsPage({
   const stageFilter = String(params.stage ?? "").trim();
   const typeFilter = String(params.type ?? "").trim();
   const sourceFilter = String(params.source ?? "").trim();
-  const viewFilter = String(params.view ?? "booked").trim();
+  const viewFilter = String(params.view ?? "all").trim();
   const sortFilter = String(params.sort ?? "recent").trim();
   const hasActiveFilters = Boolean(stageFilter || typeFilter || sourceFilter);
   const errorMessage =
@@ -145,9 +165,9 @@ export default async function ProjectsPage({
       viewFilter === "all" ||
       (viewFilter === "archived"
         ? Boolean(project.archivedAt)
-        : viewFilter === "dismissed"
-          ? !project.archivedAt && projectStatus === "DISMISSED"
-          : !project.archivedAt && projectStatus === "BOOKED");
+        : !project.archivedAt &&
+          projectStatus ===
+            (viewFilter === "potential" ? "POTENTIAL" : viewFilter === "dismissed" ? "DISMISSED" : "BOOKED"));
 
     return matchesQuery && matchesStage && matchesType && matchesSource && matchesView;
   });
@@ -410,29 +430,19 @@ export default async function ProjectsPage({
             </form>
           </div>
 
-          <div className="mt-4 grid gap-2.5 md:grid-cols-2">
-            {stageCounts.map((item, index) => (
+          <div className="mt-4 grid gap-2.5 md:grid-cols-3">
+            {stageCounts.map((item) => (
               <article
                 key={item.label}
-                className={`border px-4 py-3 transition hover:-translate-y-0.5 ${
-                  index === stageCounts.length - 1
-                    ? "border-[#263245] bg-[linear-gradient(180deg,#31415a,#243043)] text-white shadow-[0_14px_28px_rgba(36,48,67,0.16)]"
-                    : "border-[#e2e8f2] bg-white shadow-[0_8px_18px_rgba(31,27,24,0.04)]"
-                }`}
+                className="border border-[#e2e8f2] bg-white px-4 py-3 shadow-[0_8px_18px_rgba(31,27,24,0.04)] transition hover:-translate-y-0.5"
               >
                 <div className="flex items-center gap-3">
-                  {index !== stageCounts.length - 1 ? (
-                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${stageCardStyles[item.label]?.accent || "bg-[rgba(15,23,42,0.08)] text-[var(--ink)]"}`}>
-                      {stageCardStyles[item.label]?.icon}
-                    </span>
-                  ) : null}
+                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${stageCardStyles[item.label]?.accent || "bg-[rgba(15,23,42,0.08)] text-[var(--ink)]"}`}>
+                    {stageCardStyles[item.label]?.icon}
+                  </span>
                   <div>
-                    <p className={`text-[2rem] font-semibold leading-none ${index === stageCounts.length - 1 ? "text-white" : "text-[var(--ink)]"}`}>
-                      {item.count}
-                    </p>
-                    <p className={`mt-1.5 text-[0.8rem] leading-5 ${index === stageCounts.length - 1 ? "text-white/72" : "text-[var(--muted)]"}`}>
-                      {item.label}
-                    </p>
+                    <p className="text-[2rem] font-semibold leading-none text-[var(--ink)]">{item.count}</p>
+                    <p className="mt-1.5 text-[0.8rem] leading-5 text-[var(--muted)]">{item.label}</p>
                   </div>
                 </div>
               </article>
