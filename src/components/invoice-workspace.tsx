@@ -335,7 +335,7 @@ export function InvoiceWorkspace({
     updateLineItem(index, "image", nextImage);
   }
 
-  function updateGrandTotal(value: string) {
+  function updateInvoiceAmount(value: string) {
     const parsed = Number(value);
 
     if (Number.isNaN(parsed) || parsed < 0 || lineItems.length === 0) {
@@ -344,7 +344,8 @@ export function InvoiceWorkspace({
 
     markAutosaveDirty();
 
-    const targetSubtotal = parsed - taxAmount;
+    // The entered invoice amount is before tax; tax is added separately below.
+    const targetSubtotal = parsed;
     const otherItemsTotal = lineItems.slice(0, -1).reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const lastItemAmount = Math.max(0, Math.round((targetSubtotal - otherItemsTotal) * 100) / 100);
 
@@ -576,8 +577,15 @@ export function InvoiceWorkspace({
 
           <div className="mt-8 ml-auto max-w-sm border-t border-black/[0.08] pt-6 text-sm">
             <div className="flex items-center justify-between py-3 text-[var(--muted)]">
-              <span>Subtotal</span>
-              <span>${subtotal.toLocaleString()}</span>
+              <span>Invoice amount</span>
+              <div className="flex items-center gap-1 text-[var(--ink)]">
+                <span>$</span>
+                <CurrencyInput
+                  className="w-28 bg-transparent text-right font-medium outline-none"
+                  onValueChange={(value) => updateInvoiceAmount(String(value))}
+                  value={Math.round(subtotal * 100) / 100}
+                />
+              </div>
             </div>
             <div className="flex items-center justify-between py-3 text-[var(--muted)]">
               <span>Tax</span>
@@ -594,19 +602,14 @@ export function InvoiceWorkspace({
                   value={taxRate}
                 />
                 <span>%</span>
-                <span>${taxAmount.toLocaleString()}</span>
+                <span>
+                  ${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               </div>
             </div>
             <div className="mt-2 flex items-center justify-between border-t-2 border-[var(--ink)] pt-4 text-2xl font-semibold">
-              <span>Grand Total</span>
-              <div className="flex items-center gap-1">
-                <span>$</span>
-                <CurrencyInput
-                  className="w-28 bg-transparent text-right outline-none"
-                  onValueChange={(value) => updateGrandTotal(String(value))}
-                  value={Math.round(grandTotal * 100) / 100}
-                />
-              </div>
+              <span>Total due</span>
+              <span>${grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </div>
         </div>
