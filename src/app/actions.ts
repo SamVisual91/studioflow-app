@@ -2685,6 +2685,8 @@ export async function sendProjectMessageAction(formData: FormData) {
     const reason =
       error instanceof Error && error.message === "SMTP_NOT_CONFIGURED"
         ? "smtp-missing"
+        : error instanceof Error && error.message === "SMTP_AUTH_FAILED"
+          ? "smtp-auth-failed"
         : "message-send-failed";
     redirect(`/projects/${projectId}?tab=activity&error=${reason}`);
   }

@@ -8,10 +8,8 @@ import {
   updateProjectInfoAction,
   updateAdditionalProjectContactAction,
   updateProjectContactAction,
-  updateProjectDetailsAction,
   updateProjectFilesAction,
   updateProjectMetaAction,
-  updateProjectTasksAction,
   updateUserAvatarAction,
 } from "@/app/actions";
 import { ProjectActivityTimeline } from "@/components/project-activity-timeline";
@@ -48,86 +46,9 @@ function getProjectStatus(phase: string) {
   return String(phase || "").trim().toUpperCase() === "DISMISSED" ? "DISMISSED" : "BOOKED";
 }
 
-const taskTemplates = {
-  wedding: {
-    label: "Wedding workflow",
-    nextMilestone: "Send planning questionnaire",
-    tasks: [
-      "Send proposal and contract",
-      "Collect retainer",
-      "Send wedding questionnaire",
-      "Schedule planning call",
-      "Confirm venue and timeline",
-      "Request family shot list",
-      "Confirm vendor team",
-      "Prepare gear and backups",
-      "Capture wedding day coverage",
-      "Cull photos and footage",
-      "Edit preview gallery or teaser",
-      "Deliver final gallery or film",
-      "Request testimonial",
-    ],
-  },
-  business: {
-    label: "Business workflow",
-    nextMilestone: "Confirm campaign goals",
-    tasks: [
-      "Schedule discovery call",
-      "Define scope and deliverables",
-      "Send proposal and invoice",
-      "Collect deposit",
-      "Gather brand assets",
-      "Confirm shoot goals",
-      "Create shot list",
-      "Schedule production day",
-      "Film or photograph content",
-      "Edit first draft",
-      "Send review link",
-      "Collect feedback",
-      "Apply final revisions",
-      "Deliver final assets",
-    ],
-  },
-  photo: {
-    label: "Photo session",
-    nextMilestone: "Confirm session details",
-    tasks: [
-      "Confirm location and session time",
-      "Send wardrobe guidance",
-      "Collect inspiration images",
-      "Finalize shot list",
-      "Prepare gear and backup cards",
-      "Photograph session",
-      "Cull final selects",
-      "Edit gallery",
-      "Send preview images",
-      "Deliver final gallery",
-    ],
-  },
-  video: {
-    label: "Video project",
-    nextMilestone: "Finalize production plan",
-    tasks: [
-      "Confirm creative brief",
-      "Approve script or outline",
-      "Finalize shoot schedule",
-      "Confirm locations and permits",
-      "Prepare gear and audio setup",
-      "Capture production day",
-      "Ingest and back up footage",
-      "Edit rough cut",
-      "Send review version",
-      "Apply revisions",
-      "Export final deliverables",
-      "Deliver final files",
-    ],
-  },
-} as const;
-
-const projectTabs = ["activity", "info", "files", "tasks", "financials", "details", "deliverables"] as const;
+const projectTabs = ["activity", "info", "files", "financials", "deliverables"] as const;
 
 type ProjectTab = (typeof projectTabs)[number];
-type TaskTemplateKey = keyof typeof taskTemplates;
 
 function getCoverImage(type: string) {
   return coverImages[type] || "https://source.unsplash.com/1800x900/?creative,project,editorial";
@@ -186,13 +107,10 @@ export default async function ProjectClientPage({
     messageDeleted?: string;
     paywallDeleted?: string;
     deliverableUploaded?: string;
-    tasks?: string;
-    template?: string;
     contact?: string;
     participant?: string;
     avatarUpdated?: string;
     invoice?: string;
-    details?: string;
     info?: string;
     updated?: string;
     error?: string;
@@ -201,8 +119,6 @@ export default async function ProjectClientPage({
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const requestedTab = (query.tab || "").toLowerCase();
-  const requestedTemplate = (query.template || "").toLowerCase() as TaskTemplateKey;
-  const selectedTaskTemplate = requestedTemplate in taskTemplates ? taskTemplates[requestedTemplate] : null;
 
   const dashboardPageData = await getDashboardPageData();
   const { user } = dashboardPageData;
@@ -480,14 +396,10 @@ export default async function ProjectClientPage({
               ? "Deliverable uploaded successfully."
       : query.files
         ? "File notes updated successfully."
-        : query.tasks
-          ? "Tasks updated successfully."
-          : query.info
+        : query.info
             ? "Project info updated successfully."
           : query.invoice
             ? "Invoice created successfully."
-            : query.details
-              ? "Client details updated successfully."
       : query.updated
         ? "Project details updated successfully."
         : syncResult && syncResult.imported > 0
@@ -497,6 +409,8 @@ export default async function ProjectClientPage({
   const errorMessage =
     query.error === "smtp-missing"
       ? "SMTP is not configured yet, so the email could not be sent."
+      : query.error === "smtp-auth-failed"
+        ? "Gmail rejected the saved app password. Generate a new Gmail app password, update SMTP_PASS, then restart the app."
       : query.error === "message-send-failed"
         ? "The email could not be sent. Double-check the client email and SMTP settings."
         : query.error === "portal-send-failed"
@@ -533,9 +447,7 @@ export default async function ProjectClientPage({
                 ? "The package brochure email could not be sent right now."
                 : query.error === "files-invalid"
                   ? "Add file notes before saving the Files tab."
-                : query.error === "tasks-invalid"
-                  ? "Add a milestone, progress value, and at least one task."
-                  : query.error === "invoice-invalid"
+                : query.error === "invoice-invalid"
                     ? "Fill out every invoice field before creating it."
                     : query.error === "deliverable-invalid"
                       ? "Add a title and choose a deliverable file before uploading."
@@ -543,9 +455,7 @@ export default async function ProjectClientPage({
                         ? "Choose a video file for the video deliverable upload."
                         : query.error === "deliverable-photo-type"
                           ? "Choose an image file for the photo deliverable upload."
-        : query.error === "details-invalid"
-                      ? "Fill out every client detail before saving."
-                      : syncResult?.error
+        : syncResult?.error
                         ? "Inbox sync could not reach Gmail right now. The page still loaded, but new replies were not imported this time."
                         : "";
 
@@ -963,7 +873,7 @@ export default async function ProjectClientPage({
                       <article className="rounded-[1.35rem] bg-[rgba(247,241,232,0.52)] p-4">
                         <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">Live source fields</p>
                         <p className="mt-2 text-sm leading-7 text-[var(--muted)]">
-                          This summary still starts from the project details tab, selected package data, invoice totals, and payment schedule records. Saving here lets you refine the quick-reference version without hunting through multiple tabs.
+                          This summary combines your project record, selected package data, invoice totals, and payment schedule records. Saving here lets you refine the quick-reference version in one place.
                         </p>
                       </article>
                     </div>
@@ -1075,84 +985,6 @@ export default async function ProjectClientPage({
               </div>
             ) : null}
 
-            {activeTab === "tasks" ? (
-              <form action={updateProjectTasksAction} className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
-                <input name="projectId" type="hidden" value={project.id} />
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Tasks</p>
-                    <h2 className="mt-3 text-2xl font-semibold">Milestones and next steps</h2>
-                  </div>
-                  <p className="text-sm text-[var(--muted)]">{project.progress}% complete</p>
-                </div>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  {Object.entries(taskTemplates).map(([key, template]) => (
-                    <Link
-                      key={key}
-                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                        requestedTemplate === key
-                          ? "border-[var(--accent)] bg-[rgba(207,114,79,0.10)] text-[var(--accent)]"
-                          : "border-black/[0.08] bg-white text-[var(--ink)] hover:bg-black/[0.03]"
-                      }`}
-                      href={`/projects/${project.id}?tab=tasks&template=${key}`}
-                    >
-                      {template.label}
-                    </Link>
-                  ))}
-                </div>
-                {selectedTaskTemplate ? (
-                  <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
-                    Template loaded: {selectedTaskTemplate.label}. You can edit anything before saving.
-                  </p>
-                ) : (
-                  <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
-                    Pick a workflow template or keep using your custom task list.
-                  </p>
-                )}
-                <div className="mt-6 h-3 overflow-hidden rounded-full bg-black/[0.07]">
-                  <div
-                    className="h-full rounded-full bg-[linear-gradient(90deg,#cf724f,#f2c27e)]"
-                    style={{ width: `${project.progress}%` }}
-                  />
-                </div>
-                <div className="mt-6 grid gap-4">
-                  <label className="grid gap-2 text-sm font-medium">
-                    Next milestone
-                    <input
-                      className="rounded-2xl border border-black/[0.08] px-4 py-3"
-                      defaultValue={selectedTaskTemplate?.nextMilestone || project.nextMilestone}
-                      name="nextMilestone"
-                      required
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium">
-                    Progress
-                    <input
-                      className="rounded-2xl border border-black/[0.08] px-4 py-3"
-                      defaultValue={project.progress}
-                      max="100"
-                      min="0"
-                      name="progress"
-                      required
-                      type="number"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium">
-                    Tasks
-                    <textarea
-                      className="min-h-48 rounded-2xl border border-black/[0.08] px-4 py-3"
-                      defaultValue={selectedTaskTemplate?.tasks.join("\n") || project.tasks.join("\n")}
-                      name="tasks"
-                      required
-                    />
-                  </label>
-                </div>
-                <button className="mt-5 rounded-full bg-[var(--forest)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-                  Save tasks
-                </button>
-              </form>
-            ) : null}
-
             {activeTab === "financials" && canSeeFinancials ? (
               <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
                 <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Invoice progress</p>
@@ -1236,66 +1068,6 @@ export default async function ProjectClientPage({
                   </div>
                 </section>
               </div>
-            ) : null}
-            {activeTab === "details" ? (
-              <form action={updateProjectDetailsAction} className="grid gap-4 lg:grid-cols-2">
-                <input name="projectId" type="hidden" value={project.id} />
-                <input name="clientName" type="hidden" value={project.client} />
-                <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
-                  <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Client details</p>
-                  <div className="mt-5 grid gap-3">
-                    <label className="grid gap-2 text-sm font-medium">
-                      Contact email
-                      <input className="rounded-2xl border border-black/[0.08] px-4 py-3" defaultValue={primaryContactEmail} name="contactEmail" required type="email" />
-                    </label>
-                    <label className="grid gap-2 text-sm font-medium">
-                      Project name
-                      <input className="rounded-2xl border border-black/[0.08] px-4 py-3" defaultValue={project.name} name="projectName" required />
-                    </label>
-                    <label className="grid gap-2 text-sm font-medium">
-                      Project type
-                      <input className="rounded-2xl border border-black/[0.08] px-4 py-3" defaultValue={project.type} name="projectType" required />
-                    </label>
-                    <label className="grid gap-2 text-sm font-medium">
-                      Package
-                      <input className="rounded-2xl border border-black/[0.08] px-4 py-3" defaultValue={client?.packageName || ""} name="packageName" required />
-                    </label>
-                    <label className="grid gap-2 text-sm font-medium">
-                      Project date
-                      <input className="rounded-2xl border border-black/[0.08] px-4 py-3" defaultValue={project.projectDate} name="projectDate" required type="date" />
-                    </label>
-                    <label className="grid gap-2 text-sm font-medium">
-                      Location
-                      <input className="rounded-2xl border border-black/[0.08] px-4 py-3" defaultValue={project.location} name="location" required />
-                    </label>
-                    <label className="grid gap-2 text-sm font-medium">
-                      Description
-                      <textarea className="min-h-36 rounded-2xl border border-black/[0.08] px-4 py-3" defaultValue={project.description} name="description" required />
-                    </label>
-                  </div>
-                  <button className="mt-5 rounded-full bg-[var(--forest)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-                    Save client details
-                  </button>
-                </div>
-
-                <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
-                  <p className="text-sm uppercase tracking-[0.24em] text-[var(--muted)]">Schedule</p>
-                  <div className="mt-5 grid gap-3">
-                    {scheduleItems.length === 0 ? (
-                      <p className="text-sm text-[var(--muted)]">No events scheduled yet.</p>
-                    ) : (
-                      scheduleItems.map((item) => (
-                        <article key={item.id} className="rounded-2xl bg-[rgba(247,241,232,0.54)] p-4">
-                          <p className="font-semibold">{item.title}</p>
-                          <p className="mt-1 text-sm text-[var(--muted)]">
-                            {dateTime.format(new Date(item.startsAt))} | {item.sync}
-                          </p>
-                        </article>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </form>
             ) : null}
           </div>
 
