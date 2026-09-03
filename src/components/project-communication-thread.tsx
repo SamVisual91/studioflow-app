@@ -139,8 +139,8 @@ export function ProjectCommunicationThreadCard({
                 key={message.id}
                 className={`rounded-[1.45rem] border px-4 py-4 ${
                   isOutbound
-                    ? "border-[rgba(24,39,66,0.10)] bg-white"
-                    : "border-[rgba(207,114,79,0.14)] bg-[rgba(255,251,246,0.98)]"
+                    ? "border-[rgba(48,83,121,0.20)] bg-[rgba(235,243,250,0.86)]"
+                    : "border-[rgba(207,114,79,0.22)] bg-[rgba(255,248,240,0.96)]"
                 }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -166,6 +166,15 @@ export function ProjectCommunicationThreadCard({
                         <p className="text-sm font-semibold text-[var(--ink)]">
                           {message.senderName || (isOutbound ? "You" : clientName)}
                         </p>
+                        <span
+                          className={`rounded-full px-2 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.16em] ${
+                            isOutbound
+                              ? "bg-[rgba(48,83,121,0.12)] text-[#315473]"
+                              : "bg-[rgba(207,114,79,0.13)] text-[var(--accent)]"
+                          }`}
+                        >
+                          {isOutbound ? "You" : "Client"}
+                        </span>
                         <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                           {isOutbound ? message.status || "SENT" : message.isRead ? "READ" : "NEW"}
                         </span>
@@ -199,7 +208,11 @@ export function ProjectCommunicationThreadCard({
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-[1.2rem] bg-[rgba(17,15,14,0.03)] px-4 py-4">
+                <div
+                  className={`mt-4 rounded-[1.2rem] px-4 py-4 ${
+                    isOutbound ? "bg-white/70" : "bg-[rgba(255,255,255,0.58)]"
+                  }`}
+                >
                   <p className="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
                     {message.subject}
                   </p>

@@ -64,7 +64,11 @@ export function ProjectThreadMessage({
 
   return (
     <details
-      className="relative rounded-[1.5rem] border border-black/[0.08] bg-[rgba(247,241,232,0.54)]"
+      className={`relative rounded-[1.5rem] border ${
+        isOutbound
+          ? "border-[rgba(48,83,121,0.20)] bg-[rgba(235,243,250,0.86)]"
+          : "border-[rgba(207,114,79,0.22)] bg-[rgba(255,248,240,0.96)]"
+      }`}
       onToggle={(event) => handleToggle((event.currentTarget as HTMLDetailsElement).open)}
       open={isOpen}
     >
@@ -81,7 +85,14 @@ export function ProjectThreadMessage({
             >
               {isOutbound ? (userAvatar ? "" : "You") : getInitials(from)}
             </span>
-            <span>{isOutbound ? "Sent by you" : "From client"} | Email</span>
+            <span
+              className={`rounded-full px-2 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.16em] ${
+                isOutbound ? "bg-[rgba(48,83,121,0.12)] text-[#315473]" : "bg-[rgba(207,114,79,0.13)] text-[var(--accent)]"
+              }`}
+            >
+              {isOutbound ? "You" : "Client"}
+            </span>
+            <span>Email</span>
           </div>
           <h3 className="mt-2 text-lg font-semibold">{subject}</h3>
           <p className="mt-1 text-sm text-[var(--muted)]">{from}</p>
@@ -123,7 +134,7 @@ export function ProjectThreadMessage({
           </svg>
         </button>
       </form>
-      <div className="border-t border-black/[0.08] px-5 py-4">
+      <div className={`border-t border-black/[0.08] px-5 py-4 ${isOutbound ? "bg-white/60" : "bg-white/45"}`}>
         <p className="text-sm leading-7 text-[var(--ink)]">{preview}</p>
       </div>
     </details>

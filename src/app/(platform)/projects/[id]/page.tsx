@@ -316,7 +316,6 @@ export default async function ProjectClientPage({
   );
   const communicationThreads = getProjectCommunicationThreads(db, project.id);
   const activityEvents = getProjectTimelineEvents(db, project.id);
-  const unreadReplyCount = communicationThreads.reduce((sum, thread) => sum + thread.unreadCount, 0);
   const communicationMessageCount = communicationThreads.reduce((sum, thread) => sum + thread.messages.length, 0);
   const hasAutomaticReplyRouting = hasInboxSyncConfig() || hasMicrosoftGraphReplySyncConfig();
   const packageNameSummary =
@@ -590,25 +589,6 @@ export default async function ProjectClientPage({
                         clientName={project.client}
                         projectId={project.id}
                       />
-                    </div>
-
-                    <div className="mt-5 grid gap-3 md:grid-cols-4">
-                      <div className="rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] px-4 py-4">
-                        <p className="text-[0.68rem] uppercase tracking-[0.22em] text-[var(--muted)]">Participants</p>
-                        <p className="mt-2 text-3xl font-semibold text-[var(--ink)]">{1 + additionalContacts.length}</p>
-                      </div>
-                      <div className="rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] px-4 py-4">
-                        <p className="text-[0.68rem] uppercase tracking-[0.22em] text-[var(--muted)]">Threads</p>
-                        <p className="mt-2 text-3xl font-semibold text-[var(--ink)]">{communicationThreads.length}</p>
-                      </div>
-                      <div className="rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] px-4 py-4">
-                        <p className="text-[0.68rem] uppercase tracking-[0.22em] text-[var(--muted)]">Unread replies</p>
-                        <p className="mt-2 text-3xl font-semibold text-[var(--ink)]">{unreadReplyCount}</p>
-                      </div>
-                      <div className="rounded-[1.35rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)] px-4 py-4">
-                        <p className="text-[0.68rem] uppercase tracking-[0.22em] text-[var(--muted)]">Timeline events</p>
-                        <p className="mt-2 text-3xl font-semibold text-[var(--ink)]">{activityEvents.length}</p>
-                      </div>
                     </div>
 
                     <details className="mt-5 rounded-[1.5rem] border border-black/[0.08] bg-[rgba(247,241,232,0.54)]" id="email-composer" open>
