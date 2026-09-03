@@ -411,6 +411,8 @@ export default async function ProjectClientPage({
       ? "SMTP is not configured yet, so the email could not be sent."
       : query.error === "smtp-auth-failed"
         ? "Gmail rejected the saved app password. Generate a new Gmail app password, update SMTP_PASS, then restart the app."
+      : query.error === "smtp-connection-failed"
+        ? "StudioFlow could not connect to Gmail. Check SMTP_HOST, SMTP_PORT, and SMTP_SECURE in Railway, then redeploy."
       : query.error === "message-send-failed"
         ? "The email could not be sent. Double-check the client email and SMTP settings."
         : query.error === "portal-send-failed"

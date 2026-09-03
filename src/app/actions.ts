@@ -2682,12 +2682,21 @@ export async function sendProjectMessageAction(formData: FormData) {
     revalidatePath("/messages");
     redirect(`/projects/${projectId}?tab=activity&email=1`);
   } catch (error) {
+    const errorCode =
+      error && typeof error === "object" && "code" in error ? String(error.code || "") : "";
+    const errorMessage = error instanceof Error ? error.message : "Unknown email delivery error";
+
+    // Keep deployment logs actionable without printing email credentials or message content.
+    console.error("Project email delivery failed", { projectId, errorCode, errorMessage });
+
     const reason =
       error instanceof Error && error.message === "SMTP_NOT_CONFIGURED"
         ? "smtp-missing"
         : error instanceof Error && error.message === "SMTP_AUTH_FAILED"
           ? "smtp-auth-failed"
-        : "message-send-failed";
+          : ["ECONNECTION", "ECONNREFUSED", "ESOCKET", "ETIMEDOUT"].includes(errorCode)
+            ? "smtp-connection-failed"
+          : "message-send-failed";
     redirect(`/projects/${projectId}?tab=activity&error=${reason}`);
   }
 }
