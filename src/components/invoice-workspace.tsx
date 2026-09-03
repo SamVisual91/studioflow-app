@@ -190,27 +190,6 @@ export function InvoiceWorkspace({
     setAutosaveState("dirty");
   }
 
-  function getDerivedPaymentStatus(item: PaymentScheduleItem) {
-    if (item.status === "PAID") {
-      return "PAID";
-    }
-
-    if (!item.dueDate) {
-      return "UPCOMING";
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(`${item.dueDate}T00:00:00`);
-
-    if (Number.isNaN(due.getTime())) {
-      return "UPCOMING";
-    }
-
-    const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return diffDays < 0 ? "OVERDUE" : "UPCOMING";
-  }
-
   const subtotal = useMemo(
     () => lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0),
     [lineItems]
@@ -234,7 +213,7 @@ export function InvoiceWorkspace({
             ? Math.round(grandTotal * 100) / 100
             : item.amount,
         invoiceNumber: item.invoiceNumber || `#${(invoiceId || "draft").slice(0, 6).toUpperCase()}-${String(index + 1).padStart(2, "0")}`,
-        status: getDerivedPaymentStatus(item),
+        status: item.status === "PAID" ? "PAID" : "UPCOMING",
       })),
     [paymentSchedule, invoiceId, grandTotal]
   );
@@ -698,15 +677,26 @@ export function InvoiceWorkspace({
                 />
               </div>
               <input
-                className="bg-transparent px-0 py-1 text-sm outline-none"
+                aria-label={`Payment ${index + 1} due date`}
+                className="w-full rounded-lg border border-black/[0.1] bg-white px-3 py-2 text-sm outline-none transition focus:border-[var(--accent)]"
                 onChange={(e) => updateScheduleItem(index, "dueDate", e.target.value)}
                 type="date"
                 value={item.dueDate}
               />
               <p className="text-sm font-medium text-[var(--muted)]">{item.invoiceNumber}</p>
-              <p className="text-sm font-semibold text-[var(--ink)]">
-                {item.status === "PAID" ? "Paid" : item.status === "OVERDUE" ? "Overdue" : "Upcoming"}
-              </p>
+              <select
+                aria-label={`Payment ${index + 1} status`}
+                className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold outline-none transition focus:border-[var(--accent)] ${
+                  item.status === "PAID"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-amber-200 bg-amber-50 text-amber-800"
+                }`}
+                onChange={(e) => updateScheduleItem(index, "status", e.target.value)}
+                value={item.status === "PAID" ? "PAID" : "UPCOMING"}
+              >
+                <option value="UPCOMING">Upcoming</option>
+                <option value="PAID">Paid</option>
+              </select>
               <div className="flex items-end">
                 <button className="rounded-full border border-[rgba(207,114,79,0.24)] bg-[rgba(207,114,79,0.08)] px-4 py-3 text-sm font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.14)]" onClick={() => removeScheduleItem(index)} type="button">
                   Remove
