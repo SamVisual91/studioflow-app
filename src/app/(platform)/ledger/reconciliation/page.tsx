@@ -120,7 +120,7 @@ export default async function LedgerReconciliationPage({
                     ) : null}
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-semibold">{preciseCurrencyFormatter.format(entry.amount)}</p>
+                    <p className="text-lg font-semibold text-[#b42318]">{preciseCurrencyFormatter.format(entry.amount)}</p>
                     <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--muted)]">{entry.direction}</p>
                   </div>
                 </div>

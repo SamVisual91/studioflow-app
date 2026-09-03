@@ -100,7 +100,11 @@ export default async function LedgerOverviewPage() {
                     </td>
                     <td
                       className={`px-2 py-3 text-right font-semibold ${
-                        entry.direction === "EXPENSE" ? "text-[var(--accent)]" : "text-[var(--forest)]"
+                        !entry.isReconciled
+                          ? "text-[#b42318]"
+                          : entry.direction === "EXPENSE"
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--forest)]"
                       }`}
                     >
                       {entry.direction === "EXPENSE" ? "-" : "+"}

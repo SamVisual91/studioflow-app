@@ -196,7 +196,11 @@ export default async function LedgerTransactionsPage({
                       <div className="text-right">
                         <p
                           className={`text-lg font-semibold ${
-                            entry.direction === "EXPENSE" ? "text-[var(--accent)]" : "text-[var(--forest)]"
+                            !entry.isReconciled
+                              ? "text-[#b42318]"
+                              : entry.direction === "EXPENSE"
+                                ? "text-[var(--accent)]"
+                                : "text-[var(--forest)]"
                           }`}
                         >
                           {entry.direction === "EXPENSE" ? "-" : "+"}
