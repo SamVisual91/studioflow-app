@@ -9,6 +9,7 @@ type LineItem = {
   description: string;
   image?: string;
   amount: number;
+  taxable?: boolean;
 };
 
 type PaymentScheduleItem = {
@@ -30,6 +31,8 @@ function parseLineItems(input: unknown) {
       description: String((item as LineItem).description || "").trim(),
       image: String((item as LineItem).image || "").trim(),
       amount: Number((item as LineItem).amount || 0),
+      // Older invoices predate this setting and should preserve their original taxable behavior.
+      taxable: (item as LineItem).taxable !== false,
     }))
     .filter((item) => item.title && !Number.isNaN(item.amount));
 }
@@ -102,7 +105,11 @@ export async function PATCH(
   const lineItems = parseLineItems(body.lineItems);
   const paymentSchedule = parsePaymentSchedule(body.paymentSchedule);
   const subtotal = lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const taxAmount = Math.round(subtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
+  const taxableSubtotal = lineItems.reduce(
+    (sum, item) => sum + (item.taxable !== false ? Number(item.amount || 0) : 0),
+    0
+  );
+  const taxAmount = Math.round(taxableSubtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
   const amount = subtotal + taxAmount;
   const status = getInvoiceStatusFromSchedule(paymentSchedule);
 

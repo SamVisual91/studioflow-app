@@ -7,6 +7,7 @@ type InvoiceLineItem = {
   description: string;
   image?: string;
   amount: number;
+  taxable?: boolean;
 };
 
 type PaymentScheduleItem = {
@@ -45,6 +46,7 @@ function createBlankLineItem(): InvoiceLineItem {
     description: "",
     image: "",
     amount: 0,
+    taxable: true,
   };
 }
 
@@ -77,6 +79,58 @@ function splitAmounts(total: number, percentages: number[]) {
     allocated += portion;
     return portion / 100;
   });
+}
+
+function splitEvenly(total: number, count: number) {
+  if (count <= 0) {
+    return [];
+  }
+
+  const centsTotal = Math.max(0, Math.round(total * 100));
+  const baseAmount = Math.floor(centsTotal / count);
+  const remainingCents = centsTotal - baseAmount * count;
+
+  return Array.from({ length: count }, (_, index) => (baseAmount + (index < remainingCents ? 1 : 0)) / 100);
+}
+
+function rebalancePaymentSchedule(
+  schedule: PaymentScheduleItem[],
+  totalDue: number,
+  fixedPaymentIndex?: number
+) {
+  const adjustableIndexes = schedule
+    .map((item, index) => ({ item, index }))
+    .filter(({ item, index }) => item.status !== "PAID" && index !== fixedPaymentIndex)
+    .map(({ index }) => index);
+
+  if (adjustableIndexes.length === 0) {
+    return schedule;
+  }
+
+  const reservedTotal = schedule.reduce((sum, item, index) => {
+    if (item.status === "PAID" || index === fixedPaymentIndex) {
+      return sum + Number(item.amount || 0);
+    }
+
+    return sum;
+  }, 0);
+  const splitAmounts = splitEvenly(totalDue - reservedTotal, adjustableIndexes.length);
+
+  return schedule.map((item, index) => {
+    const splitIndex = adjustableIndexes.indexOf(index);
+    return splitIndex === -1 ? item : { ...item, amount: splitAmounts[splitIndex] };
+  });
+}
+
+function calculateInvoiceTotal(lineItems: InvoiceLineItem[], taxRate: number) {
+  const subtotal = lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const taxableSubtotal = lineItems.reduce(
+    (sum, item) => sum + (item.taxable !== false ? Number(item.amount || 0) : 0),
+    0
+  );
+  const taxAmount = Math.round(taxableSubtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
+
+  return subtotal + taxAmount;
 }
 
 function formatCurrencyInput(value: number) {
@@ -194,15 +248,22 @@ export function InvoiceWorkspace({
     () => lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0),
     [lineItems]
   );
+  const taxableSubtotal = useMemo(
+    () => lineItems.reduce((sum, item) => sum + (item.taxable !== false ? Number(item.amount || 0) : 0), 0),
+    [lineItems]
+  );
   const parsedTaxRate = Number(taxRate || "0");
   const taxAmount = useMemo(
-    () => (Number.isNaN(parsedTaxRate) ? 0 : Math.round(subtotal * parsedTaxRate) / 100),
-    [parsedTaxRate, subtotal]
+    () => (Number.isNaN(parsedTaxRate) ? 0 : Math.round(taxableSubtotal * parsedTaxRate) / 100),
+    [parsedTaxRate, taxableSubtotal]
   );
   const grandTotal = subtotal + taxAmount;
   const scheduledTotal = useMemo(
-    () => paymentSchedule.reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    [paymentSchedule]
+    () =>
+      paymentSchedule.length === 1
+        ? grandTotal
+        : paymentSchedule.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    [grandTotal, paymentSchedule]
   );
   const normalizedPaymentSchedule = useMemo(
     () =>
@@ -289,18 +350,23 @@ export function InvoiceWorkspace({
     };
   }, []);
 
-  function updateLineItem(index: number, key: keyof InvoiceLineItem, value: string) {
+  function updateLineItem(index: number, key: keyof InvoiceLineItem, value: string | boolean) {
     markAutosaveDirty();
-    setLineItems((current) =>
-      current.map((item, itemIndex) =>
-        itemIndex === index
-          ? {
-              ...item,
-              [key]: key === "amount" ? Number(value || 0) : value,
-            }
-          : item
-      )
+    const nextLineItems = lineItems.map((item, itemIndex) =>
+      itemIndex === index
+        ? {
+            ...item,
+            [key]: key === "amount" ? Number(value || 0) : value,
+          }
+        : item
     );
+    setLineItems(nextLineItems);
+
+    if (key === "amount" || key === "taxable") {
+      setPaymentSchedule((current) =>
+        rebalancePaymentSchedule(current, calculateInvoiceTotal(nextLineItems, Number(taxRate || 0)))
+      );
+    }
   }
 
   function changeLineItemImage(index: number) {
@@ -328,52 +394,90 @@ export function InvoiceWorkspace({
     const otherItemsTotal = lineItems.slice(0, -1).reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const lastItemAmount = Math.max(0, Math.round((targetSubtotal - otherItemsTotal) * 100) / 100);
 
-    setLineItems((current) =>
-      current.map((item, index) =>
-        index === current.length - 1
-          ? {
-              ...item,
-              amount: lastItemAmount,
-            }
-          : item
-      )
+    const nextLineItems = lineItems.map((item, index) =>
+      index === lineItems.length - 1 ? { ...item, amount: lastItemAmount } : item
+    );
+    setLineItems(nextLineItems);
+    setPaymentSchedule((current) =>
+      rebalancePaymentSchedule(current, calculateInvoiceTotal(nextLineItems, Number(taxRate || 0)))
+    );
+  }
+
+  function updateTaxRate(value: string) {
+    markAutosaveDirty();
+    setTaxRate(value);
+    setPaymentSchedule((current) =>
+      rebalancePaymentSchedule(current, calculateInvoiceTotal(lineItems, Number(value || 0)))
     );
   }
 
   function addLineItem() {
     markAutosaveDirty();
-    setLineItems((current) => [...current, createBlankLineItem()]);
+    const nextLineItems = [...lineItems, createBlankLineItem()];
+    setLineItems(nextLineItems);
   }
 
   function removeLineItem(index: number) {
     markAutosaveDirty();
-    setLineItems((current) => (current.length === 1 ? [createBlankLineItem()] : current.filter((_, itemIndex) => itemIndex !== index)));
+    const nextLineItems =
+      lineItems.length === 1 ? [createBlankLineItem()] : lineItems.filter((_, itemIndex) => itemIndex !== index);
+    setLineItems(nextLineItems);
+    setPaymentSchedule((current) =>
+      rebalancePaymentSchedule(current, calculateInvoiceTotal(nextLineItems, Number(taxRate || 0)))
+    );
   }
 
-  function updateScheduleItem(index: number, key: keyof PaymentScheduleItem, value: string) {
+  function updateScheduleItem(
+    index: number,
+    key: Exclude<keyof PaymentScheduleItem, "amount" | "status">,
+    value: string
+  ) {
     markAutosaveDirty();
     setPaymentSchedule((current) =>
       current.map((item, itemIndex) =>
         itemIndex === index
           ? {
               ...item,
-              [key]: key === "amount" ? Number(value || 0) : value,
+              [key]: value,
             }
           : item
       )
     );
   }
 
+  function updateScheduleAmount(index: number, value: number) {
+    markAutosaveDirty();
+    setPaymentSchedule((current) => {
+      const next = current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, amount: Math.max(0, Number(value || 0)) } : item
+      );
+
+      return rebalancePaymentSchedule(next, grandTotal, index);
+    });
+  }
+
+  function updateScheduleStatus(index: number, value: string) {
+    markAutosaveDirty();
+    setPaymentSchedule((current) => {
+      const next = current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, status: value === "PAID" ? "PAID" : "UPCOMING" } : item
+      );
+
+      return rebalancePaymentSchedule(next, grandTotal);
+    });
+  }
+
   function addScheduleItem() {
     markAutosaveDirty();
-    setPaymentSchedule((current) => [...current, createBlankScheduleItem()]);
+    setPaymentSchedule((current) => rebalancePaymentSchedule([...current, createBlankScheduleItem()], grandTotal));
   }
 
   function removeScheduleItem(index: number) {
     markAutosaveDirty();
-    setPaymentSchedule((current) =>
-      current.length === 1 ? [createBlankScheduleItem()] : current.filter((_, itemIndex) => itemIndex !== index)
-    );
+    setPaymentSchedule((current) => {
+      const next = current.length === 1 ? [createBlankScheduleItem()] : current.filter((_, itemIndex) => itemIndex !== index);
+      return rebalancePaymentSchedule(next, grandTotal);
+    });
   }
 
   function applyScheduleTemplate(
@@ -496,10 +600,10 @@ export function InvoiceWorkspace({
           </div>
 
           <div className="mt-6 flex items-center justify-between gap-4 border-b border-black/[0.08] pb-5">
-            <div className="grid flex-1 gap-4 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)] md:grid-cols-[1.8fr_0.5fr_0.7fr_0.7fr]">
+            <div className="grid flex-1 gap-4 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)] md:grid-cols-[1.8fr_0.7fr_0.55fr_0.7fr]">
               <p>Items</p>
-              <p>Qty</p>
               <p>Price</p>
+              <p>Tax</p>
               <p>Total</p>
             </div>
             <button className="rounded-full border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]" onClick={addLineItem} type="button">
@@ -511,7 +615,7 @@ export function InvoiceWorkspace({
             {lineItems.map((item, index) => (
               <div
                 key={`preview-${index}`}
-                className="grid gap-4 py-2 md:grid-cols-[1.8fr_0.5fr_0.7fr_0.7fr_auto] md:items-center"
+                className="grid gap-4 py-2 md:grid-cols-[1.8fr_0.7fr_0.55fr_0.7fr_auto] md:items-center"
               >
                 <div className="flex items-center gap-4">
                   <button
@@ -535,7 +639,6 @@ export function InvoiceWorkspace({
                     />
                   </div>
                 </div>
-                <p className="text-sm font-medium">1</p>
                 <div className="flex items-center gap-1 text-sm font-medium">
                   <span className="text-[var(--muted)]">$</span>
                   <CurrencyInput
@@ -544,6 +647,15 @@ export function InvoiceWorkspace({
                     value={Number(item.amount || 0)}
                   />
                 </div>
+                <label className="flex items-center gap-2 text-sm font-medium text-[var(--ink)]">
+                  <input
+                    checked={item.taxable !== false}
+                    className="h-4 w-4 accent-[var(--accent)]"
+                    onChange={(event) => updateLineItem(index, "taxable", event.target.checked)}
+                    type="checkbox"
+                  />
+                  Taxable
+                </label>
                 <p className="text-base font-semibold">${Number(item.amount || 0).toLocaleString()}</p>
                 <div className="flex justify-end">
                   <button className="rounded-full border border-[rgba(207,114,79,0.24)] bg-[rgba(207,114,79,0.08)] px-4 py-3 text-sm font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.14)]" onClick={() => removeLineItem(index)} type="button">
@@ -567,14 +679,17 @@ export function InvoiceWorkspace({
               </div>
             </div>
             <div className="flex items-center justify-between py-3 text-[var(--muted)]">
+              <span>Taxable amount</span>
+              <span>${taxableSubtotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex items-center justify-between py-3 text-[var(--muted)]">
               <span>Tax</span>
               <div className="flex items-center gap-2">
                 <input
                   className="w-16 bg-transparent text-right font-medium outline-none"
                   min="0"
                   onChange={(e) => {
-                    markAutosaveDirty();
-                    setTaxRate(e.target.value);
+                    updateTaxRate(e.target.value);
                   }}
                   step="0.01"
                   type="number"
@@ -599,6 +714,7 @@ export function InvoiceWorkspace({
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Payment schedule</p>
             <h2 className="mt-3 text-2xl font-semibold">Build the payment plan</h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">Paid amounts stay fixed. Unpaid payments rebalance automatically to match the total due.</p>
           </div>
           <button className="rounded-full border border-black/[0.08] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]" onClick={addScheduleItem} type="button">
             Add payment
@@ -672,7 +788,7 @@ export function InvoiceWorkspace({
                 <span className="text-[var(--muted)]">$</span>
                 <CurrencyInput
                   className="min-w-0 flex-1 bg-transparent px-0 py-1 outline-none"
-                  onValueChange={(value) => updateScheduleItem(index, "amount", String(value))}
+                  onValueChange={(value) => updateScheduleAmount(index, value)}
                   value={Number(item.amount || 0)}
                 />
               </div>
@@ -691,7 +807,7 @@ export function InvoiceWorkspace({
                     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                     : "border-amber-200 bg-amber-50 text-amber-800"
                 }`}
-                onChange={(e) => updateScheduleItem(index, "status", e.target.value)}
+                onChange={(e) => updateScheduleStatus(index, e.target.value)}
                 value={item.status === "PAID" ? "PAID" : "UPCOMING"}
               >
                 <option value="UPCOMING">Upcoming</option>

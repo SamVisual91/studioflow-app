@@ -91,6 +91,8 @@ function parseInvoiceLineItems(input: string) {
         description: String(item.description || "").trim(),
         image: String(item.image || "").trim(),
         amount: Number(item.amount || 0),
+        // Invoices created before per-item tax settings should remain taxable by default.
+        taxable: item.taxable !== false,
       }))
       .filter((item) => item.title && !Number.isNaN(item.amount));
   } catch {
@@ -98,23 +100,21 @@ function parseInvoiceLineItems(input: string) {
   }
 }
 
+function getTaxableInvoiceSubtotal(lineItems: Array<{ amount: number; taxable?: boolean }>) {
+  return lineItems.reduce(
+    (sum, item) => sum + (item.taxable !== false ? Number(item.amount || 0) : 0),
+    0
+  );
+}
+
 function parsePaymentSchedule(input: string) {
   try {
     const parsed = JSON.parse(input) as Array<Record<string, unknown>>;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     return parsed
       .map((item, index) => {
         const dueDate = String(item.dueDate || "").trim();
         const rawStatus = String(item.status || "").trim().toUpperCase();
-        const due = dueDate ? new Date(`${dueDate}T00:00:00`) : null;
-        const status =
-          rawStatus === "PAID"
-            ? "PAID"
-            : due && !Number.isNaN(due.getTime()) && due.getTime() < today.getTime()
-              ? "OVERDUE"
-              : "UPCOMING";
+        const status = rawStatus === "PAID" ? "PAID" : "UPCOMING";
 
         return {
           id: String(item.id || randomUUID()),
@@ -3811,7 +3811,8 @@ export async function sendProjectInvoiceEmailAction(formData: FormData) {
   const lineItems = parseInvoiceLineItems(String(invoice.line_items ?? "[]"));
   const paymentSchedule = parsePaymentSchedule(String(invoice.payment_schedule ?? "[]"));
   const subtotal = lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const taxAmount = Math.round(subtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
+  const taxableSubtotal = getTaxableInvoiceSubtotal(lineItems);
+  const taxAmount = Math.round(taxableSubtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
   const grandTotal = subtotal + taxAmount;
   const publicToken = String(invoice.public_token || "").trim();
   const invoiceUrl = publicToken
@@ -4971,7 +4972,8 @@ export async function createProjectInvoiceAction(formData: FormData) {
   const lineItems = parseInvoiceLineItems(getString(formData, "lineItems"));
   const paymentSchedule = parsePaymentSchedule(getString(formData, "paymentSchedule"));
   const subtotal = lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const taxAmount = Math.round(subtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
+  const taxableSubtotal = getTaxableInvoiceSubtotal(lineItems);
+  const taxAmount = Math.round(taxableSubtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
   const amount = subtotal + taxAmount;
 
   if (
@@ -5050,7 +5052,8 @@ function parseProjectInvoiceEditorInput(formData: FormData) {
   const lineItems = parseInvoiceLineItems(getString(formData, "lineItems"));
   const paymentSchedule = parsePaymentSchedule(getString(formData, "paymentSchedule"));
   const subtotal = lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const taxAmount = Math.round(subtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
+  const taxableSubtotal = getTaxableInvoiceSubtotal(lineItems);
+  const taxAmount = Math.round(taxableSubtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
   const amount = subtotal + taxAmount;
   const status = getInvoiceStatusFromSchedule(paymentSchedule);
 
@@ -5140,7 +5143,8 @@ async function sendProjectInvoiceEmailById(projectId: string, invoiceId: string)
   const lineItems = parseInvoiceLineItems(String(invoice.line_items ?? "[]"));
   const paymentSchedule = parsePaymentSchedule(String(invoice.payment_schedule ?? "[]"));
   const subtotal = lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const taxAmount = Math.round(subtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
+  const taxableSubtotal = getTaxableInvoiceSubtotal(lineItems);
+  const taxAmount = Math.round(taxableSubtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
   const grandTotal = subtotal + taxAmount;
   const publicToken = String(invoice.public_token || "").trim();
   const invoiceUrl = publicToken
@@ -7521,7 +7525,8 @@ export async function createInvoiceTemplateAction(formData: FormData) {
   const lineItems = parseInvoiceLineItems(getString(formData, "lineItems"));
   const paymentSchedule = parsePaymentSchedule(getString(formData, "paymentSchedule"));
   const subtotal = lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const taxAmount = Math.round(subtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
+  const taxableSubtotal = getTaxableInvoiceSubtotal(lineItems);
+  const taxAmount = Math.round(taxableSubtotal * (Number.isNaN(taxRate) ? 0 : taxRate)) / 100;
   const amount = subtotal + taxAmount;
 
   if (

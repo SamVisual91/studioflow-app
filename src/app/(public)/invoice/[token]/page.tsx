@@ -19,6 +19,7 @@ type LineItem = {
   description: string;
   image?: string;
   amount: number;
+  taxable?: boolean;
 };
 
 type PaymentScheduleItem = {
@@ -288,7 +289,11 @@ export default async function PublicInvoicePage({
   const unpaidPayments = paymentSchedule.filter((item) => item.status !== "PAID");
   const taxRate = Number(invoice.tax_rate ?? 3);
   const subtotal = lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const taxAmount = Math.round(subtotal * taxRate) / 100;
+  const taxableSubtotal = lineItems.reduce(
+    (sum, item) => sum + (item.taxable !== false ? Number(item.amount || 0) : 0),
+    0
+  );
+  const taxAmount = Math.round(taxableSubtotal * taxRate) / 100;
   const grandTotal = subtotal + taxAmount;
   const nextPayment = paymentSchedule.find((item) => item.status !== "PAID") || null;
   const paidAmount = paymentSchedule
