@@ -2636,8 +2636,9 @@ export async function sendProjectMessageAction(formData: FormData) {
     })
   );
 
+  let response: { id?: string };
   try {
-    const response = await sendProposalEmail({
+    response = await sendProposalEmail({
       to: toRecipients.map((recipient) => recipient.email),
       cc: ccRecipients.map((recipient) => recipient.email),
       bcc: bccRecipients.map((recipient) => recipient.email),
@@ -2651,7 +2652,27 @@ export async function sendProjectMessageAction(formData: FormData) {
         contentType: attachment.contentType,
       })),
     });
-    const timestamp = new Date().toISOString();
+  } catch (error) {
+    const errorCode =
+      error && typeof error === "object" && "code" in error ? String(error.code || "") : "";
+    const errorMessage = error instanceof Error ? error.message : "Unknown email delivery error";
+
+    // Keep deployment logs actionable without printing email credentials or message content.
+    console.error("Project email delivery failed", { projectId, errorCode, errorMessage });
+
+    const reason =
+      error instanceof Error && error.message === "SMTP_NOT_CONFIGURED"
+        ? "smtp-missing"
+        : error instanceof Error && error.message === "SMTP_AUTH_FAILED"
+          ? "smtp-auth-failed"
+          : ["ECONNECTION", "ECONNREFUSED", "ESOCKET", "ETIMEDOUT"].includes(errorCode)
+            ? "smtp-connection-failed"
+            : "message-send-failed";
+    redirect(`/projects/${projectId}?tab=activity&error=${reason}`);
+  }
+
+  const timestamp = new Date().toISOString();
+  try {
     logOutboundProjectEmail(db, {
       attachments: attachments.map((attachment) => ({
         fileName: attachment.saved.fileName,
@@ -2677,28 +2698,16 @@ export async function sendProjectMessageAction(formData: FormData) {
       createRecentActivity("You emailed the client", timestamp),
       timestamp
     );
-
-    revalidatePath(`/projects/${projectId}`);
-    revalidatePath("/messages");
-    redirect(`/projects/${projectId}?tab=activity&email=1`);
   } catch (error) {
-    const errorCode =
-      error && typeof error === "object" && "code" in error ? String(error.code || "") : "";
-    const errorMessage = error instanceof Error ? error.message : "Unknown email delivery error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown project activity error";
 
-    // Keep deployment logs actionable without printing email credentials or message content.
-    console.error("Project email delivery failed", { projectId, errorCode, errorMessage });
-
-    const reason =
-      error instanceof Error && error.message === "SMTP_NOT_CONFIGURED"
-        ? "smtp-missing"
-        : error instanceof Error && error.message === "SMTP_AUTH_FAILED"
-          ? "smtp-auth-failed"
-          : ["ECONNECTION", "ECONNREFUSED", "ESOCKET", "ETIMEDOUT"].includes(errorCode)
-            ? "smtp-connection-failed"
-          : "message-send-failed";
-    redirect(`/projects/${projectId}?tab=activity&error=${reason}`);
+    // The email was already delivered; keep a logging problem from showing a false delivery failure.
+    console.error("Project email activity logging failed", { projectId, errorMessage });
   }
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/messages");
+  redirect(`/projects/${projectId}?tab=activity&email=1`);
 }
 
 export async function scheduleZoomMeetingAction(formData: FormData) {
