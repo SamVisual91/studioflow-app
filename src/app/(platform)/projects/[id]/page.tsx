@@ -135,7 +135,7 @@ export default async function ProjectClientPage({
         : "activity";
 
   let syncResult: { imported: number; skipped: number; error: string } | null = null;
-  if (activeTab === "activity" && !hasMicrosoftGraphReplySyncConfig()) {
+  if (activeTab === "activity" && hasInboxSyncConfig()) {
     syncResult = await syncInboxRepliesForProject(id);
     if (syncResult.imported > 0) {
       data = (await getDashboardPageData()).data;
