@@ -31,6 +31,8 @@ type OutboundEmailInput = {
   attachments?: EmailAttachment[];
   bodyHtml?: string;
   bodyText: string;
+  messageId?: string;
+  openTrackingToken?: string;
   projectId: string;
   providerMessageId?: string;
   recipients: EmailRecipient[];
@@ -66,6 +68,7 @@ export type ProjectCommunicationMessage = {
   direction: string;
   id: string;
   isRead: boolean;
+  openedAt: string;
   recipients: EmailRecipient[];
   senderEmail: string;
   senderName: string;
@@ -390,7 +393,7 @@ export function logOutboundProjectEmail(db: DatabaseSync, input: OutboundEmailIn
     unread: 0,
   });
 
-  const emailMessageId = randomUUID();
+  const emailMessageId = input.messageId || randomUUID();
   db.prepare(
     `INSERT INTO email_messages (
       id,
@@ -410,10 +413,12 @@ export function logOutboundProjectEmail(db: DatabaseSync, input: OutboundEmailIn
       references_header,
       status,
       is_read,
+      open_tracking_token,
+      opened_at,
       sent_at,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     emailMessageId,
     input.projectId,
@@ -432,6 +437,8 @@ export function logOutboundProjectEmail(db: DatabaseSync, input: OutboundEmailIn
     "",
     input.status,
     1,
+    input.openTrackingToken || "",
+    "",
     input.sentAt,
     input.sentAt,
     input.sentAt
@@ -657,6 +664,7 @@ export function getProjectCommunicationThreads(db: DatabaseSync, projectId: stri
         body_html,
         status,
         is_read,
+        opened_at,
         sent_at,
         received_at,
         created_at
@@ -671,6 +679,7 @@ export function getProjectCommunicationThreads(db: DatabaseSync, projectId: stri
       direction: string;
       id: string;
       is_read?: number | null;
+      opened_at?: string | null;
       received_at?: string | null;
       sender_email?: string | null;
       sender_name?: string | null;
@@ -756,6 +765,7 @@ export function getProjectCommunicationThreads(db: DatabaseSync, projectId: stri
         direction: message.direction,
         id: message.id,
         isRead: Number(message.is_read || 0) === 1,
+        openedAt: String(message.opened_at || ""),
         recipients: recipientMap.get(message.id) || [],
         senderEmail: String(message.sender_email || ""),
         senderName: String(message.sender_name || ""),

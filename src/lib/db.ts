@@ -319,6 +319,8 @@ function createSchema(db: DatabaseSync) {
       references_header TEXT,
       status TEXT NOT NULL DEFAULT 'SENT',
       is_read INTEGER NOT NULL DEFAULT 0,
+      open_tracking_token TEXT,
+      opened_at TEXT,
       sent_at TEXT,
       received_at TEXT,
       delivered_at TEXT,
@@ -796,6 +798,10 @@ function createSchema(db: DatabaseSync) {
   ensureColumn(db, "package_brochures", "intro", "TEXT");
   ensureColumn(db, "package_brochures", "closing_note", "TEXT");
   ensureColumn(db, "package_brochures", "cover_image", "TEXT");
+  ensureColumn(db, "package_brochures", "opened_at", "TEXT");
+  ensureColumn(db, "package_brochures", "view_count", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(db, "email_messages", "open_tracking_token", "TEXT");
+  ensureColumn(db, "email_messages", "opened_at", "TEXT");
   ensureColumn(db, "package_brochure_responses", "brochure_id", "TEXT");
   ensureColumn(db, "package_brochure_responses", "project_id", "TEXT");
   ensureColumn(db, "package_brochure_responses", "package_id", "TEXT");

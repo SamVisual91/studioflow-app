@@ -33,6 +33,7 @@ import {
   suggestLedgerImportMatch,
 } from "@/lib/ledger";
 import { sendProposalEmail } from "@/lib/mailer";
+import { getEmailOpenTrackingPixel } from "@/lib/email-open-tracking";
 import { type MileageTripType } from "@/lib/mileage";
 import {
   createProjectActivityEvent,
@@ -2622,13 +2623,16 @@ export async function sendProjectMessageAction(formData: FormData) {
       projectId,
       reuseExistingBySubject: false,
       subject,
-    });
+  });
   const replyToAddress = getProjectReplyAddress(projectId, resolvedThreadId);
+  const emailMessageId = randomUUID();
+  const openTrackingToken = randomUUID();
+  const openTrackingPixel = getEmailOpenTrackingPixel({ messageId: emailMessageId, token: openTrackingToken });
   const htmlBody = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f1b18;">${body
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\n/g, "<br />")}</div>`;
+    .replace(/\n/g, "<br />")}</div>${openTrackingPixel}`;
   const attachments = await Promise.all(
     attachmentFiles.map(async (file) => {
       const saved = await saveEmailAttachment(file);
@@ -2641,7 +2645,7 @@ export async function sendProjectMessageAction(formData: FormData) {
     })
   );
 
-  let response: { id?: string };
+  let response: { id?: string } = {};
   try {
     response = await sendProposalEmail({
       to: toRecipients.map((recipient) => recipient.email),
@@ -2687,6 +2691,8 @@ export async function sendProjectMessageAction(formData: FormData) {
       })),
       bodyHtml: htmlBody,
       bodyText: body,
+      messageId: emailMessageId,
+      openTrackingToken,
       projectId,
       providerMessageId: String(response?.id || ""),
       recipients: allRecipients,
@@ -3368,6 +3374,9 @@ export async function sendPackageBrochureAction(formData: FormData) {
   const brochureTitle = `${category} packages brochure`;
   const subject = withProjectReplyToken(`${projectName} ${category.toLowerCase()} packages`, projectId);
   const replyToAddress = getProjectReplyAddress(projectId);
+  const emailMessageId = randomUUID();
+  const openTrackingToken = randomUUID();
+  const openTrackingPixel = getEmailOpenTrackingPixel({ messageId: emailMessageId, token: openTrackingToken });
   const plainText = [
     `Hi ${clientName},`,
     "",
@@ -3423,11 +3432,12 @@ export async function sendPackageBrochureAction(formData: FormData) {
           If you'd like, just reply and I can adjust one of these collections to better fit your day.
         </p>
       </div>
-    </div>
+    </div>${openTrackingPixel}
   `;
 
+  let response: { id?: string } = {};
   try {
-    await sendProposalEmail({
+    response = await sendProposalEmail({
       to: recipientEmail,
       replyTo: replyToAddress,
       subject,
@@ -3464,16 +3474,19 @@ export async function sendPackageBrochureAction(formData: FormData) {
     ).run(randomUUID(), projectId, "PACKAGES", brochureTitle, summary, "Shared", "Shared", brochurePath, body, timestamp, timestamp);
   }
 
-  logProjectMessage(db, {
-    sender: "Sam Visual",
-    clientName,
+  logOutboundProjectEmail(db, {
+    bodyHtml: html,
+    bodyText: plainText,
+    messageId: emailMessageId,
+    openTrackingToken,
     projectId,
-    direction: "OUTBOUND",
-    channel: "Email",
-    time: timestamp,
+    providerMessageId: String(response?.id || ""),
+    recipients: [{ email: recipientEmail, type: "TO" }],
+    senderEmail: process.env.EMAIL_FROM || "",
+    senderName: "Sam Visual",
+    sentAt: timestamp,
+    status: "SENT",
     subject,
-    preview: `Shared package brochure: ${brochureUrl}`,
-    unread: 0,
   });
   updateProjectRecentActivity(
     db,

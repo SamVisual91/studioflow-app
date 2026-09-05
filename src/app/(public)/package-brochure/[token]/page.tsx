@@ -3,6 +3,7 @@ import {
   getDefaultPackageBrochureContent,
 } from "@/components/package-brochure-preview";
 import { PackageBrochureSelection } from "@/components/package-brochure-selection";
+import { PackageBrochureViewTracker } from "@/components/package-brochure-view-tracker";
 import { getDb } from "@/lib/db";
 import { getProjectPackagesByIds, getProjectPackagesForProject } from "@/lib/project-packages";
 
@@ -136,6 +137,7 @@ export default async function PackageBrochurePage({
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f8f3ed_0%,#f3ece3_42%,#ffffff_100%)] px-6 py-10 text-[var(--ink)] sm:px-8 lg:px-10">
       <section className="mx-auto max-w-6xl">
+        <PackageBrochureViewTracker token={token} />
         {successMessage ? (
           <div className="mb-6 border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
             {successMessage}

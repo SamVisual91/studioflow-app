@@ -36,6 +36,8 @@ export function PackageBrochureBuilder({
   initialPackageSource = "project",
   initiallySelectedPackageIds,
   packages,
+  clientViewedAt = "",
+  viewCount = 0,
 }: {
   category: string;
   projectId: string;
@@ -50,6 +52,8 @@ export function PackageBrochureBuilder({
   initialPackageSource?: string;
   initiallySelectedPackageIds: string[];
   packages: BrochurePackage[];
+  clientViewedAt?: string;
+  viewCount?: number;
 }) {
   const [title, setTitle] = useState(initialTitle);
   const [intro, setIntro] = useState(initialIntro);
@@ -125,6 +129,18 @@ export function PackageBrochureBuilder({
           <p className="mt-1 text-sm text-[var(--muted)]">Click any text in the brochure to edit it. These changes belong only to {clientName}&apos;s project.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <span
+            className={`inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold ${
+              clientViewedAt ? "bg-[rgba(47,125,92,0.12)] text-[var(--forest)]" : "bg-[rgba(149,141,126,0.12)] text-[var(--muted)]"
+            }`}
+            title={clientViewedAt ? `First viewed ${new Date(clientViewedAt).toLocaleString()}` : "The client has not opened this brochure yet."}
+          >
+            <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+              <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+              <circle cx="12" cy="12" r="2.5" />
+            </svg>
+            {clientViewedAt ? `Client viewed${viewCount > 1 ? ` (${viewCount})` : ""}` : "Awaiting client view"}
+          </span>
           <button className="border border-black/[0.08] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]" formAction={savePackageBrochureAction}>
             Save draft
           </button>

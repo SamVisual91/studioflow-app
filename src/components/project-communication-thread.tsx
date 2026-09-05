@@ -176,7 +176,28 @@ export function ProjectCommunicationThreadCard({
                           {isOutbound ? "You" : "Client"}
                         </span>
                         <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                          {isOutbound ? message.status || "SENT" : message.isRead ? "READ" : "NEW"}
+                          {isOutbound ? (
+                            <span
+                              className="inline-flex items-center gap-1.5"
+                              title={message.openedAt ? `Client opened this email on ${dateTime.format(new Date(message.openedAt))}` : "Email sent. Waiting for the first tracked open."}
+                            >
+                              <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+                                {message.openedAt ? (
+                                  <>
+                                    <path d="m3 9 9 6 9-6" />
+                                    <path d="M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1-1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" />
+                                    <path d="m3 7 5.5-4h7L21 7" />
+                                  </>
+                                ) : (
+                                  <>
+                                    <rect height="14" rx="1.5" width="18" x="3" y="5" />
+                                    <path d="m3 7 9 6 9-6" />
+                                  </>
+                                )}
+                              </svg>
+                              {message.openedAt ? "OPENED" : message.status || "SENT"}
+                            </span>
+                          ) : message.isRead ? "READ" : "NEW"}
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-[var(--muted)]">

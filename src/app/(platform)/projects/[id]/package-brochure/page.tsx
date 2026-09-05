@@ -74,6 +74,8 @@ export default async function ProjectPackageBrochureBuilderPage({
         intro?: string | null;
         closing_note?: string | null;
         cover_image?: string | null;
+        opened_at?: string | null;
+        view_count?: number | null;
       }
     | undefined;
   const clientRecord = db
@@ -229,9 +231,11 @@ export default async function ProjectPackageBrochureBuilderPage({
           }
           initialTitle={String(brochure?.title || defaults.title)}
           packages={packages}
+          clientViewedAt={String(brochure?.opened_at || "")}
           projectId={project.id}
           projectName={project.name}
           returnPath={returnPath}
+          viewCount={Number(brochure?.view_count || 0)}
         />
       </section>
     </DashboardShell>
