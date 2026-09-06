@@ -13,17 +13,6 @@ function getEnv(name: string) {
 export function getPaymentOptions(): PaymentOption[] {
   const options: PaymentOption[] = [];
 
-  const venmoHandle = getEnv("PAYMENT_VENMO_HANDLE");
-  if (venmoHandle) {
-    options.push({
-      id: "venmo",
-      label: "Venmo",
-      description: "Pay with Venmo using the handle below.",
-      href: `https://account.venmo.com/u/${venmoHandle.replace(/^@/, "")}`,
-      detail: `@${venmoHandle.replace(/^@/, "")}`,
-    });
-  }
-
   const bankName = getEnv("PAYMENT_BANK_NAME");
   const accountLast4 = getEnv("PAYMENT_BANK_ACCOUNT_LAST4");
   const routingLast4 = getEnv("PAYMENT_BANK_ROUTING_LAST4");

@@ -4241,6 +4241,8 @@ export async function createStripeCheckoutAction(formData: FormData) {
   const origin = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
+    // Keep invoices simple: cards are the only Stripe-hosted checkout method.
+    payment_method_types: ["card"],
     success_url: `${origin}/invoice/${token}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/invoice/${token}?canceled=1`,
     metadata: {
@@ -4483,6 +4485,7 @@ export async function createStripeAutopaySetupAction(formData: FormData) {
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
     customer: customerId,
+    payment_method_types: ["card"],
     success_url: `${origin}/invoice/${token}?autopay_session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/invoice/${token}?autopay_canceled=1`,
     metadata: {

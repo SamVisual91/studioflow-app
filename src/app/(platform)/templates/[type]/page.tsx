@@ -175,7 +175,7 @@ export default async function TemplateTypePage({
                         },
                       ]),
                 ]}
-                initialMethod={selectedInvoice?.method || "Stripe"}
+                initialMethod={selectedInvoice?.method || "Card & bank transfer"}
                 initialPaymentSchedule={
                   selectedInvoice?.paymentSchedule?.length
                     ? selectedInvoice.paymentSchedule

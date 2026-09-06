@@ -123,7 +123,7 @@ export default async function NewProjectInvoicePage({
               initialDueDate={project.projectDate || ""}
               initialLabel={`${project.client} Invoice`}
               initialLineItems={lineItems}
-              initialMethod="Stripe"
+              initialMethod="Card & bank transfer"
               initialPaymentSchedule={[
                 {
                   id: "payment-1",

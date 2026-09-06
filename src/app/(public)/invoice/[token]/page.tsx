@@ -111,28 +111,6 @@ function parsePaymentSchedule(value: unknown): PaymentScheduleItem[] {
   }
 }
 
-function normalizeMethod(method: string) {
-  const value = method.trim().toLowerCase();
-
-  if (!value || value === "multiple options") {
-    return "multiple";
-  }
-  if (value.includes("stripe")) {
-    return "stripe";
-  }
-  if (value.includes("venmo")) {
-    return "venmo";
-  }
-  if (value.includes("bank") || value.includes("ach")) {
-    return "bank";
-  }
-  if (value.includes("manual")) {
-    return "manual";
-  }
-
-  return "multiple";
-}
-
 const statusTone: Record<string, string> = {
   PAID: "border-[rgba(47,125,92,0.34)] bg-[rgba(47,125,92,0.12)] text-[var(--forest)]",
   DUE_SOON: "border-[rgba(207,114,79,0.16)] bg-[rgba(207,114,79,0.08)] text-[var(--accent)]",
@@ -280,12 +258,9 @@ export default async function PublicInvoicePage({
     "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1400&q=80";
   const paymentOptions = getPaymentOptions();
   const stripeReady = hasStripeConfig();
-  const selectedMethod = normalizeMethod(String(invoice.method || ""));
-  const visiblePaymentOptions =
-    selectedMethod === "multiple" || (selectedMethod === "stripe" && !stripeReady)
-      ? paymentOptions
-      : paymentOptions.filter((option) => option.id === selectedMethod);
-  const showStripeButton = stripeReady && (selectedMethod === "multiple" || selectedMethod === "stripe");
+  // Every invoice offers the same clear choice: card through Stripe or the configured bank transfer.
+  const visiblePaymentOptions = paymentOptions;
+  const showStripeButton = stripeReady;
   const autoPayEnabled = Number(invoice.auto_pay_enabled || 0) === 1;
   const autoPayLast4 = String(invoice.auto_pay_last4 || "").trim();
 
@@ -575,7 +550,7 @@ export default async function PublicInvoicePage({
                       </div>
                     ) : null}
 
-                    {!showStripeButton && visiblePaymentOptions.length === 0 && selectedMethod !== "manual" ? (
+                    {!showStripeButton && visiblePaymentOptions.length === 0 ? (
                       <div className="rounded-[1.1rem] border border-[rgba(207,114,79,0.18)] bg-[rgba(207,114,79,0.07)] p-4 text-sm text-[var(--accent)]">
                         This invoice is set to <strong>{String(invoice.method)}</strong>, but that payment option is not configured yet.
                       </div>
