@@ -13,6 +13,7 @@ import {
   updateUserAvatarAction,
 } from "@/app/actions";
 import { ProjectActivityTimeline } from "@/components/project-activity-timeline";
+import { ProjectActivityInboxSync } from "@/components/project-activity-inbox-sync";
 import { ProjectContactControls } from "@/components/project-contact-controls";
 import { ProjectCommunicationThreadCard } from "@/components/project-communication-thread";
 import { DashboardShell } from "@/components/dashboard-shell";
@@ -26,7 +27,7 @@ import { getDashboardPageData } from "@/lib/dashboard-page";
 import { getDb } from "@/lib/db";
 import { ensureProjectDeliverablesTable, type ProjectDeliverable } from "@/lib/deliverables";
 import { currencyFormatter, dateTime, formatStoredShortDate, shortDate } from "@/lib/formatters";
-import { hasInboxSyncConfig, syncInboxRepliesForProject } from "@/lib/inbox-sync";
+import { hasInboxSyncConfig } from "@/lib/inbox-sync";
 import { hasMicrosoftGraphReplySyncConfig } from "@/lib/microsoft-graph-mail";
 import { getProjectCommunicationThreads, getProjectTimelineEvents } from "@/lib/project-activity";
 import { getLatestProjectPackageForProject } from "@/lib/project-packages";
@@ -125,7 +126,7 @@ export default async function ProjectClientPage({
 
   const dashboardPageData = await getDashboardPageData();
   const { user } = dashboardPageData;
-  let data = dashboardPageData.data;
+  const data = dashboardPageData.data;
   const canSeeFinancials = canViewProjectFinancials(user.role);
   const canDeleteProjectFiles = canManageProjectFiles(user.role);
   const availableProjectTabs: ProjectTab[] = canSeeFinancials
@@ -137,14 +138,6 @@ export default async function ProjectClientPage({
       : availableProjectTabs.includes(requestedTab as ProjectTab)
         ? (requestedTab as ProjectTab)
         : "activity";
-
-  let syncResult: { imported: number; skipped: number; error: string } | null = null;
-  if (activeTab === "activity" && hasInboxSyncConfig()) {
-    syncResult = await syncInboxRepliesForProject(id);
-    if (syncResult.imported > 0) {
-      data = (await getDashboardPageData()).data;
-    }
-  }
 
   const project = data.projects.find((item) => item.id === id);
 
@@ -400,8 +393,6 @@ export default async function ProjectClientPage({
             ? "Invoice created successfully."
       : query.updated
         ? "Project details updated successfully."
-        : syncResult && syncResult.imported > 0
-          ? `${syncResult.imported} new client email${syncResult.imported === 1 ? "" : "s"} synced into activity.`
         : "";
 
   const errorMessage =
@@ -455,9 +446,7 @@ export default async function ProjectClientPage({
                         ? "Choose a video file for the video deliverable upload."
                         : query.error === "deliverable-photo-type"
                           ? "Choose an image file for the photo deliverable upload."
-        : syncResult?.error
-                        ? "Inbox sync could not reach Gmail right now. The page still loaded, but new replies were not imported this time."
-                        : "";
+        : "";
 
   return (
     <DashboardShell
@@ -577,6 +566,7 @@ export default async function ProjectClientPage({
           <div className="grid gap-6">
             {activeTab === "activity" ? (
               <>
+                <ProjectActivityInboxSync projectId={project.id} />
                 <div className="grid gap-5">
                   <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
                     <div className="flex flex-wrap items-start justify-between gap-4">
