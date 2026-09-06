@@ -140,7 +140,7 @@ export default async function PublicContractPage({
                   ) : null}
 
                   <div
-                    className="[&_blockquote]:border-l-4 [&_blockquote]:border-black/20 [&_blockquote]:pl-4 [&_h3]:text-[1.05rem] [&_h3]:font-bold [&_h4]:text-[0.98rem] [&_h4]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_p]:last:mb-0 [&_ul]:list-disc [&_ul]:pl-5"
+                    className="[&_blockquote]:border-l-4 [&_blockquote]:border-black/20 [&_blockquote]:pl-4 [&_h3]:text-[1.05rem] [&_h3]:font-bold [&_h4]:text-[0.98rem] [&_h4]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_p]:last:mb-0 [&_table]:my-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-black/15 [&_td]:p-2 [&_th]:border [&_th]:border-black/15 [&_th]:bg-black/[0.04] [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-5"
                     dangerouslySetInnerHTML={{ __html: sanitizeRichText(section.body) }}
                   />
                 </div>

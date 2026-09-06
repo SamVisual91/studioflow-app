@@ -84,11 +84,15 @@ function RichTextToolbar({
   onKeepSelection,
   onFormatBlock,
   onRun,
+  label = "",
+  sticky = true,
 }: {
   activeEditor: boolean;
   onKeepSelection: () => void;
   onRun: (command: string, value?: string) => void;
   onFormatBlock: (value: string) => void;
+  label?: string;
+  sticky?: boolean;
 }) {
   const buttonClass =
     "inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-black/[0.08] bg-white px-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-[rgba(31,27,24,0.06)] disabled:cursor-not-allowed disabled:opacity-45";
@@ -98,7 +102,8 @@ function RichTextToolbar({
   };
 
   return (
-    <div className="sticky top-3 z-20 flex flex-wrap items-center gap-2 rounded-[0.9rem] border border-black/[0.08] bg-[#f4efe7] px-3 py-2 shadow-[0_10px_24px_rgba(59,36,17,0.08)]">
+    <div className={`${sticky ? "sticky top-3 z-20" : ""} flex flex-wrap items-center gap-2 rounded-[0.9rem] border border-black/[0.08] bg-[#f4efe7] px-3 py-2 shadow-[0_10px_24px_rgba(59,36,17,0.08)]`}>
+      {label ? <span className="mr-1 text-[0.66rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">{label}</span> : null}
       <select
         className="h-9 rounded-md border border-black/[0.08] bg-white px-3 text-sm text-[var(--ink)] outline-none disabled:cursor-not-allowed disabled:opacity-45"
         disabled={!activeEditor}
@@ -170,12 +175,14 @@ function RichTextField({
   onChange,
   registerEditor,
   value,
+  variant = "standard",
 }: {
   editorId: string;
   value: string;
   onChange: (value: string) => void;
   onActivate: (id: string) => void;
   registerEditor: (id: string, node: HTMLDivElement | null) => void;
+  variant?: "document" | "standard";
 }) {
   const lastValue = useRef(value);
 
@@ -191,7 +198,12 @@ function RichTextField({
           node.innerHTML = value;
         }
       }}
-      className="min-h-[5rem] rounded-[0.8rem] border border-black/[0.06] bg-[rgba(31,27,24,0.025)] px-3 py-2 text-[inherit] text-[var(--ink)] outline-none transition focus:border-[var(--forest)] focus:bg-[rgba(47,125,92,0.05)] [&_blockquote]:border-l-4 [&_blockquote]:border-black/20 [&_blockquote]:pl-4 [&_h3]:text-[1.05rem] [&_h3]:font-bold [&_h4]:text-[0.98rem] [&_h4]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_p]:last:mb-0 [&_ul]:list-disc [&_ul]:pl-5"
+      aria-label={variant === "document" ? "Services and breakdown editor" : "Contract section editor"}
+      className={`rounded-[0.8rem] border border-black/[0.06] text-[inherit] text-[var(--ink)] outline-none transition focus:border-[var(--forest)] focus:bg-[rgba(47,125,92,0.05)] [&_blockquote]:border-l-4 [&_blockquote]:border-black/20 [&_blockquote]:pl-4 [&_h3]:text-[1.05rem] [&_h3]:font-bold [&_h4]:text-[0.98rem] [&_h4]:font-bold [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_p]:last:mb-0 [&_table]:my-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-black/15 [&_td]:p-2 [&_th]:border [&_th]:border-black/15 [&_th]:bg-black/[0.04] [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-5 ${
+        variant === "document"
+          ? "min-h-[18rem] bg-white px-5 py-5 text-base leading-8 shadow-inner"
+          : "min-h-[5rem] bg-[rgba(31,27,24,0.025)] px-3 py-2"
+      }`}
       contentEditable
       onBlur={(event) => onChange(sanitizeRichText(event.currentTarget.innerHTML))}
       onFocus={() => onActivate(editorId)}
@@ -201,6 +213,20 @@ function RichTextField({
           lastValue.current = html;
           onChange(html);
         }
+      }}
+      onPaste={(event) => {
+        const richClipboardHtml = event.clipboardData.getData("text/html");
+
+        if (!richClipboardHtml) {
+          return;
+        }
+
+        // Insert the clipboard's HTML instead of flattening it to plain text. This keeps Word/Docs lists, emphasis, colors, and tables intact.
+        event.preventDefault();
+        globalThis.document.execCommand("insertHTML", false, sanitizeRichText(richClipboardHtml));
+        const html = sanitizeRichText(event.currentTarget.innerHTML);
+        lastValue.current = html;
+        onChange(html);
       }}
       suppressContentEditableWarning
     />
@@ -655,6 +681,9 @@ export function ContractWorkspace({
                 section.heading.toLowerCase().includes("cancellation") ||
                 section.heading.toLowerCase().includes("illness") ||
                 section.heading.toLowerCase().includes("reschedule");
+              const isServicesBreakdown =
+                section.heading.toLowerCase().includes("service") &&
+                section.heading.toLowerCase().includes("breakdown");
 
               return (
                 <div className="space-y-4" key={`${section.heading}-${index}`}>
@@ -678,13 +707,43 @@ export function ContractWorkspace({
                     />
                   ) : null}
 
-                  <RichTextField
-                    editorId={`section-body-${index}`}
-                    onActivate={setActiveEditorId}
-                    onChange={(value) => updateSection(index, "body", value)}
-                    registerEditor={registerEditor}
-                    value={section.body}
-                  />
+                  {isServicesBreakdown ? (
+                    <div className="overflow-hidden rounded-[1rem] border border-[rgba(47,125,92,0.22)] bg-[rgba(247,250,247,0.9)] p-3 shadow-[0_16px_36px_rgba(47,125,92,0.08)] sm:p-4">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--ink)]">Service document</p>
+                          <p className="mt-1 text-xs text-[var(--muted)]">Paste directly from Word, Google Docs, or a spreadsheet. Lists, styling, and tables are kept.</p>
+                        </div>
+                        <span className="rounded-full bg-[rgba(47,125,92,0.12)] px-3 py-1.5 text-xs font-semibold text-[var(--forest)]">Rich text enabled</span>
+                      </div>
+                      <RichTextToolbar
+                        activeEditor={activeEditorId === `section-body-${index}`}
+                        label="Services"
+                        onKeepSelection={restoreSelection}
+                        onFormatBlock={formatBlock}
+                        onRun={runEditorCommand}
+                        sticky={false}
+                      />
+                      <div className="mt-3">
+                        <RichTextField
+                          editorId={`section-body-${index}`}
+                          onActivate={setActiveEditorId}
+                          onChange={(value) => updateSection(index, "body", value)}
+                          registerEditor={registerEditor}
+                          value={section.body}
+                          variant="document"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <RichTextField
+                      editorId={`section-body-${index}`}
+                      onActivate={setActiveEditorId}
+                      onChange={(value) => updateSection(index, "body", value)}
+                      registerEditor={registerEditor}
+                      value={section.body}
+                    />
+                  )}
                 </div>
               );
             })}
