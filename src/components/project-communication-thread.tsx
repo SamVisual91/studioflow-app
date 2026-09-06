@@ -1,6 +1,6 @@
 import { markProjectMessageReadAction, sendProjectMessageAction } from "@/app/actions";
 import { dateTime } from "@/lib/formatters";
-import { type ProjectCommunicationThread } from "@/lib/project-activity";
+import { type ProjectCommunicationMessage, type ProjectCommunicationThread } from "@/lib/project-activity";
 import { ProjectEmailComposerFields } from "@/components/project-email-composer-fields";
 
 function getInitials(name: string) {
@@ -67,6 +67,183 @@ function getReplyDefaults(thread: ProjectCommunicationThread, primaryContactEmai
   };
 }
 
+function splitQuotedEmailBody(value: string) {
+  const lines = String(value || "").replace(/\r\n?/g, "\n").split("\n");
+  const quotedStart = lines.findIndex((line) =>
+    /^(?:\s*>+|\s*On .+ wrote:\s*$|\s*From:\s|\s*Sent:\s|\s*-----Original Message-----)/i.test(line)
+  );
+
+  if (quotedStart < 0) {
+    return { quoted: "", visible: lines.join("\n").trim() };
+  }
+
+  return {
+    quoted: lines.slice(quotedStart).join("\n").trim(),
+    visible: lines.slice(0, quotedStart).join("\n").trim(),
+  };
+}
+
+function getMessagePreview(value: string) {
+  const { visible } = splitQuotedEmailBody(value);
+  return visible || "Quoted email history. Open the message to review it.";
+}
+
+function ThreadMessageCard({
+  clientName,
+  initiallyOpen = false,
+  message,
+  primaryContactEmail,
+  projectId,
+  userAvatar,
+}: {
+  clientName: string;
+  initiallyOpen?: boolean;
+  message: ProjectCommunicationMessage;
+  primaryContactEmail: string;
+  projectId: string;
+  userAvatar: string;
+}) {
+  const isOutbound = message.direction === "OUTBOUND";
+  const toRecipients = message.recipients
+    .filter((recipient) => recipient.type === "TO")
+    .map((recipient) => recipient.email)
+    .join(", ");
+  const ccRecipients = message.recipients
+    .filter((recipient) => recipient.type === "CC")
+    .map((recipient) => recipient.email)
+    .join(", ");
+  const body = splitQuotedEmailBody(message.bodyText);
+  const displayBody = body.visible || "No new message text was captured for this email.";
+
+  return (
+    <details
+      className={`min-w-0 max-w-full overflow-hidden rounded-[1.35rem] border ${
+        isOutbound
+          ? "border-[rgba(48,83,121,0.20)] bg-[rgba(235,243,250,0.86)]"
+          : "border-[rgba(207,114,79,0.22)] bg-[rgba(255,248,240,0.96)]"
+      }`}
+      open={initiallyOpen}
+    >
+      <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 px-4 py-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="break-words text-sm font-semibold text-[var(--ink)]">
+              {message.senderName || (isOutbound ? "You" : clientName)}
+            </p>
+            <span
+              className={`rounded-full px-2 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.16em] ${
+                isOutbound
+                  ? "bg-[rgba(48,83,121,0.12)] text-[#315473]"
+                  : "bg-[rgba(207,114,79,0.13)] text-[var(--accent)]"
+              }`}
+            >
+              {isOutbound ? "You" : "Client"}
+            </span>
+            {isOutbound ? (
+              <span className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+                {message.openedAt ? "Opened" : message.status || "Sent"}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-1 line-clamp-1 break-words text-sm text-[var(--muted)]">{getMessagePreview(message.bodyText)}</p>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-xs text-[var(--muted)]">{dateTime.format(new Date(message.createdAt))}</p>
+          <span className="mt-2 inline-block text-sm leading-none text-[var(--muted)]" aria-hidden="true">
+            v
+          </span>
+        </div>
+      </summary>
+
+      <div className="min-w-0 border-t border-black/[0.08] px-4 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <span
+              className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
+                isOutbound ? "bg-[var(--sidebar)] text-white" : "bg-[rgba(207,114,79,0.14)] text-[var(--accent)]"
+              }`}
+              style={
+                isOutbound && userAvatar
+                  ? {
+                      backgroundImage: `url(${userAvatar})`,
+                      backgroundPosition: "center",
+                      backgroundSize: "cover",
+                    }
+                  : undefined
+              }
+            >
+              {isOutbound && userAvatar ? "" : getInitials(message.senderName || clientName)}
+            </span>
+            <div className="min-w-0">
+              <p className="break-words text-xs text-[var(--muted)]">
+                {message.senderEmail || (isOutbound ? "StudioFlow mailer" : primaryContactEmail || "Client reply")}
+              </p>
+              {toRecipients ? <p className="mt-1 break-words text-xs text-[var(--muted)]">To: {toRecipients}</p> : null}
+              {ccRecipients ? <p className="mt-1 break-words text-xs text-[var(--muted)]">CC: {ccRecipients}</p> : null}
+            </div>
+          </div>
+
+          {!isOutbound && !message.isRead ? (
+            <form action={markProjectMessageReadAction}>
+              <input name="projectId" type="hidden" value={projectId} />
+              <input name="messageId" type="hidden" value={message.id} />
+              <button
+                className="rounded-full border border-[rgba(207,114,79,0.18)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.08)]"
+                type="submit"
+              >
+                Mark read
+              </button>
+            </form>
+          ) : null}
+        </div>
+
+        <div className={`mt-4 min-w-0 max-w-full rounded-[1.15rem] px-4 py-4 ${isOutbound ? "bg-white/70" : "bg-white/58"}`}>
+          <p className="break-words text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+            {message.subject}
+          </p>
+          <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-[var(--ink)] [overflow-wrap:anywhere]">
+            {displayBody}
+          </p>
+          {body.quoted ? (
+            <details className="mt-4 max-w-full rounded-xl border border-black/[0.08] bg-white/70">
+              <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold text-[var(--muted)]">
+                Show quoted email history
+              </summary>
+              <pre className="max-h-64 max-w-full overflow-auto border-t border-black/[0.08] p-3 whitespace-pre-wrap break-words font-sans text-xs leading-6 text-[var(--muted)] [overflow-wrap:anywhere]">
+                {body.quoted}
+              </pre>
+            </details>
+          ) : null}
+        </div>
+
+        {message.attachments.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {message.attachments.map((attachment) =>
+              attachment.storagePath ? (
+                <a
+                  key={`${message.id}-${attachment.fileName}`}
+                  className="max-w-full truncate rounded-full border border-black/[0.08] bg-white px-3 py-2 text-xs font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
+                  href={attachment.storagePath}
+                  target="_blank"
+                >
+                  {attachment.fileName}
+                </a>
+              ) : (
+                <span
+                  key={`${message.id}-${attachment.fileName}`}
+                  className="max-w-full truncate rounded-full border border-black/[0.08] bg-white px-3 py-2 text-xs font-semibold text-[var(--muted)]"
+                >
+                  {attachment.fileName}
+                </span>
+              )
+            )}
+          </div>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
 type Props = {
   clientName: string;
   primaryContactEmail: string;
@@ -83,13 +260,13 @@ export function ProjectCommunicationThreadCard({
   userAvatar = "",
 }: Props) {
   const lastMessage = thread.messages[thread.messages.length - 1];
+  const earlierMessages = thread.messages.slice(0, -1);
   const replyDefaults = getReplyDefaults(thread, primaryContactEmail);
   const recipientSummary = formatRecipientList(thread);
 
   return (
     <details
-      className="rounded-[1.6rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)]"
-      open={thread.unreadCount > 0}
+      className="min-w-0 max-w-full overflow-hidden rounded-[1.6rem] border border-black/[0.08] bg-[rgba(247,241,232,0.52)]"
     >
       <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-4 px-5 py-5">
         <div className="min-w-0 flex-1">
@@ -107,9 +284,9 @@ export function ProjectCommunicationThreadCard({
             {recipientSummary ? `To ${recipientSummary}` : "Project conversation"}
           </p>
           {lastMessage ? (
-            <p className="mt-3 line-clamp-2 text-sm leading-7 text-[var(--ink)]">
+            <p className="mt-3 line-clamp-2 break-words text-sm leading-7 text-[var(--ink)] [overflow-wrap:anywhere]">
               <span className="font-semibold">{lastMessage.senderName || (lastMessage.direction === "OUTBOUND" ? "You" : clientName)}:</span>{" "}
-              {lastMessage.bodyText || "Open thread to view the latest message."}
+              {getMessagePreview(lastMessage.bodyText)}
             </p>
           ) : null}
         </div>
@@ -123,151 +300,36 @@ export function ProjectCommunicationThreadCard({
 
       <div className="border-t border-black/[0.08] px-5 py-5">
         <div className="grid gap-4">
-          {thread.messages.map((message) => {
-            const isOutbound = message.direction === "OUTBOUND";
-            const toRecipients = message.recipients
-              .filter((recipient) => recipient.type === "TO")
-              .map((recipient) => recipient.email)
-              .join(", ");
-            const ccRecipients = message.recipients
-              .filter((recipient) => recipient.type === "CC")
-              .map((recipient) => recipient.email)
-              .join(", ");
+          {lastMessage ? (
+            <ThreadMessageCard
+              clientName={clientName}
+              initiallyOpen
+              message={lastMessage}
+              primaryContactEmail={primaryContactEmail}
+              projectId={projectId}
+              userAvatar={userAvatar}
+            />
+          ) : null}
 
-            return (
-              <article
-                key={message.id}
-                className={`rounded-[1.45rem] border px-4 py-4 ${
-                  isOutbound
-                    ? "border-[rgba(48,83,121,0.20)] bg-[rgba(235,243,250,0.86)]"
-                    : "border-[rgba(207,114,79,0.22)] bg-[rgba(255,248,240,0.96)]"
-                }`}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <span
-                      className={`inline-flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold ${
-                        isOutbound ? "bg-[var(--sidebar)] text-white" : "bg-[rgba(207,114,79,0.14)] text-[var(--accent)]"
-                      }`}
-                      style={
-                        isOutbound && userAvatar
-                          ? {
-                              backgroundImage: `url(${userAvatar})`,
-                              backgroundPosition: "center",
-                              backgroundSize: "cover",
-                            }
-                          : undefined
-                      }
-                    >
-                      {isOutbound && userAvatar ? "" : getInitials(message.senderName || clientName)}
-                    </span>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-[var(--ink)]">
-                          {message.senderName || (isOutbound ? "You" : clientName)}
-                        </p>
-                        <span
-                          className={`rounded-full px-2 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.16em] ${
-                            isOutbound
-                              ? "bg-[rgba(48,83,121,0.12)] text-[#315473]"
-                              : "bg-[rgba(207,114,79,0.13)] text-[var(--accent)]"
-                          }`}
-                        >
-                          {isOutbound ? "You" : "Client"}
-                        </span>
-                        <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                          {isOutbound ? (
-                            <span
-                              className="inline-flex items-center gap-1.5"
-                              title={message.openedAt ? `Client opened this email on ${dateTime.format(new Date(message.openedAt))}` : "Email sent. Waiting for the first tracked open."}
-                            >
-                              <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
-                                {message.openedAt ? (
-                                  <>
-                                    <path d="m3 9 9 6 9-6" />
-                                    <path d="M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1-1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" />
-                                    <path d="m3 7 5.5-4h7L21 7" />
-                                  </>
-                                ) : (
-                                  <>
-                                    <rect height="14" rx="1.5" width="18" x="3" y="5" />
-                                    <path d="m3 7 9 6 9-6" />
-                                  </>
-                                )}
-                              </svg>
-                              {message.openedAt ? "OPENED" : message.status || "SENT"}
-                            </span>
-                          ) : message.isRead ? "READ" : "NEW"}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-[var(--muted)]">
-                        {message.senderEmail || (isOutbound ? "StudioFlow mailer" : primaryContactEmail || "Client reply")}
-                      </p>
-                      {toRecipients ? (
-                        <p className="mt-2 text-xs text-[var(--muted)]">To: {toRecipients}</p>
-                      ) : null}
-                      {ccRecipients ? (
-                        <p className="mt-1 text-xs text-[var(--muted)]">CC: {ccRecipients}</p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <p className="text-sm text-[var(--ink)]">{dateTime.format(new Date(message.createdAt))}</p>
-                    {!isOutbound && !message.isRead ? (
-                      <form action={markProjectMessageReadAction} className="mt-3">
-                        <input name="projectId" type="hidden" value={projectId} />
-                        <input name="messageId" type="hidden" value={message.id} />
-                        <button
-                          className="rounded-full border border-[rgba(207,114,79,0.18)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition hover:bg-[rgba(207,114,79,0.08)]"
-                          type="submit"
-                        >
-                          Mark read
-                        </button>
-                      </form>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div
-                  className={`mt-4 rounded-[1.2rem] px-4 py-4 ${
-                    isOutbound ? "bg-white/70" : "bg-[rgba(255,255,255,0.58)]"
-                  }`}
-                >
-                  <p className="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
-                    {message.subject}
-                  </p>
-                  <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-7 text-[var(--ink)]">
-                    {message.bodyText || "No message body was captured for this email."}
-                  </pre>
-                </div>
-
-                {message.attachments.length > 0 ? (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {message.attachments.map((attachment) =>
-                      attachment.storagePath ? (
-                        <a
-                          key={`${message.id}-${attachment.fileName}`}
-                          className="rounded-full border border-black/[0.08] bg-white px-3 py-2 text-xs font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
-                          href={attachment.storagePath}
-                          target="_blank"
-                        >
-                          {attachment.fileName}
-                        </a>
-                      ) : (
-                        <span
-                          key={`${message.id}-${attachment.fileName}`}
-                          className="rounded-full border border-black/[0.08] bg-white px-3 py-2 text-xs font-semibold text-[var(--muted)]"
-                        >
-                          {attachment.fileName}
-                        </span>
-                      )
-                    )}
-                  </div>
-                ) : null}
-              </article>
-            );
-          })}
+          {earlierMessages.length > 0 ? (
+            <details className="min-w-0 max-w-full rounded-[1.25rem] border border-black/[0.08] bg-white/70">
+              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--ink)]">
+                Show {earlierMessages.length} earlier message{earlierMessages.length === 1 ? "" : "s"}
+              </summary>
+              <div className="grid gap-3 border-t border-black/[0.08] p-3">
+                {earlierMessages.map((message) => (
+                  <ThreadMessageCard
+                    clientName={clientName}
+                    key={message.id}
+                    message={message}
+                    primaryContactEmail={primaryContactEmail}
+                    projectId={projectId}
+                    userAvatar={userAvatar}
+                  />
+                ))}
+              </div>
+            </details>
+          ) : null}
         </div>
 
         <details className="mt-5 rounded-[1.4rem] border border-black/[0.08] bg-white">
