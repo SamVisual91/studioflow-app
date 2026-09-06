@@ -3,18 +3,20 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   updateClientPortalHeroAction,
+  updateClientPortalProjectSummaryAction,
   updateProjectDeliverablesGalleryAction,
   uploadClientPortalImageAction,
 } from "@/app/actions";
 import { ClientPhotoAlbum } from "@/components/client-photo-album";
 import { MediaCarousel } from "@/components/media-carousel";
+import { getCurrentUser } from "@/lib/auth";
 import { getDb, parseJsonList } from "@/lib/db";
 import { ensureProjectDeliverablesTable, markPhotoDeliverablePaid } from "@/lib/deliverables";
 import { currencyFormatter, dateTime, shortDate } from "@/lib/formatters";
 import { getStripe } from "@/lib/stripe";
 import { ensureVideoPaywallsTable } from "@/lib/video-paywalls";
 
-const portalTabs = ["overview", "financials", "messages", "details", "buy-videos"] as const;
+const portalTabs = ["overview", "files", "messages", "details", "buy-videos"] as const;
 
 type PortalTab = (typeof portalTabs)[number];
 
@@ -24,7 +26,9 @@ type Search = {
   gallerySaved?: string;
   portalSaved?: string;
   categorySaved?: string;
+  summarySaved?: string;
   editGallery?: string;
+  editSummary?: string;
   openAlbum?: string;
   photo_session_id?: string;
   photo_token?: string;
@@ -62,10 +66,18 @@ export default async function ClientPortalPage({
   searchParams: Promise<Search>;
 }) {
   const [{ token }, query] = await Promise.all([params, searchParams]);
-  const requestedTab = String(query.tab || "").toLowerCase() as PortalTab;
-  const activeTab = portalTabs.includes(requestedTab) ? requestedTab : "overview";
+  const requestedTab = String(query.tab || "").toLowerCase();
+  const activeTab =
+    requestedTab === "financials"
+      ? "files"
+      : portalTabs.includes(requestedTab as PortalTab)
+        ? (requestedTab as PortalTab)
+        : "overview";
   const canEditGallery = false;
   const isGalleryEditMode = false;
+  const currentUser = await getCurrentUser();
+  const canEditSummary = Boolean(currentUser);
+  const isSummaryEditMode = canEditSummary && query.editSummary === "1";
   const db = getDb();
   ensureVideoPaywallsTable();
   ensureProjectDeliverablesTable();
@@ -103,6 +115,11 @@ export default async function ClientPortalPage({
         ORDER BY sent_date DESC`
     )
     .all(String(project.id), canUseLegacyClientScope ? 1 : 0, String(project.client)) as Array<Record<string, unknown>>;
+  const contractFiles = db
+    .prepare(
+      "SELECT id, title, summary, status, linked_path, created_at, updated_at FROM project_files WHERE project_id = ? AND type = 'CONTRACT' ORDER BY updated_at DESC, created_at DESC"
+    )
+    .all(String(project.id)) as Array<Record<string, unknown>>;
   const invoices = db
     .prepare(
       `SELECT *
@@ -224,6 +241,8 @@ export default async function ClientPortalPage({
   });
   const photoAlbumCount = photoAlbums.length;
   const signedContract =
+    contractFiles.find((item) => String(item.status).toLowerCase() === "signed") ||
+    contractFiles[0] ||
     proposals.find((item) => String(item.status) === "SIGNED") ||
     proposals.find((item) => String(item.title).toLowerCase().includes("contract")) ||
     null;
@@ -385,6 +404,9 @@ export default async function ClientPortalPage({
               {query.categorySaved === "1" ? (
                 <Banner message="Photo category changes saved." tone="success" />
               ) : null}
+              {query.summarySaved === "1" ? (
+                <Banner message="Project summary updated." tone="success" />
+              ) : null}
               {query.photo_session_id && query.photo_token ? (
                 <Banner message="Photo purchase received. Your download is now unlocked." tone="success" />
               ) : null}
@@ -410,15 +432,93 @@ export default async function ClientPortalPage({
                   </div>
 
                   <article className="rounded-[1.6rem] border border-black/[0.08] bg-white p-6">
-                    <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Project summary</p>
-                    <h2 className="mt-3 text-2xl font-semibold">{String(project.name)}</h2>
-                    <p className="mt-4 text-sm leading-7 text-[var(--muted)]">{String(project.description || "")}</p>
-                    <div className="mt-6 grid gap-3 md:grid-cols-2">
-                      <InfoRow label="Current stage" value={String(project.phase)} />
-                      <InfoRow label="Next milestone" value={String(project.next_milestone)} />
-                      <InfoRow label="Lead source" value={String(project.lead_source || "Private")} />
-                      <InfoRow label="Package" value={String(client?.package_name || "Not set")} />
-                    </div>
+                    {isSummaryEditMode ? (
+                      <form action={updateClientPortalProjectSummaryAction} className="grid gap-5">
+                        <input name="projectId" type="hidden" value={String(project.id)} />
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Project summary</p>
+                            <h2 className="mt-3 text-2xl font-semibold">Edit portal details</h2>
+                          </div>
+                          <Link
+                            className="rounded-full border border-black/[0.10] px-4 py-2 text-xs font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
+                            href={`/client-portal/${token}?tab=overview`}
+                          >
+                            Cancel
+                          </Link>
+                        </div>
+                        <label className="grid gap-2 text-sm font-semibold">
+                          Project name
+                          <input
+                            className="rounded-xl border border-black/[0.10] bg-white px-4 py-3 font-normal outline-none transition focus:border-[var(--forest)]"
+                            defaultValue={String(project.name)}
+                            name="projectName"
+                            required
+                          />
+                        </label>
+                        <label className="grid gap-2 text-sm font-semibold">
+                          Summary
+                          <textarea
+                            className="min-h-28 rounded-xl border border-black/[0.10] bg-white px-4 py-3 font-normal leading-6 outline-none transition focus:border-[var(--forest)]"
+                            defaultValue={String(project.description || "")}
+                            name="description"
+                          />
+                        </label>
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <label className="grid gap-2 text-sm font-semibold">
+                            Current stage
+                            <input
+                              className="rounded-xl border border-black/[0.10] bg-white px-4 py-3 font-normal outline-none transition focus:border-[var(--forest)]"
+                              defaultValue={String(project.phase || "")}
+                              name="phase"
+                            />
+                          </label>
+                          <label className="grid gap-2 text-sm font-semibold">
+                            Next milestone
+                            <input
+                              className="rounded-xl border border-black/[0.10] bg-white px-4 py-3 font-normal outline-none transition focus:border-[var(--forest)]"
+                              defaultValue={String(project.next_milestone || "")}
+                              name="nextMilestone"
+                            />
+                          </label>
+                          <label className="grid gap-2 text-sm font-semibold">
+                            Lead source
+                            <input
+                              className="rounded-xl border border-black/[0.10] bg-white px-4 py-3 font-normal outline-none transition focus:border-[var(--forest)]"
+                              defaultValue={String(project.lead_source || "Private")}
+                              name="leadSource"
+                            />
+                          </label>
+                        </div>
+                        <button className="justify-self-start rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+                          Save project summary
+                        </button>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Project summary</p>
+                            <h2 className="mt-3 text-2xl font-semibold">{String(project.name)}</h2>
+                          </div>
+                          {canEditSummary ? (
+                            <Link
+                              className="rounded-full border border-black/[0.10] px-4 py-2 text-xs font-semibold text-[var(--ink)] transition hover:bg-black/[0.03]"
+                              href={`/client-portal/${token}?tab=overview&editSummary=1`}
+                            >
+                              Edit summary
+                            </Link>
+                          ) : null}
+                        </div>
+                        <p className="mt-4 text-sm leading-7 text-[var(--muted)]">{String(project.description || "")}</p>
+                        <div className="mt-6 grid gap-3 md:grid-cols-2">
+                          <InfoRow label="Current stage" value={String(project.phase)} />
+                          <InfoRow label="Next milestone" value={String(project.next_milestone)} />
+                          <InfoRow label="Lead source" value={String(project.lead_source || "Private")} />
+                          <InfoRow label="Package" value={String(client?.package_name || "Not set")} />
+                        </div>
+                      </>
+                    )}
                   </article>
 
                   <article className="rounded-[1.6rem] border border-black/[0.08] bg-white p-6">
@@ -441,15 +541,38 @@ export default async function ClientPortalPage({
                 </>
               ) : null}
 
-              {activeTab === "financials" ? (
+              {activeTab === "files" ? (
                 <>
                   <article className="rounded-[1.6rem] border border-black/[0.08] bg-white p-6">
                     <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Proposals and contract</p>
                     <div className="mt-5 grid gap-4">
-                      {proposals.length === 0 ? (
-                        <p className="text-sm text-[var(--muted)]">No proposals have been shared yet.</p>
-                      ) : (
-                        proposals.map((proposal) => {
+                      {contractFiles.map((contract) => (
+                        <article
+                          key={String(contract.id)}
+                          className="rounded-[1.35rem] border border-[rgba(47,125,92,0.20)] bg-[rgba(47,125,92,0.06)] p-5"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--forest)]">Contract</p>
+                              <h2 className="mt-2 text-lg font-semibold">{String(contract.title)}</h2>
+                              <p className="mt-1 text-sm text-[var(--muted)]">{String(contract.status || "Draft")}</p>
+                            </div>
+                            {contract.linked_path ? (
+                              <Link
+                                className="inline-flex text-sm font-semibold text-[var(--forest)] underline"
+                                href={String(contract.linked_path)}
+                                target="_blank"
+                              >
+                                Open contract
+                              </Link>
+                            ) : null}
+                          </div>
+                          {contract.summary ? (
+                            <p className="mt-4 text-sm leading-7 text-[var(--muted)]">{String(contract.summary)}</p>
+                          ) : null}
+                        </article>
+                      ))}
+                      {proposals.map((proposal) => {
                           const lineItems = parseLineItems(proposal.line_items);
                           return (
                             <article
@@ -488,8 +611,10 @@ export default async function ClientPortalPage({
                               ) : null}
                             </article>
                           );
-                        })
-                      )}
+                        })}
+                      {contractFiles.length === 0 && proposals.length === 0 ? (
+                        <p className="text-sm text-[var(--muted)]">No proposals or contracts have been shared yet.</p>
+                      ) : null}
                     </div>
                   </article>
 

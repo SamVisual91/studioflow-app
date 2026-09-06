@@ -6166,6 +6166,52 @@ export async function updateClientPortalHeroAction(formData: FormData) {
   redirect(withStatus(safeReturnPath, "portalSaved", "1"));
 }
 
+export async function updateClientPortalProjectSummaryAction(formData: FormData) {
+  await requireUser();
+
+  const projectId = getString(formData, "projectId");
+  const projectName = getString(formData, "projectName");
+  const description = getString(formData, "description");
+  const phase = getString(formData, "phase");
+  const nextMilestone = getString(formData, "nextMilestone");
+  const leadSource = getString(formData, "leadSource");
+
+  if (!projectId || !projectName) {
+    redirect("/projects?error=project-summary-invalid");
+  }
+
+  const db = getDb();
+  const project = db
+    .prepare("SELECT id, public_portal_token FROM projects WHERE id = ? LIMIT 1")
+    .get(projectId) as { id?: string; public_portal_token?: string | null } | undefined;
+
+  if (!project?.id) {
+    redirect("/projects?error=project-missing");
+  }
+
+  const timestamp = new Date().toISOString();
+  db.prepare(
+    "UPDATE projects SET name = ?, description = ?, phase = ?, next_milestone = ?, lead_source = ?, updated_at = ? WHERE id = ?"
+  ).run(projectName, description, phase, nextMilestone, leadSource, timestamp, projectId);
+  updateProjectRecentActivity(
+    db,
+    projectId,
+    createRecentActivity("Client portal project summary updated", timestamp),
+    timestamp
+  );
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+  revalidatePath("/overview");
+
+  if (project.public_portal_token) {
+    revalidatePath(`/client-portal/${project.public_portal_token}`);
+    redirect(`/client-portal/${project.public_portal_token}?tab=overview&summarySaved=1`);
+  }
+
+  redirect(`/projects/${projectId}?updated=1`);
+}
+
 export async function updateProjectDeliverableAction(formData: FormData) {
   await requireUser();
 
