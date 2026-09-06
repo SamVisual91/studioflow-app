@@ -186,6 +186,12 @@ function RichTextField({
 }) {
   const lastValue = useRef(value);
 
+  function syncEditorValue(node: HTMLDivElement) {
+    const html = sanitizeRichText(node.innerHTML);
+    lastValue.current = html;
+    onChange(html);
+  }
+
   useEffect(() => {
     lastValue.current = value;
   }, [value]);
@@ -214,6 +220,35 @@ function RichTextField({
           onChange(html);
         }
       }}
+      onKeyDown={(event) => {
+        if (variant !== "document" || event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+          return;
+        }
+
+        const selection = globalThis.document.getSelection();
+        const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+        const currentElement =
+          range?.startContainer.nodeType === Node.ELEMENT_NODE
+            ? (range.startContainer as Element)
+            : range?.startContainer.parentElement;
+
+        // Keep the browser's native Enter behavior inside actual lists and table cells.
+        if (!range || !currentElement || currentElement.closest("li, td, th")) {
+          return;
+        }
+
+        // Word and Docs can paste blocks with unusual indentation. A fresh paragraph gives Enter the familiar document-editor behavior.
+        event.preventDefault();
+        range.deleteContents();
+        const paragraph = globalThis.document.createElement("p");
+        paragraph.append(globalThis.document.createElement("br"));
+        range.insertNode(paragraph);
+        range.setStart(paragraph, 0);
+        range.collapse(true);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        syncEditorValue(event.currentTarget);
+      }}
       onPaste={(event) => {
         const richClipboardHtml = event.clipboardData.getData("text/html");
 
@@ -224,9 +259,7 @@ function RichTextField({
         // Insert the clipboard's HTML instead of flattening it to plain text. This keeps Word/Docs lists, emphasis, colors, and tables intact.
         event.preventDefault();
         globalThis.document.execCommand("insertHTML", false, sanitizeRichText(richClipboardHtml));
-        const html = sanitizeRichText(event.currentTarget.innerHTML);
-        lastValue.current = html;
-        onChange(html);
+        syncEditorValue(event.currentTarget);
       }}
       suppressContentEditableWarning
     />
