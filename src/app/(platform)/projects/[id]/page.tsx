@@ -884,7 +884,9 @@ export default async function ProjectClientPage({
                       mergedProjectFiles.map((file) => (
                         (() => {
                           const href =
-                            file.linked_path ||
+                            file.type === "CONTRACT"
+                              ? `/projects/${project.id}/files/${file.id}`
+                              : file.linked_path ||
                             (file.type === "PACKAGES" ? packageBrochureHref : undefined) ||
                             (file.type === "PROPOSAL"
                               ? proposalHrefByTitle.get(file.title)
