@@ -23,6 +23,29 @@ function sanitizeRichText(value: string) {
     .replace(/\son\w+='[^']*'/gi, "");
 }
 
+function escapeRichText(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function plainTextToDocumentHtml(value: string) {
+  const lines = value.replace(/\r\n?/g, "\n").split("\n");
+
+  return lines
+    .map((line) => (line.trim() ? `<p>${escapeRichText(line)}</p>` : "<p><br /></p>"))
+    .join("");
+}
+
+function usesClipboardLayout(html: string) {
+  return /(?:display\s*:\s*(?:inline-)?(?:flex|grid)|grid-(?:template|column|row)|position\s*:\s*(?:absolute|fixed)|float\s*:|column-count|mso-(?:tab|position)|tab-stops)/i.test(
+    html
+  );
+}
+
 function InlineField({
   align = "center",
   className = "",
@@ -251,14 +274,19 @@ function RichTextField({
       }}
       onPaste={(event) => {
         const richClipboardHtml = event.clipboardData.getData("text/html");
+        const clipboardText = event.clipboardData.getData("text/plain");
 
         if (!richClipboardHtml) {
           return;
         }
 
-        // Insert the clipboard's HTML instead of flattening it to plain text. This keeps Word/Docs lists, emphasis, colors, and tables intact.
+        // Preserve normal rich paste, but remove copied web-app layout grids so visible lines stay in their original order.
         event.preventDefault();
-        globalThis.document.execCommand("insertHTML", false, sanitizeRichText(richClipboardHtml));
+        const pastedHtml =
+          variant === "document" && clipboardText && usesClipboardLayout(richClipboardHtml)
+            ? plainTextToDocumentHtml(clipboardText)
+            : sanitizeRichText(richClipboardHtml);
+        globalThis.document.execCommand("insertHTML", false, pastedHtml);
         syncEditorValue(event.currentTarget);
       }}
       suppressContentEditableWarning
