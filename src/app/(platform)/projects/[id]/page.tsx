@@ -562,13 +562,17 @@ export default async function ProjectClientPage({
           ))}
         </div>
 
-        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,280px)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">
+        <div
+          className={`grid items-start gap-5 ${
+            activeTab === "activity" ? "grid-cols-1" : "xl:grid-cols-[minmax(0,1fr)_minmax(0,280px)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,300px)]"
+          }`}
+        >
           <div className="grid gap-6">
             {activeTab === "activity" ? (
               <>
                 <ProjectActivityInboxSync projectId={project.id} />
                 <div className="grid gap-5">
-                  <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
+                  <div className="min-w-0 max-w-full overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Project mailbox</p>
@@ -627,8 +631,8 @@ export default async function ProjectClientPage({
                   </div>
                 </div>
 
-                <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
-                  <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
+                <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
+                  <div className="min-w-0 max-w-full overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Threads</p>
@@ -679,7 +683,7 @@ export default async function ProjectClientPage({
                     </div>
                   </div>
 
-                  <div className="rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
+                  <div className="min-w-0 max-w-full overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-white/84 p-6 shadow-[0_18px_40px_rgba(59,36,17,0.08)]">
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted)]">Timeline</p>
@@ -1044,6 +1048,7 @@ export default async function ProjectClientPage({
             ) : null}
           </div>
 
+          {activeTab !== "activity" ? (
           <aside className="grid min-w-0 max-w-full content-start gap-4">
             <div className="max-w-full overflow-hidden rounded-[1.35rem] border border-black/[0.08] bg-white/88 p-4 shadow-[0_14px_34px_rgba(59,36,17,0.07)]">
               <div className="flex min-w-0 items-start justify-between gap-4">
@@ -1151,6 +1156,7 @@ export default async function ProjectClientPage({
               </div>
             </div>
           </aside>
+          ) : null}
         </div>
       </section>
     </DashboardShell>

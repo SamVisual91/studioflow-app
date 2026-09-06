@@ -52,27 +52,27 @@ export function ProjectActivityTimeline({ events }: Props) {
   }
 
   return (
-    <div className="grid gap-5">
+    <div className="grid min-w-0 gap-5">
       {Array.from(grouped.entries()).map(([label, group]) => (
-        <section key={label} className="grid gap-3">
+        <section key={label} className="grid min-w-0 gap-3">
           <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">{label}</p>
-          <div className="grid gap-3">
+          <div className="grid min-w-0 gap-3">
             {group.map((event) => (
               <article
                 key={event.id}
-                className="rounded-[1.35rem] border border-black/[0.08] bg-[rgba(255,255,255,0.84)] px-4 py-4"
+                className="min-w-0 max-w-full overflow-hidden rounded-[1.35rem] border border-black/[0.08] bg-[rgba(255,255,255,0.84)] px-4 py-4"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--ink)]">{event.title}</p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-semibold text-[var(--ink)]">{event.title}</p>
+                    <p className="mt-1 break-words text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                       {event.actorName || "StudioFlow"} | {event.eventType.replaceAll("_", " ")}
                     </p>
                   </div>
-                  <p className="text-xs text-[var(--muted)]">{dateTime.format(new Date(event.occurredAt))}</p>
+                  <p className="shrink-0 text-xs text-[var(--muted)]">{dateTime.format(new Date(event.occurredAt))}</p>
                 </div>
                 {event.description ? (
-                  <p className="mt-3 text-sm leading-7 text-[var(--ink)]">{event.description}</p>
+                  <p className="mt-3 break-words text-sm leading-7 text-[var(--ink)] [overflow-wrap:anywhere]">{event.description}</p>
                 ) : null}
               </article>
             ))}
