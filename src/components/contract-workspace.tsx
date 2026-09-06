@@ -5,6 +5,7 @@ import { createDefaultContractDocument, getContractDocumentSummary, serializeCon
 
 type Props = {
   action: (formData: FormData) => Promise<void>;
+  sendContractAction?: (formData: FormData) => Promise<void>;
   initialDocument: ContractDocument;
   formId: string;
   hiddenFields?: Record<string, string>;
@@ -342,6 +343,7 @@ export function ContractWorkspace({
   hiddenFields,
   initialDocument,
   saveLabel,
+  sendContractAction,
   templateAutosaveClientType,
   titleLabel,
 }: Props) {
@@ -613,9 +615,21 @@ export function ContractWorkspace({
             {autosaveLabel}
           </p>
         </div>
-        <button className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-          {saveLabel}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {sendContractAction ? (
+            <button
+              className="rounded-full border border-[var(--forest)] bg-white px-5 py-3 text-sm font-semibold text-[var(--forest)] transition hover:bg-[rgba(47,125,92,0.08)]"
+              formAction={sendContractAction}
+              formNoValidate
+              type="submit"
+            >
+              Email contract to client
+            </button>
+          ) : null}
+          <button className="rounded-full bg-[var(--sidebar)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+            {saveLabel}
+          </button>
+        </div>
       </div>
 
       <RichTextToolbar

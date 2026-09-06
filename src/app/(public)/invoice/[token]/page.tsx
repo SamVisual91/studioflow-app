@@ -6,7 +6,7 @@ import {
   disableInvoiceAutopayAction,
   submitClientExternalPaymentAction,
 } from "@/app/actions";
-import { processInvoiceAutopay } from "@/lib/autopay";
+import { markInvoicePaymentPaid, processInvoiceAutopay } from "@/lib/autopay";
 import { getDb } from "@/lib/db";
 import { currencyFormatter, shortDate } from "@/lib/formatters";
 import { resolveProjectForInvoice } from "@/lib/invoice-project";
@@ -109,26 +109,6 @@ function parsePaymentSchedule(value: unknown): PaymentScheduleItem[] {
   } catch {
     return [];
   }
-}
-
-function getNextInvoiceStatus(schedule: PaymentScheduleItem[]) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (schedule.every((item) => item.status === "PAID")) {
-    return "PAID";
-  }
-
-  const hasOverdue = schedule.some((item) => {
-    if (item.status === "PAID") {
-      return false;
-    }
-
-    const due = new Date(`${item.dueDate}T00:00:00`);
-    return !Number.isNaN(due.getTime()) && due.getTime() < today.getTime();
-  });
-
-  return hasOverdue ? "OVERDUE" : "DUE_SOON";
 }
 
 function normalizeMethod(method: string) {
@@ -243,24 +223,14 @@ export default async function PublicInvoicePage({
       const sessionPaymentId = String(session.metadata?.paymentId || "");
 
       if (session.payment_status === "paid" && sessionPaymentId) {
-        const paymentSchedule = parsePaymentSchedule(invoice.payment_schedule);
-        const paidAt = new Date().toISOString();
-        const nextPaymentSchedule = paymentSchedule.map((item) =>
-          item.id === sessionPaymentId
-            ? {
-                ...item,
-                status: "PAID",
-                paidAt,
-              }
-            : item
-        );
-
-        db.prepare("UPDATE invoices SET status = ?, payment_schedule = ?, updated_at = ? WHERE id = ?").run(
-          getNextInvoiceStatus(nextPaymentSchedule),
-          JSON.stringify(nextPaymentSchedule),
-          paidAt,
-          String(invoice.id)
-        );
+        // This is a reliable fallback if the client returns from Checkout before the Stripe webhook is delivered.
+        // Ledger writes are idempotent, so the webhook can still arrive later without creating a duplicate payment.
+        markInvoicePaymentPaid(String(invoice.id), sessionPaymentId, {
+          activity: "Stripe payment received",
+          channel: "Stripe checkout",
+          paidAt: session.created ? new Date(session.created * 1000).toISOString() : new Date().toISOString(),
+          preview: `Stripe confirmed payment for ${sessionPaymentId}.`,
+        });
 
         invoice = db
           .prepare("SELECT * FROM invoices WHERE public_token = ? LIMIT 1")

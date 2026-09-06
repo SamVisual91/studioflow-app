@@ -69,6 +69,15 @@ function getString(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
 }
 
+function escapeEmailHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function getUserRole(formData: FormData, key = "role"): UserRole | null {
   const rawRole = getString(formData, key);
 
@@ -6690,6 +6699,142 @@ export async function saveProjectFileAction(formData: FormData) {
 
   revalidatePath(`/projects/${projectId}`);
   redirect(`/projects/${projectId}/files/${newFileId}?created=1`);
+}
+
+export async function sendProjectContractAction(formData: FormData) {
+  await requireUser();
+
+  const projectId = getString(formData, "projectId");
+  const fileId = getString(formData, "fileId");
+
+  if (!projectId || !fileId) {
+    redirect(`/projects/${projectId || ""}?tab=files&error=contract-send-invalid`);
+  }
+
+  const db = getDb();
+  const project = db
+    .prepare("SELECT id, name, client FROM projects WHERE id = ? LIMIT 1")
+    .get(projectId) as { id?: string; name?: string | null; client?: string | null } | undefined;
+  const contractFile = db
+    .prepare("SELECT id, title, body, linked_path FROM project_files WHERE id = ? AND project_id = ? AND type = 'CONTRACT' LIMIT 1")
+    .get(fileId, projectId) as { id?: string; title?: string | null; body?: string | null; linked_path?: string | null } | undefined;
+
+  if (!project?.id || !contractFile?.id) {
+    redirect(`/projects/${projectId}/files/${fileId}?error=contract-send-invalid`);
+  }
+
+  const savedClient = db
+    .prepare("SELECT contact_email FROM clients WHERE name = ? LIMIT 1")
+    .get(String(project.client || "")) as { contact_email?: string | null } | undefined;
+  const projectContact = db
+    .prepare("SELECT email FROM project_contacts WHERE project_id = ? ORDER BY created_at ASC LIMIT 1")
+    .get(projectId) as { email?: string | null } | undefined;
+  const contractDocument = parseContractDocument(String(contractFile.body || ""));
+  const recipientEmail = String(
+    projectContact?.email || savedClient?.contact_email || contractDocument.clientEmail || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (!recipientEmail) {
+    redirect(`/projects/${projectId}/files/${fileId}?error=contract-email-missing`);
+  }
+
+  const timestamp = new Date().toISOString();
+  let contractPath = String(contractFile.linked_path || "").trim();
+  if (!/^\/contract\/[^/]+$/.test(contractPath)) {
+    contractPath = `/contract/${randomUUID()}`;
+    db.prepare("UPDATE project_files SET linked_path = ?, updated_at = ? WHERE id = ? AND project_id = ?").run(
+      contractPath,
+      timestamp,
+      fileId,
+      projectId
+    );
+  }
+
+  const contractUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}${contractPath}`;
+  const projectName = String(project.name || "your project");
+  const clientName = String(project.client || contractDocument.clientName || "there");
+  const contractTitle = String(contractFile.title || "Contract");
+  const subject = withProjectReplyToken(`${contractTitle} for ${projectName}`, projectId);
+  const threadId = getOrCreateProjectEmailThread(db, {
+    createdBy: "Sam Visual",
+    projectId,
+    reuseExistingBySubject: true,
+    subject,
+  });
+  const replyToAddress = getProjectReplyAddress(projectId, threadId);
+  const emailMessageId = randomUUID();
+  const openTrackingToken = randomUUID();
+  const openTrackingPixel = getEmailOpenTrackingPixel({ messageId: emailMessageId, token: openTrackingToken });
+  const plainText = [
+    `Hi ${clientName},`,
+    "",
+    `Your contract for ${projectName} is ready to review and sign.`,
+    "",
+    `Review and sign your contract: ${contractUrl}`,
+    "",
+    "Please reply to this email if you have any questions.",
+    "",
+    "Thanks,",
+    "Sam Visual",
+  ].join("\n");
+  const html = `
+    <div style="background:#f6f0e8; padding:40px 16px; font-family:Arial, sans-serif; color:#1f1b18;">
+      <div style="max-width:680px; margin:0 auto; background:#fffdf9; border:1px solid rgba(31,27,24,0.08); padding:40px 36px;">
+        <p style="margin:0; font-size:11px; letter-spacing:0.28em; text-transform:uppercase; color:#9a8f86;">Contract ready</p>
+        <h1 style="margin:18px 0 12px; font-size:30px; line-height:1.12;">${escapeEmailHtml(projectName)}</h1>
+        <p style="margin:0 0 26px; font-size:17px; line-height:1.8; color:#5f5248;">Your contract is ready to review and sign. You can open it securely using the link below.</p>
+        <a href="${contractUrl}" style="display:inline-block; padding:14px 24px; background:#1f1b18; color:#ffffff; text-decoration:none; font-size:14px; font-weight:700;">Review and sign contract</a>
+        <p style="margin:24px 0 0; font-size:13px; line-height:1.8; color:#9a8f86;">Reply to this email if you have any questions. Your response will stay connected to this project.</p>
+      </div>
+    </div>${openTrackingPixel}
+  `;
+
+  let response: { id?: string } = {};
+  try {
+    response = await sendProposalEmail({
+      to: recipientEmail,
+      replyTo: replyToAddress,
+      subject,
+      text: plainText,
+      html,
+    });
+  } catch (error) {
+    const errorCode = error && typeof error === "object" && "code" in error ? String(error.code || "") : "";
+    const errorMessage = error instanceof Error ? error.message : "Unknown contract email error";
+    console.error("Contract email delivery failed", { projectId, fileId, errorCode, errorMessage });
+    redirect(`/projects/${projectId}/files/${fileId}?error=contract-send-failed`);
+  }
+
+  try {
+    logOutboundProjectEmail(db, {
+      bodyHtml: html,
+      bodyText: plainText,
+      messageId: emailMessageId,
+      openTrackingToken,
+      projectId,
+      providerMessageId: String(response?.id || ""),
+      recipients: [{ email: recipientEmail, type: "TO" }],
+      senderEmail: process.env.EMAIL_FROM || "",
+      senderName: "Sam Visual",
+      sentAt: timestamp,
+      status: "SENT",
+      subject,
+      threadId,
+    });
+    updateProjectRecentActivity(db, projectId, createRecentActivity("Contract emailed to client", timestamp), timestamp);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown project activity error";
+    // Delivery already succeeded, so an activity log failure should not be reported as a sending failure.
+    console.error("Contract email activity logging failed", { projectId, fileId, errorMessage });
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/files/${fileId}`);
+  revalidatePath(`/contract/${contractPath.split("/").at(-1) || ""}`);
+  revalidatePath("/messages");
+  redirect(`/projects/${projectId}/files/${fileId}?contractSent=1`);
 }
 
 export async function saveVideoPaywallAction(formData: FormData) {

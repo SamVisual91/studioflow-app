@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { saveProjectFileAction } from "@/app/actions";
+import { saveProjectFileAction, sendProjectContractAction } from "@/app/actions";
 import { ContractWorkspace } from "@/components/contract-workspace";
 import { parseContractDocument } from "@/lib/contracts";
 import { getDashboardPageData } from "@/lib/dashboard-page";
@@ -10,7 +10,7 @@ export default async function ProjectFileEditorPage({
   searchParams,
 }: {
   params: Promise<{ id: string; fileId: string }>;
-  searchParams: Promise<{ created?: string; saved?: string }>;
+  searchParams: Promise<{ created?: string; saved?: string; contractSent?: string; error?: string }>;
 }) {
   const [{ id, fileId }, query] = await Promise.all([params, searchParams]);
   const { data } = await getDashboardPageData();
@@ -43,9 +43,25 @@ export default async function ProjectFileEditorPage({
               Contract saved successfully.
             </div>
           ) : null}
+          {query.contractSent === "1" ? (
+            <div className="mb-6 rounded-[1.5rem] border border-[rgba(47,125,92,0.24)] bg-[rgba(47,125,92,0.08)] px-5 py-4 text-sm text-[var(--forest)]">
+              Contract emailed to the client. Their reply will appear in this project&apos;s Activity tab.
+            </div>
+          ) : null}
+          {query.error === "contract-email-missing" ? (
+            <div className="mb-6 rounded-[1.5rem] border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-5 py-4 text-sm text-[var(--accent)]">
+              Add a client email to this project before sending the contract.
+            </div>
+          ) : null}
+          {query.error === "contract-send-failed" ? (
+            <div className="mb-6 rounded-[1.5rem] border border-[rgba(207,114,79,0.26)] bg-[rgba(207,114,79,0.08)] px-5 py-4 text-sm text-[var(--accent)]">
+              The contract could not be sent. Please check the email settings and try again.
+            </div>
+          ) : null}
 
           <ContractWorkspace
             action={saveProjectFileAction}
+            sendContractAction={sendProjectContractAction}
             formId="project-contract-edit-form"
             helperText={`Editing the shared contract for ${project.name}. Click into any section, line item, or signature block to update it.`}
             hiddenFields={{
