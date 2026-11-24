@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { signProjectContractAction } from "@/app/actions";
 import { parseContractDocument } from "@/lib/contracts";
 import { getDb } from "@/lib/db";
+import { ContractPrintButton } from "@/components/contract-print-button";
 
 const signatureFont = '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive';
 
@@ -37,7 +38,8 @@ export default async function PublicContractPage({
 
   return (
     <main className="min-h-screen bg-[var(--canvas)] px-3 py-8 text-[var(--ink)]">
-      <div className="mx-auto max-w-5xl overflow-hidden rounded-[0.6rem] border border-black/[0.08] bg-white shadow-[0_24px_80px_rgba(58,34,17,0.12)]">
+      <div className="mx-auto max-w-5xl pb-4 text-right"><ContractPrintButton /></div>
+      <div className="contract-print-document mx-auto max-w-5xl overflow-hidden rounded-[0.6rem] border border-black/[0.08] bg-white shadow-[0_24px_80px_rgba(58,34,17,0.12)]">
         {query.signed === "client" ? (
           <Banner message="Contract signed successfully." tone="success" />
         ) : null}
@@ -182,11 +184,11 @@ export default async function PublicContractPage({
                         }`}
                         style={{ fontFamily: signatureFont }}
                       >
-                        {contract.clientSignature.name || contract.clientName || "Click to sign"}
+                        {contract.clientSignature.signedAt && contract.clientSignature.name ? contract.clientSignature.name : <span className="contract-print-hide">Click to sign</span>}
                       </p>
                     </div>
                   </button>
-                  <label className="block text-sm">
+                  <label className="contract-print-hide block text-sm">
                     <span className="font-semibold text-[var(--ink)]">Signature name</span>
                     <input
                       className="mt-2 w-full rounded-[0.85rem] border border-black/[0.10] px-3 py-2 outline-none transition focus:border-[var(--forest)]"
@@ -198,9 +200,9 @@ export default async function PublicContractPage({
                   <div className="grid gap-1 text-sm text-[var(--muted)]">
                     <p className="font-semibold text-[var(--ink)]">{contract.clientName || "Client"}</p>
                     <p>{contract.clientEmail || "No email added"}</p>
-                    <p>Signed: {contract.clientSignature.signedAt || "Pending"}</p>
+                    {contract.clientSignature.signedAt ? <p>Signed: {contract.clientSignature.signedAt}</p> : null}
                   </div>
-                  <button className="rounded-full bg-[var(--forest)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+                  <button className="contract-print-hide rounded-full bg-[var(--forest)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
                     Sign contract
                   </button>
                 </form>
@@ -257,13 +259,13 @@ function StaticSignature({
           className={`text-[3rem] leading-none text-[var(--ink)] transition ${name ? "" : "opacity-40"}`}
           style={{ fontFamily: signatureFont }}
         >
-          {name || "Pending signature"}
+          {dateLabel && name ? name : null}
         </p>
       </div>
       <div className="mt-2 grid gap-1 text-sm text-[var(--muted)]">
         <p className="font-semibold text-[var(--ink)]">{personLabel}</p>
         <p>{email || "No email added"}</p>
-        <p>Signed: {dateLabel || "Pending"}</p>
+        {dateLabel ? <p>Signed: {dateLabel}</p> : null}
       </div>
     </div>
   );

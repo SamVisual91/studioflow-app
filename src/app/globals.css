@@ -187,3 +187,20 @@ table {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+@media print {
+  body:has(.contract-print-document) * { visibility: hidden; }
+  body:has(.contract-print-document) .contract-print-document,
+  body:has(.contract-print-document) .contract-print-document * { visibility: visible; }
+  body:has(.contract-print-document) .contract-print-document {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+    overflow: visible;
+    border: 0;
+    box-shadow: none;
+  }
+  body:has(.contract-print-document) .contract-print-hide,
+  body:has(.contract-print-document) .contract-print-hide * { display: none !important; }
+}

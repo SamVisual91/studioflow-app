@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createDefaultContractDocument, getContractDocumentSummary, serializeContractDocument, type ContractDocument } from "@/lib/contracts";
+import { ContractPrintButton } from "@/components/contract-print-button";
 
 type Props = {
   action: (formData: FormData) => Promise<void>;
@@ -126,7 +127,7 @@ function RichTextToolbar({
   };
 
   return (
-    <div className={`${sticky ? "sticky top-3 z-20" : ""} flex flex-wrap items-center gap-2 rounded-[0.9rem] border border-black/[0.08] bg-[#f4efe7] px-3 py-2 shadow-[0_10px_24px_rgba(59,36,17,0.08)]`}>
+    <div className={`contract-print-hide ${sticky ? "sticky top-3 z-20" : ""} flex flex-wrap items-center gap-2 rounded-[0.9rem] border border-black/[0.08] bg-[#f4efe7] px-3 py-2 shadow-[0_10px_24px_rgba(59,36,17,0.08)]`}>
       {label ? <span className="mr-1 text-[0.66rem] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">{label}</span> : null}
       <select
         className="h-9 rounded-md border border-black/[0.08] bg-white px-3 text-sm text-[var(--ink)] outline-none disabled:cursor-not-allowed disabled:opacity-45"
@@ -324,13 +325,13 @@ function SignatureBlock({
           className={`text-[3rem] leading-none text-[var(--ink)] transition ${name ? "" : "opacity-40"}`}
           style={{ fontFamily: signatureFont }}
         >
-          {name || "Click to sign"}
+          {dateLabel && name ? name : <span className="contract-print-hide">Click to sign</span>}
         </p>
       </div>
       <div className="mt-2 grid gap-1 text-sm text-[var(--muted)]">
         <p className="font-semibold text-[var(--ink)]">{personLabel}</p>
         <p>{email || "No email added"}</p>
-        <p>Signed: {dateLabel || "Pending"}</p>
+        {dateLabel ? <p>Signed: {dateLabel}</p> : null}
       </div>
     </button>
   );
@@ -616,6 +617,7 @@ export function ContractWorkspace({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <ContractPrintButton />
           {sendContractAction ? (
             <button
               className="rounded-full border border-[var(--forest)] bg-white px-5 py-3 text-sm font-semibold text-[var(--forest)] transition hover:bg-[rgba(47,125,92,0.08)]"
@@ -639,7 +641,7 @@ export function ContractWorkspace({
         onRun={runEditorCommand}
       />
 
-      <section className="overflow-hidden rounded-[0.6rem] border border-black/[0.08] bg-white shadow-[0_24px_70px_rgba(59,36,17,0.10)]">
+      <section className="contract-print-document overflow-hidden rounded-[0.6rem] border border-black/[0.08] bg-white shadow-[0_24px_70px_rgba(59,36,17,0.10)]">
         <div
           className="relative overflow-hidden px-8 py-9 text-white sm:px-10"
           style={{
