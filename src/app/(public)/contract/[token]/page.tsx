@@ -179,7 +179,7 @@ export default async function PublicContractPage({
                   <button className="block w-full text-left" type="submit">
                     <div className="min-h-16 border-b-2 border-dashed border-[#7f776b] pb-1">
                       <p
-                        className={`text-[3rem] leading-none text-[var(--ink)] transition ${
+                        className={`contract-print-hide text-[3rem] leading-none text-[var(--ink)] transition ${
                           contract.clientSignature.name ? "" : "opacity-40"
                         }`}
                         style={{ fontFamily: signatureFont }}
@@ -200,7 +200,7 @@ export default async function PublicContractPage({
                   <div className="grid gap-1 text-sm text-[var(--muted)]">
                     <p className="font-semibold text-[var(--ink)]">{contract.clientName || "Client"}</p>
                     <p>{contract.clientEmail || "No email added"}</p>
-                    {contract.clientSignature.signedAt ? <p>Signed: {contract.clientSignature.signedAt}</p> : null}
+                    {contract.clientSignature.signedAt ? <p className="contract-print-hide">Signed: {contract.clientSignature.signedAt}</p> : null}
                   </div>
                   <button className="contract-print-hide rounded-full bg-[var(--forest)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110">
                     Sign contract
@@ -256,7 +256,7 @@ function StaticSignature({
     <div>
       <div className="min-h-16 border-b-2 border-dashed border-[#7f776b] pb-1">
         <p
-          className={`text-[3rem] leading-none text-[var(--ink)] transition ${name ? "" : "opacity-40"}`}
+          className={`contract-print-hide text-[3rem] leading-none text-[var(--ink)] transition ${name ? "" : "opacity-40"}`}
           style={{ fontFamily: signatureFont }}
         >
           {dateLabel && name ? name : null}
@@ -265,7 +265,7 @@ function StaticSignature({
       <div className="mt-2 grid gap-1 text-sm text-[var(--muted)]">
         <p className="font-semibold text-[var(--ink)]">{personLabel}</p>
         <p>{email || "No email added"}</p>
-        {dateLabel ? <p>Signed: {dateLabel}</p> : null}
+        {dateLabel ? <p className="contract-print-hide">Signed: {dateLabel}</p> : null}
       </div>
     </div>
   );

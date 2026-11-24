@@ -322,7 +322,7 @@ function SignatureBlock({
     <button className="w-full text-left" onClick={onClickSign} type="button">
       <div className="min-h-16 border-b-2 border-dashed border-[#7f776b] pb-1">
         <p
-          className={`text-[3rem] leading-none text-[var(--ink)] transition ${name ? "" : "opacity-40"}`}
+          className={`contract-print-hide text-[3rem] leading-none text-[var(--ink)] transition ${name ? "" : "opacity-40"}`}
           style={{ fontFamily: signatureFont }}
         >
           {dateLabel && name ? name : <span className="contract-print-hide">Click to sign</span>}
@@ -331,7 +331,7 @@ function SignatureBlock({
       <div className="mt-2 grid gap-1 text-sm text-[var(--muted)]">
         <p className="font-semibold text-[var(--ink)]">{personLabel}</p>
         <p>{email || "No email added"}</p>
-        {dateLabel ? <p>Signed: {dateLabel}</p> : null}
+        {dateLabel ? <p className="contract-print-hide">Signed: {dateLabel}</p> : null}
       </div>
     </button>
   );
